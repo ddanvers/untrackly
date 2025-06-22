@@ -15,7 +15,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
 
   function initPeer() {
     const options = {
-      host: 'localhost',
+      host: '0.0.0.0',
       port: 9000,
       path: '/peerjs',
       debug: 2
