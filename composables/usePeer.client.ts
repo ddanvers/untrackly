@@ -16,9 +16,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   function initPeer() {
     const options = {
       host: 'launchat-0-0-1.onrender.com',
-      port: 443,
-      path: '/peerjs',
-      debug: 2
+      port: 9000,
+      path: '/peerjs'
     }
     // Для инициатора — используем свой sessionId, для клиента — PeerJS сгенерирует ID
     peer.value = isInitiator
