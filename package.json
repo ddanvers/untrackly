@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev --port 5464",
     "generate": "nuxt generate",
+    "start": "nuxt start",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
