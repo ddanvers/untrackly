@@ -1,113 +1,102 @@
 <template>
-  <div class="chat-window">
-    <h2>Simple Peer Chat</h2>
+  <section class="chat">
+    <header class="chat__header">
+      <span class="chat__title">{{ title }}</span>
+      <!-- <button class="chat__call" @click="$emit('call')">Позвонить</button> -->
+    </header>
 
-    <div class="controls">
-      <label>
-        <input type="checkbox" v-model="isInitiator" />
-        Я инициатор
-      </label>
-      <button @click="createPeer">Создать peer</button>
-      <button @click="applyRemoteSignal">Применить сигнал</button>
-      <button @click="disconnect">Отключиться</button>
+    <div 
+      class="chat__body" 
+      ref="bodyRef" 
+      @scroll="onScroll"
+    >
+      <CChatMessage
+        v-for="msg in messages"
+        :key="msg.id"
+        :message="msg"
+        :isMe="msg.sender === meId"
+        @read="onRead(msg.id)"
+      />
     </div>
 
-    <div class="signal-blocks">
-      <div>
-        <label>Локальный сигнал</label>
-        <textarea
-          readonly
-          :value="localSignal"
-          @click="copyToClipboard(localSignal)"
-        ></textarea>
-      </div>
-      <div>
-        <label>Удалённый сигнал</label>
-        <textarea v-model="remoteSignal" placeholder="Вставьте сюда JSON"></textarea>
-      </div>
-    </div>
-
-    <div class="chat">
-      <div v-for="(msg, idx) in messages" :key="idx" class="message">
-        {{ msg }}
-      </div>
-    </div>
-
-    <form @submit.prevent="onSend">
-      <input v-model="message" placeholder="Сообщение..." />
-      <button type="submit">Отправить</button>
-    </form>
-  </div>
+    <CChatMessageForm @send="sendMessage" />
+  </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { usePeer } from '~/composables/usePeer'
 
-const message = ref('')
-const {
-  isInitiator,
-  messages,
-  localSignal,
-  remoteSignal,
-  createPeer,
-  applyRemoteSignal,
-  sendMessage,
-  disconnect
-} = usePeer()
-
-function onSend() {
-  if (message.value.trim()) {
-    sendMessage(message.value.trim())
-    message.value = ''
-  }
+interface Message {
+  id: string
+  sender: string
+  text: string
+  timestamp: number
+  read?: boolean
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text)
-    .then(() => alert('Скопировано!'))
-    .catch(() => alert('Не удалось скопировать'))
+const props = defineProps<{
+  title: string
+  meId: string
+  messages: Message[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'sendMessage', payload: string): void
+  (e: 'readMessage', id: string): void
+}>()
+
+const bodyRef = ref<HTMLElement>()
+
+function scrollToBottom() {
+  const el = bodyRef.value
+  if (el) el.scrollTop = el.scrollHeight
+}
+
+// при монтировании скроллим вниз
+onMounted(scrollToBottom)
+
+// отправка
+function sendMessage(text: string) {
+  emit('sendMessage', text)
+  // после нового сообщения: автоскролл
+  setTimeout(scrollToBottom, 0)
+}
+
+// чтение при скролле: помечаем прочитанные, когда они попадают в зону видимости
+function onScroll() {
+  const el = bodyRef.value
+  if (!el) return
+  // находим все сообщения в DOM
+  const items = el.querySelectorAll<HTMLElement>('.chat__message')
+  items.forEach(item => {
+    const rect = item.getBoundingClientRect()
+    if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+      const id = item.dataset.id!
+      emit('readMessage', id)
+    }
+  })
+}
+
+// ручной вызов от ChatMessage
+function onRead(id: string) {
+  emit('readMessage', id)
 }
 </script>
 
-<style scoped>
-.chat-window {
-  max-width: 600px;
-  margin: auto;
-  font-family: sans-serif;
-}
-.controls {
-  margin-bottom: 1em;
-  display: flex;
-  gap: 1em;
-  align-items: center;
-}
-.signal-blocks {
-  display: flex;
-  gap: 1em;
-  margin-bottom: 1em;
-}
-.signal-blocks textarea {
-  width: 100%;
-  height: 100px;
-  font-family: monospace;
-}
+<style lang="scss" scoped>
 .chat {
-  background: #f3f3f3;
-  border: 1px solid #ccc;
-  height: 200px;
-  overflow-y: auto;
-  padding: 0.5em;
-  margin-bottom: 1em;
-}
-.message {
-  margin-bottom: 0.3em;
-}
-form {
-  display: flex;
-  gap: 0.5em;
-}
-form input {
-  flex-grow: 1;
+    background-color: #0E0D22;
+  &__header {
+    display: flex;
+    justify-content: space-between;
+
+    padding: 16px;
+  }
+  &__title { font-size: 32px;     color: #F8EAD1;}
+  &__body {
+    background: #0f0f2f;
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+    padding: 1rem;
+  }
 }
 </style>

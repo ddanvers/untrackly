@@ -1,15 +1,16 @@
-import Aura from '@primeuix/themes/aura';
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
-  modules: ['@primevue/nuxt-module', '@nuxtjs/i18n'],
-  primevue: {
-      options: {
-          theme: {
-              preset: Aura
-          }
-      }
-  },
+  modules: [
+    '@nuxtjs/i18n',
+    '@nuxt/image',
+  ],
+    css: [
+    "normalize.css/normalize.css",
+    "@/assets/styles/main.scss",
+    "@/assets/styles/fonts.scss",
+    "@/assets/styles/typography.scss"
+  ],
   i18n: {
     locales: [
       { code: 'en', language: 'en-US' },
