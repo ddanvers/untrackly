@@ -11,4 +11,4 @@ RUN npm install -g peer concurrently
 
 EXPOSE 10000 443
 
-CMD concurrently "npm run start" "peerjs --port 9000 --path /peerjs"
+CMD concurrently "npm run start" "peerjs --port 443 --path /peerjs"
