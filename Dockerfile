@@ -9,6 +9,6 @@ COPY . .
 RUN npm run build
 RUN npm install -g peer concurrently
 
-EXPOSE 10000 9000
+EXPOSE 10000
 
-CMD concurrently "npm run start" "peerjs --port 9000 --path /peerjs"
+CMD concurrently "npm run start" "peerjs --path /peerjs"
