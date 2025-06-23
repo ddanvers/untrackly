@@ -7,7 +7,9 @@ body {
   font-weight: 400;
   height: 100dvh;
 }
-
+* {
+  box-sizing: border-box;
+}
 fieldset {
   margin: 0;
   padding: 0;

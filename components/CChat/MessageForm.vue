@@ -1,18 +1,19 @@
 <template>
   <form class="form" @submit.prevent="onSubmit">
     <!-- <button type="button" class="form__attach" @click="attach()">📎</button> -->
-    <input
+    <textarea
       v-model="text"
       class="form__input"
       type="text"
       placeholder="Ваше сообщение"
+      @keyup.enter="onSubmit"
+      rows="3"
     />
-    <button type="submit" class="form__send"><NuxtImg src="/icons/chat/send.svg"></NuxtImg></button>
+    <CButton bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/send.svg" width="32px"></NuxtImg></CButton>
   </form>
 </template>
 
 <script setup lang="ts">
-
 const emit = defineEmits<{
   (e: 'send', text: string): void
 }>()
@@ -38,22 +39,13 @@ function attach() {
   align-items: center;
   padding: 1rem;
   background: #0f0f2f;
-
-  &__attach,
-  &__send {
-    background: none;
-    border: none;
-    color: #f5f5dc;
-    font-size: 1.25rem;
-    cursor: pointer;
-    padding: 0 .5rem;
-  }
-
   &__input {
     flex: 1;
     padding: .75rem 1rem;
     border-radius: 1rem;
     border: none;
+    outline: none;
+    resize: none;
     margin: 0 .5rem;
     background: #f5eed9;
     color: #111;

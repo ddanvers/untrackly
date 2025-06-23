@@ -1,6 +1,6 @@
 // composables/usePeer.client.ts
-import { ref, onBeforeUnmount } from 'vue'
 import Peer from 'peerjs'
+
 interface Message {
   id: string
   sender: string
@@ -13,6 +13,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   const conn = ref<Peer.DataConnection | null>(null)
   const messages = ref<Message[]>([])
 
+  const isConnectionEstablished = ref(false)
   function initPeer() {
     const options = {
       host: 'peerjs-server-gims.onrender.com',
@@ -52,6 +53,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     conn.value = connection
     connection.on('open', () => {
       console.log('[PeerJS] Connection open')
+      isConnectionEstablished.value = true
     })
     connection.on('data', (data: string)=> {
       messages.value.push(JSON.parse(data) as Message)
@@ -59,9 +61,11 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     connection.on('close', () => {
       console.log('[PeerJS] Connection closed')
       conn.value = null
+      isConnectionEstablished.value = false
     })
     connection.on('error', err => {
       console.error('[PeerJS] Connection error:', err)
+      isConnectionEstablished.value = false
     })
   }
 
@@ -93,6 +97,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   return {
     messages,
     peer,
+    isConnectionEstablished,
     initPeer,
     sendMessage,
     destroy,

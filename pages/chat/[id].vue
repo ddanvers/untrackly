@@ -2,64 +2,175 @@
   <main class="page-chat">
     <section v-if="step === 'invite'" class="person-invitation">
       <section v-if="!isInvited" class="person-invitation__content">
-        <div class="person-invitation__hint">Поделитесь пригласительной ссылкой с участником чата любым удобным для вас способом</div>
+        <div class="person-invitation__hint">
+          Поделитесь пригласительной ссылкой с участником чата любым удобным для вас способом
+        </div>
         <div class="person-invitation__link-container">
-          <span class="person-invitation__link">{{ getInviteLink() }}</span>
-          <CButton @click="copy"  bgColor="#000000"><span style="color: white">Скопировать</span></CButton>
+          <div
+            ref="linkBlock"
+            class="person-invitation__link-wrapper"
+            :style="{
+              height: fixedHeight ? fixedHeight + 'px' : 'auto',
+              backgroundColor: animating ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            }"
+          >
+            <span class="person-invitation__link">{{ displayText }}</span>
+          </div>
+        <CButton @click="copy" bgColor="#000000" :disabled="copying">
+          <span style="color: white">Скопировать</span>
+        </CButton>
         </div>
       </section>
       <section v-else class="person-invitation__content">
-        <div class="person-invitation__hint">С вами поделились пригласительной ссылкой. <br>
-Примите приглашение, чтобы начать чат или отклоните его.</div>
+        <div class="person-invitation__hint">
+          С вами поделились пригласительной ссылкой. <br />
+          Примите приглашение, чтобы начать чат или отклоните его.
+        </div>
       </section>
       <section class="person-invitation__button-container">
-        <CButton @click="goToChat" v-if="!isInvited" height="78px" bgColor="#000000" class="person-invitation__button" size="large"><span>Перейти в чат</span></CButton>
-        <CButton @click="goToChat" v-if="isInvited" height="78px" bgColor="#000000" class="person-invitation__button" size="large"><span>Принять</span></CButton>
-        <CButton @click="rejectInvite" v-if="isInvited" height="78px" bgColor="#000000" class="person-invitation__button" size="large"><span>Отклонить</span></CButton>
+        <CButton
+          @click="goToChat"
+          v-if="!isInvited"
+          height="78px"
+          bgColor="#000000"
+          class="person-invitation__button"
+          size="large"
+        >
+          <span>Перейти в чат</span>
+        </CButton>
+        <CButton
+          @click="goToChat"
+          v-if="isInvited"
+          height="78px"
+          bgColor="#000000"
+          class="person-invitation__button"
+          size="large"
+        >
+          <span>Принять</span>
+        </CButton>
+        <CButton
+          @click="rejectInvite"
+          v-if="isInvited"
+          height="78px"
+          bgColor="#000000"
+          class="person-invitation__button"
+          size="large"
+        >
+          <span>Отклонить</span>
+        </CButton>
       </section>
     </section>
-    <section v-else class="page-chat__chat-window"><CChatWindow title="Ваш собеседник" :messages="messages" @sendMessage="sendMessage" :meId="peer?.id"/></section>
+
+<section v-else-if="step === 'waiting'" class="page-chat__waiting-window">
+    Ожидается подключение собеседника
+    <span class="loader"></span>
+</section>
+
+
+
+    <section v-else-if="step === 'chat'" class="page-chat__chat-window">
+      <CChatWindow
+        title="Ваш собеседник"
+        :messages="messages"
+        @sendMessage="sendMessage"
+        :meId="peer?.id"
+      />
+    </section>
   </main>
 </template>
 
 <script setup lang="ts">
-interface Message {
-  id: string
-  sender: string
-  text: string
-  timestamp: number
-  read?: boolean
-}
-const step = shallowRef<"invite" | "chat">("invite")
-const route = useRoute();
-const sessionId = route.params.id as string
-const isInvited = ref(route.query.invited)
-const { messages, initPeer, sendMessage, peer } = usePeer(sessionId, !isInvited.value)
-function getInviteLink() {
-  return `${window.location.href}?invited=true`
-}
-function copy() {
-  navigator.clipboard.writeText(getInviteLink())
-}
-function goToChat() {
-    initPeer();
-    setTimeout(() => {
-        step.value = "chat";
-  console.log(peer.value);
+import { ref, shallowRef, watch } from "vue";
 
-    }, 1000)
+interface Message {
+  id: string;
+  sender: string;
+  text: string;
+  timestamp: number;
+  read?: boolean;
 }
+
+const step = shallowRef<"invite" | "waiting" | "chat">("invite");
+const route = useRoute();
+const linkBlock = ref<HTMLElement | null>(null);
+const copying = ref(false);
+const sessionId = route.params.id as string;
+const isInvited = ref(route.query.invited);
+const fixedHeight = ref<number | null>(null);
+const animating = ref(false);
+const displayText = ref(getInviteLink());
+
+const { messages, initPeer, sendMessage, peer, isConnectionEstablished } = usePeer(
+  sessionId,
+  !isInvited.value
+);
+
+function getInviteLink() {
+  if (!window) return "Генерируем ссылку...";
+  return `${window.location.href}?invited=true`;
+}
+
+async function copy() {
+  if (copying.value) return; // Если уже копируем — выходим
+
+  copying.value = true;     // Блокируем кнопку
+
+  if (!linkBlock.value) {
+    copying.value = false;   // Если нет блока, разблокируем и выходим
+    return;
+  }
+
+  fixedHeight.value = linkBlock.value.offsetHeight;
+
+  await navigator.clipboard.writeText(getInviteLink());
+
+  animating.value = true;
+  displayText.value = "";
+
+  const targetText = "Скопировано";
+
+  setTimeout(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      displayText.value += targetText[i];
+      i++;
+      if (i >= targetText.length) {
+        clearInterval(interval);
+        setTimeout(() => {
+          displayText.value = getInviteLink();
+          animating.value = false;
+          fixedHeight.value = null;
+          copying.value = false;  // Разблокируем кнопку после окончания анимации
+        }, 1000);
+      }
+    }, 50);
+  }, 300);
+}
+
+
+function goToChat() {
+  initPeer();
+  step.value = "waiting";
+}
+
 function rejectInvite() {
-  navigateTo("/")
+  navigateTo("/");
 }
+
+watch(isConnectionEstablished, () => {
+  if (isConnectionEstablished.value) {
+    step.value = "chat";
+  }
+});
 </script>
 
 <style scoped lang="scss">
 .page-chat {
   height: 100vh;
   width: 100vw;
-  background: linear-gradient(-60deg, #7D066D 0%, #000000 89%);
+  background: linear-gradient(-60deg, #7d066d 0%, #000000 89%);
   position: relative;
+
   .person-invitation {
     position: absolute;
     top: 50%;
@@ -70,18 +181,22 @@ function rejectInvite() {
     align-items: center;
     gap: 24px;
     width: 100%;
+
     &__content {
       display: flex;
       align-items: center;
       gap: 128px;
-      padding: 0px 120px;
-    } 
+      padding: 0 120px;
+    }
+
     &__hint {
       font-size: 24px;
       text-wrap: balance;
       text-align: center;
       color: white;
+      max-width: 800px;
     }
+
     &__link-container {
       display: flex;
       flex-direction: column;
@@ -89,30 +204,71 @@ function rejectInvite() {
       justify-content: center;
       gap: 32px;
     }
-    &__link {
+
+    &__link-wrapper {
+      position: relative;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 32px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      width: 320px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
       color: white;
       font-size: 18px;
-      width: max-content;
+      font-weight: 500;
+      text-align: center;
+      word-break: break-word;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
     }
+
+    &__link {
+      display: block;
+      width: 100%;
+    }
+
     &__button-container {
       width: 100%;
       display: flex;
       gap: 40px;
       justify-content: center;
       margin-top: 120px;
+
       .person-invitation__button {
         width: fit-content;
+
         span {
           color: white;
           font-size: 22px;
         }
-
       }
-
     }
   }
+
+  &__waiting-window {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+        display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
   &__chat-window {
-    width: 1215px;
+    width: 960px;
+    max-width: 100%;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -121,4 +277,77 @@ function rejectInvite() {
     overflow: hidden;
   }
 }
+.loader {
+  box-sizing: border-box;
+  display: inline-block;
+  width: 50px;
+  height: 80px;
+  border-top: 5px solid #fff;
+  border-bottom: 5px solid #fff;
+  position: relative;
+  background: linear-gradient(#c115c9 30px, transparent 0) no-repeat;
+  background-size: 2px 40px;
+  background-position: 50% 0px;
+  animation: spinx 5s linear infinite;
+}
+.loader:before, .loader:after {
+  content: "";
+  width: 40px;
+  left: 50%;
+  height: 35px;
+  position: absolute;
+  top: 0;
+  transform: translatex(-50%);
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 0 0 20px 20px;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: 0 0px;
+  animation: lqt 5s linear infinite;
+}
+.loader:after {
+  top: auto;
+  bottom: 0;
+  border-radius: 20px 20px 0 0;
+  animation: lqb 5s linear infinite;
+}
+@keyframes lqt {
+  0%, 100% {
+    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-position: 0% 0px;
+  }
+  50% {
+    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-position: 0% 40px;
+  }
+  50.1% {
+    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-position: 0% -40px;
+  }
+}
+@keyframes lqb {
+  0% {
+    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-position: 0 40px;
+  }
+  100% {
+    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-position: 0 -40px;
+  }
+}
+@keyframes spinx {
+  0%, 49% {
+    transform: rotate(0deg);
+    background-position: 50% 36px;
+  }
+  51%, 98% {
+    transform: rotate(180deg);
+    background-position: 50% 4px;
+  }
+  100% {
+    transform: rotate(360deg);
+    background-position: 50% 36px;
+  }
+}
+    
 </style>

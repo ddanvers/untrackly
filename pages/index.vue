@@ -6,7 +6,7 @@
       </section>
       <div class="page-hero__action-container">
         <button class="page-hero__launch-btn" @click="launchChat">
-          <NuxtImg src="/icons/play_circle.svg" width="205px" class="page-hero__launch-icon" />
+          <NuxtImg src="/icons/play_circle.svg" width="180px" class="page-hero__launch-icon" />
           <span>Запустить чат</span>
         </button>
       </div>
@@ -34,7 +34,7 @@ function launchChat() {
     top: 310px;
     left: 10%;
     .page-hero__slogan {
-      font-size: 32px;
+      font-size: 24px;
       color: white;
     }
   }
@@ -58,7 +58,7 @@ function launchChat() {
         pointer-events: none;
       }
       span {
-        font-size: 32px;
+        font-size: 24px;
         color: white;
       }
     }

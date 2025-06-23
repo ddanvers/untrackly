@@ -93,6 +93,9 @@ function onRead(id: string) {
   }
   &__title { font-size: 32px;     color: #F8EAD1;}
   &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
     background: #0f0f2f;
     height: calc(100vh - 200px);
     overflow-y: auto;
