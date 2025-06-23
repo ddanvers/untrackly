@@ -7,8 +7,7 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
-RUN npm install -g peer concurrently
 
-EXPOSE 10000 443
+EXPOSE 10000
 
-CMD concurrently "npm run start" "peerjs --port 443 --path /peerjs"
+CMD "npm run start"
