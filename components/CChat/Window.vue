@@ -83,23 +83,33 @@ function onRead(id: string) {
 </script>
 
 <style lang="scss" scoped>
+$app-desktop: 1294px;
+$app-laptop: 960px;
+$app-mobile: 600px;
+$app-narrow-mobile: 364px;
 .chat {
     background-color: #0E0D22;
+    height: 100%;
+    width: 100%;
   &__header {
     display: flex;
     justify-content: space-between;
 
     padding: 16px;
   }
-  &__title { font-size: 32px;     color: #F8EAD1;}
+  &__title { font-size: 32px;     color: #F8EAD1;
+  @media screen and (max-width: $app-mobile) {
+    font-size: 24px;
+  }
+  }
   &__body {
     display: flex;
     flex-direction: column;
     gap: 24px;
     background: #0f0f2f;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 180px);
     overflow-y: auto;
-    padding: 1rem;
+    padding: 16px;
   }
 }
 </style>
