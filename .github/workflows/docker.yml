@@ -3,6 +3,8 @@ name: Build and Push Docker image
 on:
   push:
     branches: [ main, develop ]
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
@@ -13,6 +15,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Extract version
+        id: extract_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -30,4 +38,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/launchat:0.0.12
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/launchat:${{ env.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/launchat:latest

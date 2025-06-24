@@ -24,7 +24,7 @@
       <section v-else class="person-invitation__content">
         <div class="person-invitation__hint">
           С вами поделились пригласительной ссылкой. <br />
-          Примите приглашение, чтобы начать чат или отклоните его.
+          Примите приглашение, чтобы начать чат.
         </div>
       </section>
       <section class="person-invitation__button-container">
@@ -165,17 +165,22 @@ watch(isConnectionEstablished, () => {
 </script>
 
 <style scoped lang="scss">
+$app-desktop: 1294px;
+$app-laptop: 960px;
+$app-mobile: 600px;
+$app-narrow-mobile: 364px;
 .page-chat {
   height: 100vh;
+  min-height: max-content;
   width: 100vw;
   background: linear-gradient(-60deg, #7d066d 0%, #000000 89%);
   position: relative;
-
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
   .person-invitation {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -185,8 +190,19 @@ watch(isConnectionEstablished, () => {
     &__content {
       display: flex;
       align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
       gap: 128px;
-      padding: 0 120px;
+      max-width: 100%;
+      @media screen and (max-height: 750px) and (max-width: $app-desktop) {
+        gap: 64px;
+      }
+      @media screen and (max-width: $app-mobile) {
+        gap: 32px;
+      }
+                                            @media screen and (max-height: 420px) {
+ gap: 32px;
+        }
     }
 
     &__hint {
@@ -195,6 +211,12 @@ watch(isConnectionEstablished, () => {
       text-align: center;
       color: white;
       max-width: 800px;
+      @media screen and (max-width: $app-mobile) {
+        font-size: 20px;
+      }
+                                            @media screen and (max-height: 420px) {
+ font-size: 20px;
+        }
     }
 
     &__link-container {
@@ -203,6 +225,7 @@ watch(isConnectionEstablished, () => {
       align-items: center;
       justify-content: center;
       gap: 32px;
+            max-width: 100%;
     }
 
     &__link-wrapper {
@@ -210,8 +233,9 @@ watch(isConnectionEstablished, () => {
       min-height: 72px;
       display: flex;
       align-items: center;
+      max-width: 100%;
       justify-content: center;
-      padding: 20px 32px;
+      padding: 24px 32px;
       border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.15);
       width: 320px;
@@ -228,6 +252,14 @@ watch(isConnectionEstablished, () => {
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
         border-color: rgba(255, 255, 255, 0.2);
       }
+            @media screen and (max-width: $app-mobile) {
+        font-size: 16px;
+        padding: 12px 16px;
+      }
+                                      @media screen and (max-height: 420px) {
+                    font-size: 16px;
+        padding: 12px 16px;
+        }
     }
 
     &__link {
@@ -240,8 +272,15 @@ watch(isConnectionEstablished, () => {
       display: flex;
       gap: 40px;
       justify-content: center;
-      margin-top: 120px;
-
+      margin-top: 10vh;
+      @media screen and (max-width: $app-mobile) {
+        margin-top: 5vh;
+      }
+      @media screen and (max-width: $app-narrow-mobile) {
+        flex-direction: column;
+        gap: 16px;
+        align-items: center;
+      }
       .person-invitation__button {
         width: fit-content;
 
@@ -275,6 +314,11 @@ watch(isConnectionEstablished, () => {
     transform: translate(-50%, -50%);
     border-radius: 24px;
     overflow: hidden;
+    @media screen and (max-width: $app-laptop) {
+      height: 100vh;
+      width: 100vw;
+      border-radius: 0;
+    }
   }
 }
 .loader {

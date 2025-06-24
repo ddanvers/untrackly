@@ -9,7 +9,7 @@
   >
     <div class="chat__message__meta">
       <span class="chat__sender">{{ isMe ? 'Вы' : 'Собеседник' }}</span>
-      <span class="chat__time">{{ timeConverter(props.message.timestamp) }}</span>
+      <span class="chat__time">{{ formattedTime }}</span>
     </div>
     <div class="chat__message__bubble">
       {{ message.text }}
@@ -26,7 +26,6 @@ interface Message {
   timestamp: number
   read?: boolean
 }
-const { timeConverter } = useFormatters()
 const props = defineProps<{
   message: Message
   isMe: boolean
@@ -36,6 +35,10 @@ const emit = defineEmits<{
   (e: 'read', id: string): void
 }>()
 
+const formattedTime = computed(() => {
+  const date = new Date(props.message.timestamp)
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+})
 function markRead() {
   if (!props.message.read) {
     emit('read', props.message.id)
@@ -44,10 +47,17 @@ function markRead() {
 </script>
 
 <style lang="scss" scoped>
+$app-desktop: 1294px;
+$app-laptop: 960px;
+$app-mobile: 600px;
+$app-narrow-mobile: 364px;
 .chat__message {
   max-width: 50%;
   width: max-content;
   margin-right: auto;
+  @media screen and (max-width: $app-mobile) {
+    max-width: 100%;
+  }
   &__meta {
     display: flex;
     justify-content: space-between;

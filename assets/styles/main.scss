@@ -10,6 +10,13 @@ body {
 * {
   box-sizing: border-box;
 }
+input,
+textarea,
+button,
+select,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
 fieldset {
   margin: 0;
   padding: 0;
