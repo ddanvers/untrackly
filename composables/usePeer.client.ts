@@ -12,13 +12,13 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   const peer = ref<Peer | null>(null)
   const conn = ref<Peer.DataConnection | null>(null)
   const messages = ref<Message[]>([])
-
   const isConnectionEstablished = ref(false)
   function initPeer() {
     const options = {
-      host: 'peerjs-server-gims.onrender.com',
-      path: '/',
-      secure: true,
+      host: 'localhost',
+      path: '/peerjs',
+      port: 9000,
+      debug: 2,
     }
     // Для инициатора — используем свой sessionId, для клиента — PeerJS сгенерирует ID
     peer.value = isInitiator
