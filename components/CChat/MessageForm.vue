@@ -1,6 +1,6 @@
 <template>
   <section class="message-form__container">
-        <div v-if="attachedFiles.length" class="form__attachments">
+    <div v-if="attachedFiles.length" class="form__attachments">
       <div v-for="(item, idx) in attachedFiles" :key="item.file.name + idx" class="form__attachment">
         <template v-if="item.file.type.startsWith('image/')">
           <img :src="item.preview" class="form__attachment-img" />
@@ -12,24 +12,24 @@
         <button type="button" class="form__detach" @click="detach(idx)">✕</button>
       </div>
     </div>
-      <form class="form" @submit.prevent="onSubmit">
-    <CButton @click="onAttachClick" bgColor="transparent" type="icon-default" class="form__attach" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/attach_file.svg" width="32px"></NuxtImg></CButton>
-    <input ref="fileInput" type="file" multiple style="display:none" @change="onFileChange" />
-    <textarea
-      v-model="text"
-      class="form__input"
-      type="text"
-      placeholder="Ваше сообщение"
-      @keyup.enter="onSubmit"
-      rows="3"
-    />
-    <CButton bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/send.svg" width="32px"></NuxtImg></CButton>
-  </form>
+    <form class="form" @submit.prevent="onSubmit">
+      <CButton @click="onAttachClick" button-type="button" bgColor="transparent" type="icon-default" class="form__attach" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/attach_file.svg" width="32px"></NuxtImg></CButton>
+      <input ref="fileInput" type="file" multiple style="display:none" @change="onFileChange" />
+      <textarea
+        v-model="text"
+        class="form__input"
+        type="text"
+        placeholder="Ваше сообщение"
+        @keyup.enter="onSubmit"
+        rows="3"
+      />
+      <CButton bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/send.svg" width="32px"></NuxtImg></CButton>
+    </form>
   </section>
 </template>
 
 <script setup lang="ts">
-const emit = defineEmits(['send', 'attach', 'detach', 'sendAllFiles'])
+const emit = defineEmits(['send', 'attach', 'detach', 'sendAllFiles', 'sendFile'])
 
 const text = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -59,12 +59,26 @@ function getIconByType(type?: string) {
   }
 }
 function onSubmit() {
-  if (text.value.trim()) {
-    emit('send', text.value.trim())
+  const trimmedText = text.value.trim()
+  if (!trimmedText && !attachedFiles.value.length) return
+
+  // Только текст
+  if (trimmedText && !attachedFiles.value.length) {
+    emit('send', trimmedText)
     text.value = ''
+    return
   }
+  // Любые файлы (в том числе одно изображение), с текстом или без
   if (attachedFiles.value.length) {
-    emit('sendAllFiles', attachedFiles.value.map(f => f.file))
+    const files = attachedFiles.value.map(f => ({
+      name: f.file.name,
+      type: f.file.type,
+      size: f.file.size,
+      file: f.file,
+      preview: f.preview
+    }))
+    emit('sendAllFiles', { text: trimmedText, files })
+    text.value = ''
     attachedFiles.value = []
   }
 }

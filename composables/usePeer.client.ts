@@ -11,6 +11,7 @@ interface Message {
   fileUrl?: string // для локального отображения
   fileName?: string
   fileMime?: string
+  files?: { name: string, type: string, size: number, fileUrl: string }[]
 }
 export function usePeer(sessionId: string, isInitiator: boolean) {
   const peer = ref<Peer | null>(null)
@@ -83,6 +84,40 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           fileMime: data.fileMime
         }
         console.log('[usePeer] File received', data.fileName, data.fileMime, data.fileData?.byteLength)
+      } else if (data && data.type === 'file-group' && Array.isArray(data.files)) {
+        // Группа файлов: формируем fileUrl для каждого файла
+        const filesWithUrl = data.files.map((f: any) => {
+          let fileData = f.fileData
+          // Универсальное преобразование fileData в ArrayBuffer
+          if (fileData && fileData.type !== 'Buffer' && !(fileData instanceof ArrayBuffer)) {
+            if (fileData instanceof Uint8Array) {
+              fileData = fileData.buffer
+            } else if (fileData.data && Array.isArray(fileData.data)) {
+              fileData = new Uint8Array(fileData.data).buffer
+            } else if (Array.isArray(fileData)) {
+              fileData = new Uint8Array(fileData).buffer
+            } else if (typeof fileData === 'object' && typeof fileData.length === 'number') {
+              // {0:...,1:...,length:...}
+              const arr = new Uint8Array(fileData.length)
+              for (let i = 0; i < fileData.length; i++) arr[i] = fileData[i]
+              fileData = arr.buffer
+            }
+          }
+          const blob = new Blob([fileData], { type: f.type })
+          return {
+            ...f,
+            fileUrl: URL.createObjectURL(blob)
+          }
+        })
+        msg = {
+          id: data.id,
+          sender: data.sender,
+          text: data.text,
+          timestamp: data.timestamp,
+          type: 'file-group',
+          files: filesWithUrl
+        }
+        console.log('[usePeer] File-group received', filesWithUrl)
       } else {
         msg = data as Message
       }
@@ -131,40 +166,6 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     attachedFiles.value.splice(index, 1)
   }
 
-  // Отправить все прикреплённые файлы
-  function sendAllFiles() {
-    if (!conn.value?.open) return
-    attachedFiles.value.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const arrayBuffer = reader.result as ArrayBuffer
-        conn.value!.send({
-          id: Date.now().toString(),
-          sender: peer.value?.id as string,
-          timestamp: Date.now(),
-          type: 'file',
-          fileName: file.name,
-          fileMime: file.type,
-          fileData: arrayBuffer
-        })
-        // Для локального отображения
-        const fileUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: file.type }))
-        messages.value.push({
-          id: Date.now().toString(),
-          sender: peer.value?.id as string,
-          text: '',
-          timestamp: Date.now(),
-          type: 'file',
-          fileUrl,
-          fileName: file.name,
-          fileMime: file.type
-        })
-      }
-      reader.readAsArrayBuffer(file)
-    })
-    attachedFiles.value = []
-  }
-
   function sendFile(file: File) {
     console.log('[usePeer] sendFile called', file)
     if (conn.value?.open) {
@@ -201,6 +202,40 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     } else {
       console.warn('[usePeer] sendFile: conn not open', conn.value)
     }
+  }
+
+  // Отправить одно сообщение с несколькими файлами и текстом
+  function sendAllFiles(payload: { text: string, files: { name: string, type: string, size: number, file: File, preview?: string }[] }) {
+    if (!conn.value?.open) return
+    const filesToSend: any[] = []
+    let filesProcessed = 0
+    payload.files.forEach((f, idx) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        filesToSend[idx] = {
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          fileData: reader.result,
+        }
+        filesProcessed++
+        if (filesProcessed === payload.files.length) {
+          // Все файлы прочитаны, отправляем одно сообщение
+          const msg = {
+            id: Date.now().toString(),
+            sender: peer.value?.id as string,
+            text: payload.text,
+            timestamp: Date.now(),
+            type: 'file-group',
+            files: filesToSend
+          }
+          conn.value!.send(msg)
+          // Для локального отображения
+          messages.value.push({ ...msg, files: filesToSend.map(f => ({ ...f, fileUrl: URL.createObjectURL(new Blob([f.fileData], { type: f.type })) })) })
+        }
+      }
+      reader.readAsArrayBuffer(f.file)
+    })
   }
 
   function destroy() {

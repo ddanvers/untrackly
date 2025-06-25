@@ -22,6 +22,7 @@
     <CChatMessageForm
       @send="sendMessage"
       @sendAllFiles="onSendAllFiles"
+      @sendFile="sendFile"
     />
   </section>
 </template>
@@ -45,7 +46,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'sendMessage', payload: string): void
   (e: 'sendFile', file: File): void
-  (e: 'sendAllFiles', files: File[]): void
+  (e: 'sendAllFiles', payload: { text: string, files: { name: string, type: string, size: number, file: File, preview?: string }[] }): void
   (e: 'readMessage', id: string): void
 }>()
 
@@ -77,9 +78,9 @@ function sendFile(file: File) {
 }
 
 // отправка всех файлов
-function onSendAllFiles(files: File[]) {
-  console.log('[Window.vue] onSendAllFiles', files)
-  emit('sendAllFiles', files)
+function onSendAllFiles(payload: { text: string, files: { name: string, type: string, size: number, file: File, preview?: string }[] }) {
+  console.log('[Window.vue] onSendAllFiles', payload)
+  emit('sendAllFiles', payload)
 }
 
 // чтение при скролле: помечаем прочитанные, когда они попадают в зону видимости

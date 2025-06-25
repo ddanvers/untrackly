@@ -162,16 +162,15 @@ function rejectInvite() {
   navigateTo("/");
 }
 
-function sendFileHandler(files: File[] | File) {
-  console.log('[id.vue] sendFileHandler', files)
-  if (Array.isArray(files)) {
-    files.forEach(f => {
-      console.log('[id.vue] sendFileHandler: sendFile', f)
-      sendFile(f)
-    })
+function sendFileHandler(payload: any) {
+  console.log('[id.vue] sendFileHandler', payload)
+  // Всегда ожидаем массив файлов (даже если один файл)
+  if (payload && Array.isArray(payload.files) && payload.files.length > 0) {
+    console.log('[id.vue] sendFileHandler: отправка группы файлов (всегда массив)', payload.files)
+    sendAllFiles(payload)
   } else {
-    console.log('[id.vue] sendFileHandler: sendFile', files)
-    sendFile(files)
+    // fallback: возможно только текст или пустой массив
+    console.warn('[id.vue] sendFileHandler: нет файлов для отправки или неизвестный payload', payload)
   }
 }
 
