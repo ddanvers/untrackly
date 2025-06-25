@@ -12,19 +12,64 @@
       <span class="chat__time">{{ formattedTime }}</span>
     </div>
     <div class="chat__message__bubble">
-      {{ message.text }}
+      <template v-if="message.type === 'file-group' && message.files && message.files.length === 1 && message.files[0].type && message.files[0].type.startsWith('image/')">
+        <div v-if="message.text" class="chat__group-text">{{ message.text }}</div>
+        <div class="file-preview-wrapper">
+          <a :href="message.files[0].fileUrl" target="_blank">
+            <img :src="message.files[0].fileUrl" :alt="message.files[0].name" class="chat__image" />
+          </a>
+          <a :href="message.files[0].fileUrl" :download="message.files[0].name" class="download-icon" title="Скачать">
+                      <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg></a>
+        </div>
+      </template>
+      <template v-else-if="message.type === 'file-group' && message.files && message.files.length">
+        <div v-if="message.text" class="chat__group-text">{{ message.text }}</div>
+        <div class="chat__attachments-group form__attachments file-group-block">
+          <div v-for="(file, idx) in message.files" :key="file.name + idx" class="form__attachment file-attachment" :class="{
+            'file-attachment--img': file.type && file.type.startsWith('image/')
+          }">
+            <template v-if="file.type && file.type.startsWith('image/')">
+              <div class="file-img-wrapper">
+                <a :href="file.fileUrl" target="_blank">
+                  <img :src="file.fileUrl" class="form__attachment-img" />
+                </a>
+                <a :href="file.fileUrl" :download="file.name" class="download-icon download-icon-img" title="Скачать">
+                            <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg></a>
+              </div>
+            </template>
+            <template v-else>
+              <img :src="getIconByType(file.name.split('.').pop())" class="form__attachment-icon" width="32px" />
+              <a :href="file.fileUrl" target="_blank" class="form__attachment-file file-link">{{ file.name }}</a>
+              <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
+                          <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg></a>
+            </template>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        {{ message.text }}
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-
+interface FileAttachment {
+  name: string
+  type: string
+  fileUrl: string
+}
 interface Message {
   id: string
   sender: string
   text: string
   timestamp: number
   read?: boolean
+  type?: string
+  fileUrl?: string
+  fileName?: string
+  fileMime?: string
+  files?: FileAttachment[]
 }
 const props = defineProps<{
   message: Message
@@ -43,6 +88,37 @@ function markRead() {
   if (!props.message.read) {
     emit('read', props.message.id)
   }
+}
+const isSingleImageGroup = computed(() => {
+  const files = props.message.files
+  return (
+    props.message.type === 'file-group' &&
+    Array.isArray(files) &&
+    files.length === 1 &&
+    files[0].type && files[0].type.startsWith('image/')
+  )
+})
+function getIconByType(ext?: string) {
+  // Можно заменить на NuxtImg или использовать свои svg-иконки
+  if (!ext) return '/icons/file_formats/file.svg'
+  const map: Record<string, string> = {
+    pdf: '/icons/file_formats/pdf.svg',
+    doc: '/icons/file_formats/doc.svg',
+    docx: '/icons/file_formats/doc.svg',
+    xls: '/icons/file_formats/xls.svg',
+    xlsx: '/icons/file_formats/xls.svg',
+    ppt: '/icons/file_formats/ppt.svg',
+    pptx: '/icons/file_formats/ppt.svg',
+    txt: '/icons/file_formats/txt.svg',
+    zip: '/icons/file_formats/zip.svg',
+    jpg: '/icons/file_formats/jpg.svg',
+    jpeg: '/icons/file_formats/jpg.svg',
+    png: '/icons/file_formats/jpg.svg',
+    mp3: '/icons/file_formats/mp3.svg',
+    mp4: '/icons/file_formats/mp4.svg',
+    csv: '/icons/file_formats/csv.svg',
+  }
+  return map[ext.toLowerCase()] || '/icons/file_formats/file.svg'
 }
 </script>
 
@@ -79,6 +155,116 @@ $app-narrow-mobile: 364px;
     .chat__message__bubble {
       background: #580057;
     }
+  }
+}
+.chat__image {
+  max-width: 320px;
+  max-height: 320px;
+  border-radius: 8px;
+  margin: 8px 0;
+  display: block;
+}
+.chat__attachments-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.chat__group-text {
+  margin-top: 8px;
+  color: #fff;
+  font-size: 15px;
+}
+.form__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+.form__attachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #181818;
+  border-radius: 6px;
+  height: 72px;
+  padding: 4px 8px;
+  flex: 1 1 calc(50% - 8px);
+}
+.form__attachment-img {
+  height: calc(72px - 6px * 2);
+  border-radius: 4px;
+  display: block;
+  object-fit: cover;
+  width: calc(100% - 8px);
+}
+.form__attachment-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.form__attachment-file {
+  color: #fff;
+  font-size: 14px;
+}
+.file-group-block {
+  background: #181828;
+  border-radius: 8px;
+  padding: 8px 8px 4px 8px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 8px #0002;
+}
+.file-attachment {
+  position: relative;
+  background: #23233a;
+  border-radius: 6px;
+  padding: 6px 36px 6px 8px;
+  margin: 2px 0;
+}
+.file-link {
+  color: #fff;
+  font-size: 14px;
+  margin-right: 8px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+.download-icon {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #b809b5;
+  border-radius: 6px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  z-index: 2;
+  transition: background 0.3s;
+}
+.download-icon:hover {
+  background: #7d068d;
+}
+.file-img-wrapper {
+  display: inline-block;
+  width: 100%;
+}
+.file-preview-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-top: 8px;
+  .download-icon {
+    top: 16px;
+    right: 8px;
+    transform: translate(50%, -50%);
   }
 }
 </style>
