@@ -1,6 +1,7 @@
 // composables/usePeer.client.ts
 import Peer from 'peerjs'
 import type { DataConnection } from 'peerjs'
+import { useDebounce } from '~/composables/useDebounce'
 interface Message {
   id: string
   sender: string
@@ -23,9 +24,10 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
 
   function initPeer() {
     const options = {
-      host: 'peerjs-server-gims.onrender.com',
-      path: '/',
-      secure: true
+      host: 'localhost',
+      path: '/peerjs',
+      port: 9000,
+      debug: 2,
     }
     console.log('[usePeer] initPeer', { sessionId, isInitiator: isInitiator, options })
     // Для инициатора — используем свой sessionId, для клиента — PeerJS сгенерирует ID
@@ -44,6 +46,26 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     peer.value.on('connection', connection => {
       console.log('[usePeer] Incoming connection')
       setupConnection(connection)
+    })
+
+    let shouldAutoAcceptWithVideo = false
+
+    peer.value.on('call', mediaConnection => {
+      console.log('[usePeer] peer.on(call): incoming', { mediaConnection, callState: callState.value, shouldAutoAcceptWithVideo, oldMediaConn: mediaConn })
+      callState.value = 'incoming'
+      // Явно закрываем и сбрасываем старый mediaConn
+      if (mediaConn) {
+        try { mediaConn.close() } catch (e) { console.error('[usePeer] peer.on(call): error closing old mediaConn', e) }
+        mediaConn = null
+      }
+      mediaConn = mediaConnection
+      console.log('[usePeer] peer.on(call): new mediaConn set', mediaConn)
+      if (shouldAutoAcceptWithVideo) {
+        shouldAutoAcceptWithVideo = false
+        console.log('[usePeer] peer.on(call): auto-accepting with video')
+        acceptCall(true)
+      }
+      // Иначе — обычное поведение (ожидание accept)
     })
 
     peer.value.on('error', err => {
@@ -65,6 +87,11 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     })
     connection.on('data', (data: any) => {
       console.log('[usePeer] Connection data received', data)
+      handleCallSignals(data)
+      // Фильтрация сигнальных сообщений звонка
+      if (data && (data.type === 'call-request' || data.type === 'call-decline' || data.type === 'call-end')) {
+        return
+      }
       let msg: Message
       if (typeof data === 'string') {
         msg = JSON.parse(data)
@@ -122,6 +149,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       }
       messages.value.push(msg)
       console.log('[usePeer] Message pushed', msg)
+      handleCallSignals(data)
     })
     connection.on('close', () => {
       console.log('[usePeer] Connection closed')
@@ -244,6 +272,210 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
 
   onBeforeUnmount(destroy)
 
+  // --- Видеозвонки ---
+  const callState = ref<'idle' | 'calling' | 'incoming' | 'active' | 'ended'>('idle')
+  const callType = ref<'audio' | 'video'>('video')
+  const localStream = ref<MediaStream|null>(null)
+  const remoteStream = ref<MediaStream|null>(null)
+  let mediaConn: any = null
+  let callTimeout: any = null
+  // --- Camera state flags ---
+  const isCameraEnabled = ref(true)
+  const isCameraToggling = ref(false)
+  let shouldAutoAcceptWithVideo = false
+
+  async function startCall(withVideo = true) {
+    console.log('[usePeer] startCall: called', { withVideo, callState: callState.value, conn: !!conn.value })
+    callState.value = 'calling'
+    isCameraEnabled.value = !!withVideo
+    const stream = await navigator.mediaDevices.getUserMedia(withVideo ? { video: true, audio: true } : { audio: true })
+    // Оставляем только live-треки
+    const liveTracks = stream.getTracks().filter(t => t.readyState === 'live')
+    const liveStream = new MediaStream(liveTracks)
+    localStream.value = liveStream
+    console.log('[usePeer] startCall: got localStream', liveStream, liveTracks.map(t => ({id: t.id, kind: t.kind, readyState: t.readyState})))
+    mediaConn = peer.value!.call(conn.value!.peer, liveStream)
+    console.log('[usePeer] startCall: peer.call done', mediaConn, 'peer.connections:', peer.value!.connections)
+    mediaConn.on('stream', (remote: MediaStream) => {
+      remoteStream.value = remote
+      callState.value = 'active'
+      clearTimeout(callTimeout)
+      console.log('[usePeer] startCall: got remote stream', remote)
+    })
+    mediaConn.on('close', () => { console.log('[usePeer] startCall: mediaConn closed'); endCall() })
+    mediaConn.on('error', (e: any) => { console.error('[usePeer] startCall: mediaConn error', e); endCall() })
+    conn.value?.send({ type: 'call-request', video: withVideo })
+    console.log('[usePeer] startCall: sent call-request')
+    callTimeout = setTimeout(() => { console.warn('[usePeer] startCall: callTimeout'); endCall() }, 30000)
+  }
+
+  async function acceptCall(withVideo = true) {
+    console.log('[usePeer] acceptCall: called', { withVideo, callState: callState.value, mediaConn })
+    isCameraEnabled.value = !!withVideo
+    const stream = await navigator.mediaDevices.getUserMedia(withVideo ? { video: true, audio: true } : { audio: true })
+    localStream.value = stream
+    console.log('[usePeer] acceptCall: got localStream', stream)
+    if (mediaConn) {
+      mediaConn.answer(stream)
+      console.log('[usePeer] acceptCall: answered mediaConn', mediaConn)
+      mediaConn.on('stream', (remote: MediaStream) => {
+        remoteStream.value = remote
+        callState.value = 'active'
+        clearTimeout(callTimeout)
+        console.log('[usePeer] acceptCall: got remote stream', remote)
+      })
+      mediaConn.on('close', () => { console.log('[usePeer] acceptCall: mediaConn closed'); endCall() })
+      mediaConn.on('error', (e: any) => { console.error('[usePeer] acceptCall: mediaConn error', e); endCall() })
+      callState.value = 'active'
+    } else {
+      console.warn('[usePeer] acceptCall: mediaConn is null')
+    }
+  }
+
+  function endCall(isRemoteEnd = false) {
+    console.log('[usePeer] endCall', { isRemoteEnd, mediaConn, localStream: !!localStream.value, remoteStream: !!remoteStream.value, shouldAutoAcceptWithVideo })
+    callState.value = 'ended'
+    if (mediaConn) {
+      try {
+        if (mediaConn.peerConnection) {
+          mediaConn.peerConnection.close();
+          console.log('[usePeer] endCall: peerConnection closed');
+        }
+        mediaConn.close();
+      } catch (e) { console.error('[usePeer] endCall: error closing mediaConn', e) }
+      mediaConn = null
+    }
+    if (localStream.value) {
+      localStream.value.getTracks().forEach(t => t.stop())
+      localStream.value = null
+    }
+    if (remoteStream.value) {
+      remoteStream.value.getTracks().forEach(t => t.stop())
+      remoteStream.value = null
+    }
+    clearTimeout(callTimeout)
+    if (!isRemoteEnd) {
+      conn.value?.send({ type: 'call-end' })
+      console.log('[usePeer] endCall: sent call-end')
+    }
+    setTimeout(() => { callState.value = 'idle'; console.log('[usePeer] endCall: set callState idle') }, 1000)
+    isCameraEnabled.value = true
+    isCameraToggling.value = false
+    shouldAutoAcceptWithVideo = false // сброс автопринятия
+  }
+
+  function declineCall() {
+    callState.value = 'idle'
+    conn.value?.send({ type: 'call-decline' })
+    endCall()
+  }
+
+  function toggleMic(enabled: boolean) {
+    if (!localStream.value) return
+    localStream.value.getAudioTracks().forEach(t => t.enabled = enabled)
+  }
+
+  // --- Camera state flags ---
+  // (удалено дублирование)
+
+  // --- Управление камерой во время звонка ---
+  async function toggleCamera(enabled: boolean): Promise<void> {
+    if (!localStream.value || isCameraToggling.value) return
+    isCameraToggling.value = true
+    try {
+      let videoTrack = localStream.value.getVideoTracks()[0]
+      if (enabled) {
+        if (!videoTrack) {
+          // Если трека нет — пересоздать звонок с видео
+          conn.value?.send({ type: 'restart-call-with-video' })
+          // Завершить текущий звонок
+          endCall()
+          // Через 700мс инициировать новый звонок с видео (увеличена задержка)
+          setTimeout(() => startCall(true), 700)
+          return
+        }
+        videoTrack.enabled = true
+        isCameraEnabled.value = true
+        conn.value?.send({ type: 'video-on' })
+      } else {
+        if (videoTrack) {
+          videoTrack.enabled = false
+        }
+        isCameraEnabled.value = false
+        conn.value?.send({ type: 'video-off' })
+      }
+    } catch (e) {
+      console.error('[usePeer] toggleCamera error', e)
+    } finally {
+      isCameraToggling.value = false
+    }
+  }
+
+  // --- Обработка сигналов звонка ---
+  function handleCallSignals(data: any) {
+    console.log('[usePeer] handleCallSignals', data)
+    if (data.type === 'restart-call-with-video') {
+      // Для надёжности сбрасываем mediaConn
+      if (mediaConn) {
+        try { mediaConn.close() } catch (e) { console.error('[usePeer] handleCallSignals: error closing mediaConn', e) }
+        mediaConn = null
+      }
+      endCall(true)
+      setTimeout(() => { shouldAutoAcceptWithVideo = true; console.log('[usePeer] handleCallSignals: shouldAutoAcceptWithVideo set TRUE') }, 100)
+      return
+    }
+    if (data.type === 'call-request') {
+      callState.value = 'incoming'
+      callType.value = data.video ? 'video' : 'audio'
+      console.log('[usePeer] handleCallSignals: call-request', { callState: callState.value, callType: callType.value })
+    }
+    if (data.type === 'call-decline') {
+      endCall(true)
+      console.log('[usePeer] handleCallSignals: call-decline')
+    }
+    if (data.type === 'call-end') {
+      endCall(true)
+      console.log('[usePeer] handleCallSignals: call-end')
+    }
+    if (data.type === 'video-off') {
+      if (remoteStream.value) {
+        remoteStream.value.getVideoTracks().forEach(t => {
+          t.stop()
+          remoteStream.value?.removeTrack(t)
+        })
+        console.log('[usePeer] handleCallSignals: video-off, removed video tracks from remoteStream')
+      }
+    }
+    if (data.type === 'video-on') {
+      if (mediaConn && mediaConn.peerConnection) {
+        const receivers = mediaConn.peerConnection.getReceivers();
+        // Берём только live video/audio треки
+        const videoTrack = receivers
+          .map((r: RTCRtpReceiver) => r.track as MediaStreamTrack)
+          .find((t: MediaStreamTrack | undefined) => t && t.kind === 'video' && t.readyState === 'live');
+        const audioTracks = receivers
+          .map((r: RTCRtpReceiver) => r.track as MediaStreamTrack)
+          .filter((t: MediaStreamTrack | undefined) => t && t.kind === 'audio' && t.readyState === 'live');
+        const tracks = [videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[];
+        if (videoTrack) {
+          remoteStream.value = new MediaStream(tracks);
+          console.log('[usePeer] handleCallSignals: video-on, remoteStream updated (only live)', tracks);
+        } else {
+          console.warn('[usePeer] handleCallSignals: video-on, no live video track found', receivers);
+        }
+      }
+    }
+  }
+
+  // --- Управление камерой и микрофоном во время звонка с debounce ---
+  const debounce = useDebounce();
+  function debouncedToggleCamera(enabled: boolean) {
+    debounce(() => toggleCamera(enabled), 300, 'camera');
+  }
+  function debouncedToggleMic(enabled: boolean) {
+    debounce(() => toggleMic(enabled), 300, 'mic');
+  }
+
   return {
     messages,
     peer,
@@ -256,5 +488,23 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     sendAllFiles,
     attachedFiles,
     destroy,
+    // --- Видеозвонки ---
+    callState,
+    callType,
+    localStream,
+    remoteStream,
+    startCall,
+    acceptCall,
+    declineCall,
+    endCall,
+    toggleCamera: debouncedToggleCamera,
+    toggleMic: debouncedToggleMic,
+    isCameraEnabled,
+    isCameraToggling,
   }
 }
+// В acceptCall всегда используем mediaConn, который только что пришёл в peer.on('call')
+// В peer.on('call') всегда сбрасываем старый mediaConn перед присваиванием нового
+// После endCall(true) всегда сбрасываем shouldAutoAcceptWithVideo = false
+// В handleCallSignals на restart-call-with-video выставляем shouldAutoAcceptWithVideo с задержкой
+// Везде добавлены логи для отладки

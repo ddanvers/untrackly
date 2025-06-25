@@ -76,13 +76,26 @@
         @sendFile="sendFileHandler"
         @sendAllFiles="sendFileHandler"
         :meId="peer?.id"
+        @call="onCall"
+      />
+      <CVideoCall
+        :visible="showCall"
+        :incoming="callState === 'incoming'"
+        :accepted="callState === 'active'"
+        :callStatusText="callStatusText"
+        @accept="onAcceptCall"
+        @decline="onDeclineCall"
+        @end="onEndCall"
+        @toggleMic="onToggleMic"
+        @toggleCam="onToggleCam"
       />
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, watch } from "vue";
+import { ref, shallowRef, watch, computed } from "vue";
+import CVideoCall from '~/components/CChat/CVideoCall.vue'
 
 interface Message {
   id: string;
@@ -105,7 +118,7 @@ const fixedHeight = ref<number | null>(null);
 const animating = ref(false);
 const displayText = ref(getInviteLink());
 
-const { messages, initPeer, sendMessage, sendFile, sendAllFiles, peer, isConnectionEstablished } = usePeer(
+const { messages, initPeer, sendMessage, sendFile, sendAllFiles, peer, isConnectionEstablished, callState, localStream, remoteStream, startCall, acceptCall, declineCall, endCall, callType, toggleCamera, toggleMic } = usePeer(
   sessionId,
   !isInvited.value
 );
@@ -174,12 +187,79 @@ function sendFileHandler(payload: any) {
   }
 }
 
+const showCall = ref(false)
+const callStatusText = computed(() => {
+  if (callState.value === 'calling') return 'Звонок...'
+  if (callState.value === 'incoming') return 'Входящий звонок'
+  if (callState.value === 'active') return 'Видеозвонок'
+  if (callState.value === 'ended') return 'Звонок завершён'
+  return ''
+})
+
+function onCall(type: 'audio' | 'video') {
+  showCall.value = true
+  startCall(type === 'video')
+  callType.value = type
+}
+function onAcceptCall(opts?: { mic?: boolean, cam?: boolean }) {
+  acceptCall(callType.value === 'video')
+  setTimeout(() => {
+    if (opts) {
+      if (localStream.value) {
+        localStream.value.getAudioTracks().forEach(t => t.enabled = opts.mic !== false)
+        localStream.value.getVideoTracks().forEach(t => t.enabled = opts.cam !== false)
+      }
+    }
+  }, 500)
+}
+function onDeclineCall() {
+  declineCall()
+  showCall.value = false
+}
+function onEndCall() {
+  endCall()
+  showCall.value = false
+}
+function onToggleMic(enabled: boolean) {
+  toggleMic(enabled)
+}
+function onToggleCam(enabled: boolean) {
+  toggleCamera(enabled)
+}
+
+watch(callState, (val) => {
+  if (val === 'idle') {
+    showCall.value = false
+    // Сброс UI состояния микрофона/камеры после завершения звонка
+    setTimeout(() => {
+      const videoComp = document.querySelector('.video-call__overlay')
+      if (videoComp) {
+        const micBtn = videoComp.querySelector('.video-call__controls button:nth-child(1)')
+        const camBtn = videoComp.querySelector('.video-call__controls button:nth-child(2)')
+        if (micBtn) micBtn.classList.remove('active')
+        if (camBtn) camBtn.classList.remove('active')
+      }
+    }, 300)
+  }
+  if (val === 'calling' || val === 'incoming' || val === 'active') showCall.value = true
+})
+
 watch(isConnectionEstablished, () => {
   console.log('[id.vue] isConnectionEstablished changed', isConnectionEstablished.value)
   if (isConnectionEstablished.value) {
     step.value = "chat";
   }
 });
+
+watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
+  if (!show) return
+  const videoComp = document.querySelector('.video-call__overlay')
+  if (!videoComp) return
+  const myVideo = videoComp.querySelector('.video-call__my-video') as HTMLVideoElement
+  const remoteVideo = videoComp.querySelector('.video-call__remote-video') as HTMLVideoElement
+  if (myVideo && my) myVideo.srcObject = my
+  if (remoteVideo && remote) remoteVideo.srcObject = remote
+})
 </script>
 
 <style scoped lang="scss">
