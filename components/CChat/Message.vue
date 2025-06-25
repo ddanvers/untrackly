@@ -179,7 +179,7 @@ $app-narrow-mobile: 364px;
 .form__attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
   margin-top: 8px;
 }
@@ -189,13 +189,16 @@ $app-narrow-mobile: 364px;
   gap: 6px;
   background: #181818;
   border-radius: 6px;
+  height: 72px;
   padding: 4px 8px;
+  flex: 1 1 calc(50% - 8px);
 }
 .form__attachment-img {
-  max-width: 80px;
-  max-height: 80px;
+  height: calc(72px - 6px * 2);
   border-radius: 4px;
   display: block;
+  object-fit: cover;
+  width: calc(100% - 8px);
 }
 .form__attachment-icon {
   width: 32px;
@@ -220,14 +223,17 @@ $app-narrow-mobile: 364px;
   border-radius: 6px;
   padding: 6px 36px 6px 8px;
   margin: 2px 0;
-  &--img {
-    padding: 12px;
-  }
 }
 .file-link {
   color: #fff;
   font-size: 14px;
   margin-right: 8px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
 }
 .download-icon {
   position: absolute;
@@ -240,31 +246,25 @@ $app-narrow-mobile: 364px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.85;
   transition: opacity 0.2s;
   z-index: 2;
+  transition: background 0.3s;
 }
 .download-icon:hover {
-  opacity: 1;
-  background: #7a008a;
+  background: #7d068d;
 }
 .file-img-wrapper {
-  position: relative;
   display: inline-block;
-}
-.download-icon-img {
-  top: 0px;
-  right: 0px;
-  transform: translate(50%, -50%);
-  left: auto;
-  position: absolute;
-  background: #b809b5;
-  opacity: 0.85;
-  padding: 2px;
+  width: 100%;
 }
 .file-preview-wrapper {
   position: relative;
   display: inline-block;
   margin-top: 8px;
+  .download-icon {
+    top: 16px;
+    right: 8px;
+    transform: translate(50%, -50%);
+  }
 }
 </style>
