@@ -19,7 +19,10 @@
       />
     </div>
 
-    <CChatMessageForm @send="sendMessage" />
+    <CChatMessageForm
+      @send="sendMessage"
+      @sendAllFiles="onSendAllFiles"
+    />
   </section>
 </template>
 
@@ -41,6 +44,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'sendMessage', payload: string): void
+  (e: 'sendFile', file: File): void
+  (e: 'sendAllFiles', files: File[]): void
   (e: 'readMessage', id: string): void
 }>()
 
@@ -52,19 +57,38 @@ function scrollToBottom() {
 }
 
 // при монтировании скроллим вниз
-onMounted(scrollToBottom)
+onMounted(() => {
+  console.log('[Window.vue] mounted')
+  scrollToBottom()
+})
 
 // отправка
 function sendMessage(text: string) {
+  console.log('[Window.vue] sendMessage', text)
   emit('sendMessage', text)
-  // после нового сообщения: автоскролл
   setTimeout(scrollToBottom, 0)
+}
+
+// отправка файла
+function sendFile(file: File) {
+  console.log('[Window.vue] sendFile', file)
+  emit('sendFile', file)
+  setTimeout(scrollToBottom, 0)
+}
+
+// отправка всех файлов
+function onSendAllFiles(files: File[]) {
+  console.log('[Window.vue] onSendAllFiles', files)
+  emit('sendAllFiles', files)
 }
 
 // чтение при скролле: помечаем прочитанные, когда они попадают в зону видимости
 function onScroll() {
   const el = bodyRef.value
-  if (!el) return
+  if (!el) {
+    console.log('[Window.vue] onScroll: no bodyRef')
+    return
+  }
   // находим все сообщения в DOM
   const items = el.querySelectorAll<HTMLElement>('.chat__message')
   items.forEach(item => {
@@ -78,8 +102,13 @@ function onScroll() {
 
 // ручной вызов от ChatMessage
 function onRead(id: string) {
+  console.log('[Window.vue] onRead', id)
   emit('readMessage', id)
 }
+
+watch(() => props.messages, (val) => {
+  console.log('[Window.vue] messages updated', val)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -91,6 +120,8 @@ $app-narrow-mobile: 364px;
     background-color: #0E0D22;
     height: 100%;
     width: 100%;
+    display: flex;
+    flex-direction: column;
   &__header {
     display: flex;
     justify-content: space-between;
@@ -107,7 +138,7 @@ $app-narrow-mobile: 364px;
     flex-direction: column;
     gap: 24px;
     background: #0f0f2f;
-    height: calc(100vh - 180px);
+    height: 100%;
     overflow-y: auto;
     padding: 16px;
   }

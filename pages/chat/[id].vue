@@ -73,6 +73,8 @@
         title="Ваш собеседник"
         :messages="messages"
         @sendMessage="sendMessage"
+        @sendFile="sendFileHandler"
+        @sendAllFiles="sendFileHandler"
         :meId="peer?.id"
       />
     </section>
@@ -88,6 +90,9 @@ interface Message {
   text: string;
   timestamp: number;
   read?: boolean;
+  type?: string;
+  fileUrl?: string;
+  fileName?: string;
 }
 
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
@@ -100,7 +105,7 @@ const fixedHeight = ref<number | null>(null);
 const animating = ref(false);
 const displayText = ref(getInviteLink());
 
-const { messages, initPeer, sendMessage, peer, isConnectionEstablished } = usePeer(
+const { messages, initPeer, sendMessage, sendFile, sendAllFiles, peer, isConnectionEstablished } = usePeer(
   sessionId,
   !isInvited.value
 );
@@ -157,7 +162,21 @@ function rejectInvite() {
   navigateTo("/");
 }
 
+function sendFileHandler(files: File[] | File) {
+  console.log('[id.vue] sendFileHandler', files)
+  if (Array.isArray(files)) {
+    files.forEach(f => {
+      console.log('[id.vue] sendFileHandler: sendFile', f)
+      sendFile(f)
+    })
+  } else {
+    console.log('[id.vue] sendFileHandler: sendFile', files)
+    sendFile(files)
+  }
+}
+
 watch(isConnectionEstablished, () => {
+  console.log('[id.vue] isConnectionEstablished changed', isConnectionEstablished.value)
   if (isConnectionEstablished.value) {
     step.value = "chat";
   }
@@ -310,6 +329,7 @@ $app-narrow-mobile: 364px;
     max-width: 100%;
     position: absolute;
     top: 50%;
+        height: calc(100% - 48px);
     left: 50%;
     transform: translate(-50%, -50%);
     border-radius: 24px;

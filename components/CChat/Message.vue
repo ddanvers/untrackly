@@ -12,7 +12,22 @@
       <span class="chat__time">{{ formattedTime }}</span>
     </div>
     <div class="chat__message__bubble">
-      {{ message.text }}
+      <template v-if="message.type === 'image' && message.fileUrl">
+        <img :src="message.fileUrl" alt="image" class="chat__image" />
+      </template>
+      <template v-else-if="message.type === 'file' && message.fileUrl">
+        <a :href="message.fileUrl" :download="message.fileName" target="_blank" class="chat__file-link">
+          <span v-if="message.fileMime && message.fileMime.startsWith('image/')">
+            <img :src="message.fileUrl" :alt="message.fileName" class="chat__image" />
+          </span>
+          <span v-else>
+            📎 {{ message.fileName || 'Файл' }} ({{ message.fileMime || 'file' }})
+          </span>
+        </a>
+      </template>
+      <template v-else>
+        {{ message.text }}
+      </template>
     </div>
   </div>
 </template>
@@ -25,6 +40,10 @@ interface Message {
   text: string
   timestamp: number
   read?: boolean
+  type?: string
+  fileUrl?: string
+  fileName?: string
+  fileMime?: string
 }
 const props = defineProps<{
   message: Message
@@ -80,5 +99,12 @@ $app-narrow-mobile: 364px;
       background: #580057;
     }
   }
+}
+.chat__image {
+  max-width: 320px;
+  max-height: 320px;
+  border-radius: 8px;
+  margin: 8px 0;
+  display: block;
 }
 </style>
