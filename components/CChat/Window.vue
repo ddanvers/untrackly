@@ -126,7 +126,7 @@ $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat {
-    background-color: #0E0D22;
+    background-color: var(--app-dirty-blue-100);
     height: 100%;
     width: 100%;
     display: flex;
@@ -137,7 +137,7 @@ $app-narrow-mobile: 364px;
 
     padding: 16px;
   }
-  &__title { font-size: 32px;     color: #F8EAD1;
+  &__title { font-size: 32px;     color: var(--app-yellow-600);
   @media screen and (max-width: $app-mobile) {
     font-size: 24px;
   }
@@ -146,7 +146,7 @@ $app-narrow-mobile: 364px;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    background: #0f0f2f;
+    background-color: var(--app-dirty-blue-50);
     height: 100%;
     overflow-y: auto;
     padding: 16px;

@@ -112,19 +112,19 @@ function detach(idx: number) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #0f0f2f;
+  padding-top: 16px;
+  background-color: var(--app-dirty-blue-100);
 }
 .form {
   display: flex;
   align-items: center;
   padding: 0px 16px 16px;
+  gap: 16px;
   flex-wrap: wrap;
-  &__attach {
-    background: none;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    color: #580057;
+  &__attach, &__send {
+    img {
+      filter: var(--app-filter-purple-500)
+    }
   }
   &__input {
     flex: 1;
@@ -133,25 +133,25 @@ function detach(idx: number) {
     border: none;
     outline: none;
     resize: none;
-    background: #f5eed9;
-    color: #111;
+    background: var(--app-yellow-50);
+    color: var(--app-text-primary);
     font-size: 14px;
   }
   &__attachments {
     position: relative;
     display: flex;
     gap: 12px;
-    margin-top: 8px;
     width: 100%;
-    left: 72px;
-    padding: 16px;
+    left: 76px;
+    padding: 12px;
+    padding-top: 0;
     max-width: calc(100% - 72px * 2);
     overflow: auto;
   }
   &__attachment {
     display: flex;
     align-items: center;
-    background: #f0e3f6;
+    background: var(--app-purple-50);
     border-radius: 8px;
     padding: 4px 8px;
     gap: 8px;
@@ -173,10 +173,17 @@ function detach(idx: number) {
   &__detach {
     background: none;
     border: none;
-    color: rgb(194, 0, 204);
+    color: var(--app-purple-500);
     font-size: 16px;
     cursor: pointer;
     margin-left: 4px;
+
+    &:hover {
+      color: var(--app-purple-600);
+    }
+    &:active {
+      color: var(--app-purple-700);
+    }
   }
 }
 </style>

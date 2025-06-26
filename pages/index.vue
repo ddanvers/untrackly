@@ -103,7 +103,7 @@ $app-narrow-mobile: 364px;
         pointer-events: none;
               transition: transform 0.2s ease;
       will-change: transform;
-        filter: var(--app-filter-purple-900);
+        filter: var(--app-filter-text-light-permanent);
         width: 180px;
                 @media screen and (max-width: $app-mobile) {
                   width: 140px;
@@ -114,7 +114,7 @@ $app-narrow-mobile: 364px;
       }
       span {
         font-size: 24px;
-        color: var(--app-text-primary);
+        color: var(--app-text-light-permanent);
         @media screen and (max-width: $app-mobile) {
           font-size: 20px;
         }

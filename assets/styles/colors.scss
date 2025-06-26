@@ -12,17 +12,17 @@
   --app-red-100: #ffb09c;
   --app-red-50: #ffccb7;
 
-  --app-brown-source: #f8ead1;
-  --app-brown-900: #403828;
-  --app-brown-800: #544a38;
-  --app-brown-700: #685d49;
-  --app-brown-600: #7c715b;
-  --app-brown-500: #91856f;
-  --app-brown-400: #a69a83;
-  --app-brown-300: #bbaf99;
-  --app-brown-200: #d1c5b0;
-  --app-brown-100: #e7dcc7;
-  --app-brown-50: #fdf2e0;
+  --app-yellow-source: #b88400;
+  --app-yellow-900: #533300;
+  --app-yellow-800: #694400;
+  --app-yellow-700: #805600;
+  --app-yellow-600: #986900;
+  --app-yellow-500: #b07d00;
+  --app-yellow-400: #c79221;
+  --app-yellow-300: #dea73d;
+  --app-yellow-200: #f5bd59;
+  --app-yellow-100: #ffd477;
+  --app-yellow-50: #ffeb96;
 
   --app-dirty-blue-source: #0f0f2f;
   --app-dirty-blue-900: #383653;
@@ -49,25 +49,27 @@
   --app-purple-50: #ffcaff;
 
   --app-grey-source: #000000;
-  --app-grey-900: #393939;
-  --app-grey-800: #4b4b4b;
-  --app-grey-700: #5e5e5e;
-  --app-grey-600: #727272;
+  --app-grey-900: #171717;
+  --app-grey-800: #2e2e2e;
+  --app-grey-700: #474747;
+  --app-grey-600: #5f5f5f;
   --app-grey-500: #868686;
   --app-grey-400: #9b9b9b;
   --app-grey-300: #b0b0b0;
   --app-grey-200: #c6c6c6;
   --app-grey-100: #dddddd;
-  --app-grey-50: #868686;
+  --app-grey-50: #ececec;
 
   --app-white: #ffffff;
   --app-black: #000000;
 
   --app-text-primary: #0e0e0e;
+  --app-text-light-permanent: #f3f3f3;
+  
   --app-filter-purple-500: brightness(0) saturate(100%) invert(42%) sepia(80%) saturate(2996%) hue-rotate(271deg) brightness(89%) contrast(100%);
     --app-purple-gradient-bg: linear-gradient(-60deg, #ff18e0 0%, #f0f0f0 89%);
   --app-filter-grey-50: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(2523%) hue-rotate(266deg) brightness(116%) contrast(91%);
---app-filter-purple-900: brightness(0) saturate(100%) invert(0%) sepia(1%) saturate(750%) hue-rotate(317deg) brightness(97%) contrast(89%);
+--app-filter-text-light-permanent: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(2851%) hue-rotate(202deg) brightness(117%) contrast(91%);
 }
 
 .dark-mode {

@@ -118,8 +118,8 @@ button:disabled {
 }
 
 .primary {
-  background-image: var(--app-blue-gradient-light);
-  transition: all 0.3s ease;
+  background: var(--app-purple-500);
+  transition: background 0.3s ease;
   position: relative;
   z-index: 3;
   overflow: hidden;
@@ -130,77 +130,53 @@ button:disabled {
     position: relative;
     z-index: 3;
     img {
-      filter: var(--app-filter-white);
+      filter: var(--app-filter-text-light-permanent);
     }
   }
-  &::before,
-  &::after {
-    position: absolute;
-    content: "";
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+  &:hover {
+    background: var(--app-purple-600);
   }
-  &::before {
-    background-image: var(--app-blue-gradient-dark);
-    z-index: 1;
-  }
-  &::after {
-    background-image: linear-gradient(var(--app-blue-600), var(--app-blue-600));
-    z-index: 2;
-  }
-  &:not(:disabled):hover::before {
-    opacity: 1;
-  }
-  &:not(:disabled):active::after {
-    opacity: 1;
+  &:active {
+    background: var(--app-purple-700);
   }
   &:disabled {
     background: var(--app-grey-200);
   }
   &.loading {
-    background: var(--app-blue-gradient-light);
+    background: var(--app-purple-500);
     .c-button-loading {
       z-index: 3;
-      color: var(--app-white);
+      color: var(--app-grey-050);
     }
   }
 }
 
 .secondary {
-  background: var(--app-blue-050);
+  background: var(--app-purple-50);
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease;
   .label {
-    color: var(--app-blue-500);
+      color: var(--app-grey-900);
   }
   .c-button-content {
-    img {
-      filter: var(--app-gradient-blue-1);
-    }
   }
   &:hover {
-    .label {
-      color: var(--app-blue-600);
-    }
+    background: var(--app-purple-100);
   }
   &:active {
-    background: var(--app-blue-100);
-    .label {
-      color: var(--app-blue-500);
-    }
+    background: var(--app-purple-200);
   }
   &:disabled {
     background: var(--app-grey-200);
     .label {
-      color: var(--app-white);
+      color: var(--app-grey-050);
     }
   }
   &.loading {
-    background: var(--app-blue-050);
+    background: var(--app-purple-50);
     .c-button-loading {
-      color: var(--app-blue-500);
+      color: var(--app-grey-700);
     }
   }
 }
@@ -210,25 +186,22 @@ button:disabled {
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
-  border: 1px solid var(--app-blue-400);
+  border: 1px solid var(--app-purple-400);
   .label {
-    color: var(--app-blue-500);
+    color: var(--app-purple-500);
   }
   .c-button-content {
-    img {
-      filter: var(--app-gradient-blue-1);
-    }
   }
   &:hover {
-    border-color: var(--app-blue-600);
+    border-color: var(--app-purple-600);
     .label {
-      color: var(--app-blue-600);
+      color: var(--app-purple-600);
     }
   }
   &:active {
-    border-color: var(--app-blue-500);
+    border-color: var(--app-purple-500);
     .label {
-      color: var(--app-blue-500);
+      color: var(--app-purple-500);
     }
   }
   &:disabled {
@@ -238,9 +211,9 @@ button:disabled {
     }
   }
   &.loading {
-    border-color: var(--app-blue-500);
+    border-color: var(--app-purple-500);
     .c-button-loading {
-      color: var(--app-blue-500);
+      color: var(--app-purple-500);
     }
   }
 }
@@ -252,21 +225,18 @@ button:disabled {
   transition: all 0.3s ease;
   border: none;
   .label {
-    color: var(--app-blue-400);
+    color: var(--app-purple-400);
   }
   .c-button-content {
-    img {
-      filter: var(--app-gradient-blue-1);
-    }
   }
   &:hover {
     .label {
-      color: var(--app-blue-500);
+      color: var(--app-purple-500);
     }
   }
   &:active {
     .label {
-      color: var(--app-blue-600);
+      color: var(--app-purple-600);
     }
   }
   &:disabled {
@@ -276,13 +246,13 @@ button:disabled {
   }
   &.loading {
     .c-button-loading {
-      color: var(--app-blue-400);
+      color: var(--app-purple-400);
     }
   }
 }
 
 .icon-default {
-  background-color: var(--app-grey-050);
+  background-color: var(--app-grey-50);
   display: flex;
   align-items: center;
   justify-content: center;

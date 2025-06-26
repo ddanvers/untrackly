@@ -16,8 +16,8 @@
           >
             <span class="person-invitation__link">{{ displayText }}</span>
           </div>
-        <CButton @click="copy" bgColor="#000000" :disabled="copying">
-          <span style="color: white">Скопировать</span>
+        <CButton @click="copy" type="secondary">
+          <span>Скопировать</span>
         </CButton>
         </div>
       </section>
@@ -32,7 +32,6 @@
           @click="goToChat"
           v-if="!isInvited"
           height="78px"
-          bgColor="#000000"
           class="person-invitation__button"
           size="large"
         >
@@ -42,7 +41,6 @@
           @click="goToChat"
           v-if="isInvited"
           height="78px"
-          bgColor="#000000"
           class="person-invitation__button"
           size="large"
         >
@@ -52,7 +50,6 @@
           @click="rejectInvite"
           v-if="isInvited"
           height="78px"
-          bgColor="#000000"
           class="person-invitation__button"
           size="large"
         >
@@ -383,7 +380,6 @@ $app-narrow-mobile: 364px;
         width: fit-content;
 
         span {
-          color: var(--app-text-primary);
           font-size: 22px;
         }
       }
