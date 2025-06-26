@@ -1,0 +1,136 @@
+:root {
+
+  --app-red-source: #c91521;
+  --app-red-900: #800003;
+  --app-red-800: #9f0011;
+  --app-red-700: #bc141e;
+  --app-red-600: #d82f2e;
+  --app-red-500: #f24840;
+  --app-red-400: #ff6154;
+  --app-red-300: #ff7b6a;
+  --app-red-200: #ff9582;
+  --app-red-100: #ffb09c;
+  --app-red-50: #ffccb7;
+
+  --app-brown-source: #f8ead1;
+  --app-brown-900: #403828;
+  --app-brown-800: #544a38;
+  --app-brown-700: #685d49;
+  --app-brown-600: #7c715b;
+  --app-brown-500: #91856f;
+  --app-brown-400: #a69a83;
+  --app-brown-300: #bbaf99;
+  --app-brown-200: #d1c5b0;
+  --app-brown-100: #e7dcc7;
+  --app-brown-50: #fdf2e0;
+
+  --app-dirty-blue-source: #0f0f2f;
+  --app-dirty-blue-900: #383653;
+  --app-dirty-blue-800: #4b4869;
+  --app-dirty-blue-700: #5e5a7f;
+  --app-dirty-blue-600: #726e95;
+  --app-dirty-blue-500: #8782aa;
+  --app-dirty-blue-400: #9c97bf;
+  --app-dirty-blue-300: #b1acd4;
+  --app-dirty-blue-200: #c7c2e9;
+  --app-dirty-blue-100: #ded9fe;
+  --app-dirty-blue-50: #f5f0ff;
+
+  --app-purple-source: #c115c9;
+  --app-purple-900: #72007a;
+  --app-purple-800: #8e0096;
+  --app-purple-700: #a900b1;
+  --app-purple-600: #c221c9;
+  --app-purple-500: #da3fe1;
+  --app-purple-400: #f15af6;
+  --app-purple-300: #ff76ff;
+  --app-purple-200: #ff91ff;
+  --app-purple-100: #ffadff;
+  --app-purple-50: #ffcaff;
+
+  --app-grey-source: #000000;
+  --app-grey-900: #393939;
+  --app-grey-800: #4b4b4b;
+  --app-grey-700: #5e5e5e;
+  --app-grey-600: #727272;
+  --app-grey-500: #868686;
+  --app-grey-400: #9b9b9b;
+  --app-grey-300: #b0b0b0;
+  --app-grey-200: #c6c6c6;
+  --app-grey-100: #dddddd;
+  --app-grey-50: #868686;
+
+  --app-white: #ffffff;
+  --app-black: #000000;
+
+  --app-text-primary: #0e0e0e;
+  --app-filter-purple-500: brightness(0) saturate(100%) invert(42%) sepia(80%) saturate(2996%) hue-rotate(271deg) brightness(89%) contrast(100%);
+    --app-purple-gradient-bg: linear-gradient(-60deg, #ff18e0 0%, #f0f0f0 89%);
+  --app-filter-grey-50: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(2523%) hue-rotate(266deg) brightness(116%) contrast(91%);
+--app-filter-purple-900: brightness(0) saturate(100%) invert(0%) sepia(1%) saturate(750%) hue-rotate(317deg) brightness(97%) contrast(89%);
+}
+
+.dark-mode {
+  --app-red-source: #E01725;
+  --app-red-900: #9A0003;
+  --app-red-800: #B90012;
+  --app-red-700: #D31623;
+  --app-red-600: #DC4343;
+  --app-red-500: #F46058;
+  --app-red-400: #FF7A6E;
+  --app-red-300: #FF7B6A;
+  --app-red-200: #FF9582;
+  --app-red-100: #7C1900;
+  --app-red-50: #611D00;
+
+  --app-brown-source: #442F0A;
+  --app-brown-900: #403828;
+  --app-brown-800: #544A38;
+  --app-brown-700: #685D49;
+  --app-brown-600: #7C715B;
+  --app-brown-500: #91856F;
+  --app-brown-400: #A69A83;
+  --app-brown-300: #BBAF99;
+  --app-brown-200: #D1C5B0;
+  --app-brown-100: #4A3B20;
+  --app-brown-50: #372304;
+
+  --app-dirty-blue-source: #0f0f2f;
+  --app-dirty-blue-900: #383653;
+  --app-dirty-blue-800: #4B4869;
+  --app-dirty-blue-700: #5E5A7F;
+  --app-dirty-blue-600: #726E95;
+  --app-dirty-blue-500: #8782AA;
+  --app-dirty-blue-400: #9C97BF;
+  --app-dirty-blue-300: #B1ACD4;
+  --app-dirty-blue-200: #241D50;
+  --app-dirty-blue-100: #0A023F;
+  --app-dirty-blue-50: #141414;
+
+  --app-purple-source: #D617E0;
+  --app-purple-900: #8A0093;
+  --app-purple-800: #A700B0;
+  --app-purple-700: #C000CB;
+  --app-purple-600: #D628DC;
+  --app-purple-500: #DD55E4;
+  --app-purple-400: #F372F7;
+  --app-purple-300: #FF76FF;
+  --app-purple-200: #FF91FF;
+  --app-purple-100: #6B006B;
+  --app-purple-50: #4E004E;
+
+  --app-grey-source: #FFFFFF;
+  --app-grey-900: #393939;
+  --app-grey-800: #4B4B4B;
+  --app-grey-700: #5E5E5E;
+  --app-grey-600: #727272;
+  --app-grey-500: #868686;
+  --app-grey-400: #9B9B9B;
+  --app-grey-300: #B0B0B0;
+  --app-grey-200: #C6C6C6;
+  --app-grey-100: #2F2F2F;
+  --app-grey-50: #191919;
+
+  --app-text-primary: #f3f3f3;
+  --app-purple-gradient-bg: linear-gradient(-60deg, #7D066D 0%, #000000 89%);
+}

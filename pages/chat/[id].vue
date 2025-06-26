@@ -271,7 +271,7 @@ $app-narrow-mobile: 364px;
   height: 100vh;
   min-height: max-content;
   width: 100vw;
-  background: linear-gradient(-60deg, #7d066d 0%, #000000 89%);
+  background: var(--app-purple-gradient-bg);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -307,7 +307,7 @@ $app-narrow-mobile: 364px;
       font-size: 24px;
       text-wrap: balance;
       text-align: center;
-      color: white;
+      color: var(--app-text-primary);
       max-width: 800px;
       @media screen and (max-width: $app-mobile) {
         font-size: 20px;
@@ -339,7 +339,7 @@ $app-narrow-mobile: 364px;
       width: 320px;
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(4px);
-      color: white;
+      color: var(--app-text-primary);
       font-size: 18px;
       font-weight: 500;
       text-align: center;
@@ -383,7 +383,7 @@ $app-narrow-mobile: 364px;
         width: fit-content;
 
         span {
-          color: white;
+          color: var(--app-text-primary);
           font-size: 22px;
         }
       }
@@ -395,7 +395,7 @@ $app-narrow-mobile: 364px;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
+    color: var(--app-text-primary);
     font-size: 18px;
         display: flex;
     align-items: center;
@@ -425,10 +425,10 @@ $app-narrow-mobile: 364px;
   display: inline-block;
   width: 50px;
   height: 80px;
-  border-top: 5px solid #fff;
-  border-bottom: 5px solid #fff;
+  border-top: 5px solid var(--app-text-primary);;
+  border-bottom: 5px solid var(--app-text-primary);;
   position: relative;
-  background: linear-gradient(#c115c9 30px, transparent 0) no-repeat;
+  background: linear-gradient(var(--app-purple-500) 30px, transparent 0) no-repeat;
   background-size: 2px 40px;
   background-position: 50% 0px;
   animation: spinx 5s linear infinite;
@@ -456,25 +456,25 @@ $app-narrow-mobile: 364px;
 }
 @keyframes lqt {
   0%, 100% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
     background-position: 0% 0px;
   }
   50% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
     background-position: 0% 40px;
   }
   50.1% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
     background-position: 0% -40px;
   }
 }
 @keyframes lqb {
   0% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
     background-position: 0 40px;
   }
   100% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
     background-position: 0 -40px;
   }
 }

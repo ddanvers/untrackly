@@ -27,7 +27,7 @@ $app-narrow-mobile: 364px;
 .page-hero {
   height: 100vh;
   width: 100vw;
-  background: linear-gradient(-60deg, #7D066D 0%, #000000 89%);
+  background: var(--app-purple-gradient-bg);
   position: relative;
   padding: 24px;
   &__logo-container {
@@ -60,7 +60,7 @@ $app-narrow-mobile: 364px;
     }
     .page-hero__slogan {
       font-size: 24px;
-      color: white;
+      color: var(--app-text-primary);
                       @media screen and (max-width: $app-mobile) {
                         font-size: 20px;
         }
@@ -96,13 +96,14 @@ $app-narrow-mobile: 364px;
       align-items: center;
       gap: 24px;
       cursor: pointer;
-      transition: transform 0.2s ease;
-      will-change: transform;
-      &:hover {
+      &:hover .page-hero__launch-icon  {
         transform: scale(1.05);
       }
       .page-hero__launch-icon {
         pointer-events: none;
+              transition: transform 0.2s ease;
+      will-change: transform;
+        filter: var(--app-filter-purple-900);
         width: 180px;
                 @media screen and (max-width: $app-mobile) {
                   width: 140px;
@@ -113,7 +114,7 @@ $app-narrow-mobile: 364px;
       }
       span {
         font-size: 24px;
-        color: white;
+        color: var(--app-text-primary);
         @media screen and (max-width: $app-mobile) {
           font-size: 20px;
         }

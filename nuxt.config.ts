@@ -9,7 +9,8 @@ export default defineNuxtConfig({
     "normalize.css/normalize.css",
     "@/assets/styles/main.scss",
     "@/assets/styles/fonts.scss",
-    "@/assets/styles/typography.scss"
+    "@/assets/styles/typography.scss",
+    "@/assets/styles/colors.scss",
   ],
   i18n: {
     locales: [

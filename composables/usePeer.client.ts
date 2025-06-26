@@ -88,8 +88,16 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     connection.on('data', (data: any) => {
       console.log('[usePeer] Connection data received', data)
       handleCallSignals(data)
-      // Фильтрация сигнальных сообщений звонка
-      if (data && (data.type === 'call-request' || data.type === 'call-decline' || data.type === 'call-end')) {
+      // Фильтрация сигнальных сообщений звонка и управления потоками
+      if (data && (
+        data.type === 'call-request' ||
+        data.type === 'call-decline' ||
+        data.type === 'call-end' ||
+        data.type === 'video-on' ||
+        data.type === 'video-off' ||
+        data.type === 'restart-call-with-video'
+      )) {
+        // Не пушим сигнальные сообщения в messages
         return
       }
       let msg: Message
@@ -149,7 +157,6 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       }
       messages.value.push(msg)
       console.log('[usePeer] Message pushed', msg)
-      handleCallSignals(data)
     })
     connection.on('close', () => {
       console.log('[usePeer] Connection closed')
@@ -287,8 +294,12 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   async function startCall(withVideo = true) {
     console.log('[usePeer] startCall: called', { withVideo, callState: callState.value, conn: !!conn.value })
     callState.value = 'calling'
+    callType.value = withVideo ? 'video' : 'audio'
     isCameraEnabled.value = !!withVideo
-    const stream = await navigator.mediaDevices.getUserMedia(withVideo ? { video: true, audio: true } : { audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      if (!withVideo) {
+    stream.getVideoTracks().forEach(t => t.enabled = false)
+  }
     // Оставляем только live-треки
     const liveTracks = stream.getTracks().filter(t => t.readyState === 'live')
     const liveStream = new MediaStream(liveTracks)
@@ -310,9 +321,14 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   }
 
   async function acceptCall(withVideo = true) {
+      callState.value = 'active'
+  callType.value = withVideo ? 'video' : 'audio'
     console.log('[usePeer] acceptCall: called', { withVideo, callState: callState.value, mediaConn })
     isCameraEnabled.value = !!withVideo
-    const stream = await navigator.mediaDevices.getUserMedia(withVideo ? { video: true, audio: true } : { audio: true })
+     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+       if (!withVideo) {
+    stream.getVideoTracks().forEach(t => t.enabled = false)
+  }
     localStream.value = stream
     console.log('[usePeer] acceptCall: got localStream', stream)
     if (mediaConn) {
@@ -379,37 +395,20 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   // (удалено дублирование)
 
   // --- Управление камерой во время звонка ---
-  async function toggleCamera(enabled: boolean): Promise<void> {
-    if (!localStream.value || isCameraToggling.value) return
-    isCameraToggling.value = true
-    try {
-      let videoTrack = localStream.value.getVideoTracks()[0]
-      if (enabled) {
-        if (!videoTrack) {
-          // Если трека нет — пересоздать звонок с видео
-          conn.value?.send({ type: 'restart-call-with-video' })
-          // Завершить текущий звонок
-          endCall()
-          // Через 700мс инициировать новый звонок с видео (увеличена задержка)
-          setTimeout(() => startCall(true), 700)
-          return
-        }
-        videoTrack.enabled = true
-        isCameraEnabled.value = true
-        conn.value?.send({ type: 'video-on' })
-      } else {
-        if (videoTrack) {
-          videoTrack.enabled = false
-        }
-        isCameraEnabled.value = false
-        conn.value?.send({ type: 'video-off' })
-      }
-    } catch (e) {
-      console.error('[usePeer] toggleCamera error', e)
-    } finally {
-      isCameraToggling.value = false
-    }
+async function toggleCamera(enabled: boolean) {
+  if (!localStream.value || isCameraToggling.value) return
+  isCameraToggling.value = true
+  try {
+    const track = localStream.value.getVideoTracks()[0]
+    if (!track) return
+    // просто переключаем enabled, без перезапуска звонка
+    track.enabled = enabled
+    isCameraEnabled.value = enabled
+    conn.value?.send({ type: enabled ? 'video-on' : 'video-off' })
+  } finally {
+    isCameraToggling.value = false
   }
+}
 
   // --- Обработка сигналов звонка ---
   function handleCallSignals(data: any) {
@@ -439,32 +438,36 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     }
     if (data.type === 'video-off') {
       if (remoteStream.value) {
-        remoteStream.value.getVideoTracks().forEach(t => {
-          t.stop()
-          remoteStream.value?.removeTrack(t)
-        })
-        console.log('[usePeer] handleCallSignals: video-off, removed video tracks from remoteStream')
+      remoteStream.value.getVideoTracks().forEach(t => {
+        t.enabled = false
+      })
+      console.log('[usePeer] handleCallSignals: video-off, videoTracks disabled')
       }
     }
-    if (data.type === 'video-on') {
-      if (mediaConn && mediaConn.peerConnection) {
-        const receivers = mediaConn.peerConnection.getReceivers();
-        // Берём только live video/audio треки
-        const videoTrack = receivers
-          .map((r: RTCRtpReceiver) => r.track as MediaStreamTrack)
-          .find((t: MediaStreamTrack | undefined) => t && t.kind === 'video' && t.readyState === 'live');
-        const audioTracks = receivers
-          .map((r: RTCRtpReceiver) => r.track as MediaStreamTrack)
-          .filter((t: MediaStreamTrack | undefined) => t && t.kind === 'audio' && t.readyState === 'live');
-        const tracks = [videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[];
-        if (videoTrack) {
-          remoteStream.value = new MediaStream(tracks);
-          console.log('[usePeer] handleCallSignals: video-on, remoteStream updated (only live)', tracks);
-        } else {
-          console.warn('[usePeer] handleCallSignals: video-on, no live video track found', receivers);
-        }
+  if (data.type === 'video-on') {
+    if (remoteStream.value) {
+      // Включаем обратно все видео-дорожки
+      remoteStream.value.getVideoTracks().forEach(t => {
+        t.enabled = true
+      })
+      console.log('[usePeer] handleCallSignals: video-on, videoTracks enabled')
+    } else if (mediaConn && mediaConn.peerConnection) {
+      // На всякий случай, если remoteStream ещё не установился — получаем его из receivers
+      const receivers = mediaConn.peerConnection.getReceivers()
+      const videoTrack = receivers
+        .map((r: RTCRtpReceiver) => r.track)
+        .find((t: MediaStreamTrack | null) => t?.kind === 'video' && t.readyState === 'live')
+      const audioTracks = receivers
+        .map((r: RTCRtpReceiver) => r.track)
+        .filter((t: MediaStreamTrack | null) => t?.kind === 'audio' && t.readyState === 'live')
+      if (videoTrack) {
+        remoteStream.value = new MediaStream([videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[])
+        console.log('[usePeer] handleCallSignals: video-on, remoteStream reconstructed', remoteStream.value)
+      } else {
+        console.warn('[usePeer] handleCallSignals: video-on, no live video track found')
       }
     }
+  }
   }
 
   // --- Управление камерой и микрофоном во время звонка с debounce ---

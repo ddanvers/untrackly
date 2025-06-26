@@ -2,8 +2,14 @@
   <section class="chat">
     <header class="chat__header">
       <span class="chat__title">{{ title }}</span>
-      <button class="chat__call" @click="$emit('call', 'video')" title="Видеозвонок"><svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#7d066d"/><path d="M10 12c0 5.5 4.5 10 10 10v2c0 .6.4 1 1 1h2c.6 0 1-.4 1-1v-2c0-7.2-5.8-13-13-13h-2c-.6 0-1 .4-1 1v2c0 .6.4 1 1 1h2z" fill="#fff"/></svg></button>
-      <button class="chat__call" @click="$emit('call', 'audio')" title="Аудиозвонок"><svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#7d066d"/><path d="M16 10a4 4 0 0 1 4 4v4a4 4 0 0 1-8 0v-4a4 4 0 0 1 4-4zm0 12a6 6 0 0 0 6-6h2a8 8 0 0 1-16 0h2a6 6 0 0 0 6 6z" fill="#fff"/></svg></button>
+      <div>
+            <button class="chat__call" @click="$emit('call', 'video')" title="Видеозвонок">
+        <NuxtImg src="/icons/chat/video.svg" width="32px" height="32px" />
+      </button>
+      <button class="chat__call" @click="$emit('call', 'audio')" title="Аудиозвонок">
+        <NuxtImg src="/icons/chat/phone.svg" width="32px" height="32px" />
+      </button>
+      </div>
     </header>
 
     <div 
