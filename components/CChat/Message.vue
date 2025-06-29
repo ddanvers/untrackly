@@ -139,12 +139,12 @@ $app-narrow-mobile: 364px;
     justify-content: space-between;
     gap: 48px;
     font-size: 14px;
-    color: #dfdfdf;
+    color: var(--app-text-secondary);
     margin-bottom: 8px;
   }
   &__bubble {
-    background: #070707;
-    color: white;
+    background: var(--app-blue-100);
+    color: var(--app-text-primary);
     padding: 16px;
     border-radius: 8px;
     overflow-wrap: anywhere;
@@ -153,8 +153,12 @@ $app-narrow-mobile: 364px;
     margin-left: auto;
     margin-right: 0;
     .chat__message__bubble {
-      background: #580057;
+      background: var(--app-blue-500);
+  color: var(--app-text-primary-white);
     }
+    .chat__group-text {
+  color: var(--app-text-primary-white);
+}
   }
 }
 .chat__image {
@@ -173,7 +177,7 @@ $app-narrow-mobile: 364px;
 }
 .chat__group-text {
   margin-top: 8px;
-  color: #fff;
+  color: var(--app-text-primary);
   font-size: 15px;
 }
 .form__attachments {
@@ -187,7 +191,6 @@ $app-narrow-mobile: 364px;
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #181818;
   border-radius: 6px;
   height: 72px;
   padding: 4px 8px;
@@ -206,26 +209,24 @@ $app-narrow-mobile: 364px;
   object-fit: contain;
 }
 .form__attachment-file {
-  color: #fff;
+  color: var(--app-text-primary);
   font-size: 14px;
 }
 .file-group-block {
-  background: #181828;
   border-radius: 8px;
   padding: 8px 8px 4px 8px;
   margin-top: 8px;
   margin-bottom: 4px;
-  box-shadow: 0 2px 8px #0002;
 }
 .file-attachment {
   position: relative;
-  background: #23233a;
+  background: var(--app-blue-200);
   border-radius: 6px;
   padding: 6px 36px 6px 8px;
   margin: 2px 0;
 }
 .file-link {
-  color: #fff;
+  color: var(--app-text-primary);
   font-size: 14px;
   margin-right: 8px;
   text-overflow: ellipsis;
@@ -240,7 +241,7 @@ $app-narrow-mobile: 364px;
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: #b809b5;
+  background: var(--app-pink-500);
   border-radius: 6px;
   padding: 2px;
   display: flex;
@@ -249,10 +250,14 @@ $app-narrow-mobile: 364px;
   transition: opacity 0.2s;
   z-index: 2;
   transition: background 0.3s;
+  img {
+    filter: var(--app-filter-grey-50);
+  }
 }
 .download-icon:hover {
-  background: #7d068d;
+  background: var(--app-pink-600);
 }
+
 .file-img-wrapper {
   display: inline-block;
   width: 100%;
@@ -261,6 +266,11 @@ $app-narrow-mobile: 364px;
   position: relative;
   display: inline-block;
   margin-top: 8px;
+  width: 100%;
+  img {
+    width: 100%;
+    object-fit: cover;
+  }
   .download-icon {
     top: 16px;
     right: 8px;

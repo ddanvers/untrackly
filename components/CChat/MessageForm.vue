@@ -9,7 +9,7 @@
           <NuxtImg :src="getIconByType(item.file.name.split('.').pop())" class="form__attachment-icon" width="32px"></NuxtImg>
           <span class="form__attachment-file">{{ item.file.name }}</span>
         </template>
-        <button type="button" class="form__detach" @click="detach(idx)">✕</button>
+        <button type="button" class="form__detach" @click="detach(idx)"><NuxtImg src="/icons/close.svg" width="24px"></NuxtImg></button>
       </div>
     </div>
     <form class="form" @submit.prevent="onSubmit">
@@ -19,7 +19,7 @@
         v-model="text"
         class="form__input"
         type="text"
-        placeholder="Ваше сообщение"
+        placeholder="Напишите ваше сообщение"
         @keyup.enter="onSubmit"
         rows="3"
       />
@@ -123,7 +123,7 @@ function detach(idx: number) {
   flex-wrap: wrap;
   &__attach, &__send {
     img {
-      filter: var(--app-filter-purple-500)
+      filter: var(--app-filter-pink-500)
     }
   }
   &__input {
@@ -133,9 +133,12 @@ function detach(idx: number) {
     border: none;
     outline: none;
     resize: none;
-    background: var(--app-yellow-50);
+    background: var(--app-blue-50);
     color: var(--app-text-primary);
     font-size: 14px;
+    &::placeholder {
+      color: var(--app-text-secondary);
+    }
   }
   &__attachments {
     position: relative;
@@ -151,7 +154,7 @@ function detach(idx: number) {
   &__attachment {
     display: flex;
     align-items: center;
-    background: var(--app-purple-50);
+    background: var(--app-blue-200);
     border-radius: 8px;
     padding: 4px 8px;
     gap: 8px;
@@ -163,7 +166,7 @@ function detach(idx: number) {
     border-radius: 4px;
   }
   &__attachment-file {
-    color: #222;
+    color: var(--app-text-primary);
     font-size: 14px;
     max-width: 120px;
     overflow: hidden;
@@ -173,16 +176,19 @@ function detach(idx: number) {
   &__detach {
     background: none;
     border: none;
-    color: var(--app-purple-500);
     font-size: 16px;
     cursor: pointer;
     margin-left: 4px;
-
+    width: 24px;
+    height: 24px;
+    img {
+      filter: var(--app-filter-pink-500);
+    }
     &:hover {
-      color: var(--app-purple-600);
+      color: var(--app-pink-600);
     }
     &:active {
-      color: var(--app-purple-700);
+      color: var(--app-pink-700);
     }
   }
 }

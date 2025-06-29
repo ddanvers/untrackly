@@ -3,26 +3,28 @@
     <div class="video-call__container">
       <div class="video-call__header">
         <span>{{ callStatusText }}</span>
-        <button class="video-call__close" @click="onEndCall">×</button>
+        <button class="video-call__close" @click="onEndCall"><NuxtImg src="/icons/close.svg" width="24px"></NuxtImg></button>
       </div>
       <div class="video-call__videos">
         <video ref="myVideo" class="video-call__my-video" autoplay playsinline muted></video>
         <video ref="remoteVideo" class="video-call__remote-video" autoplay playsinline></video>
       </div>
       <div class="video-call__controls">
-        <button @click="toggleMic" :class="{ active: micState }">
-          <span v-if="micState">🎤</span><span v-else>🎤<span style='text-decoration:line-through;color:#c115c9'>/</span></span>
-        </button>
-        <button @click="toggleCam" :class="{ active: camState }">
-          <span v-if="camState">📷</span><span v-else>📷<span style='text-decoration:line-through;color:#c115c9'>/</span></span>
-        </button>
-        <button class="end" @click="onEndCall">Завершить</button>
+        <CButton type="icon-default" iconSize="i-large" @click="toggleMic" :class="{ active: micState }">
+          <NuxtImg :src="micState ? '/icons/chat/microphone.svg' : '/icons/chat/microphone-off.svg'" width="32px"></NuxtImg>
+        </CButton>
+        <CButton type="icon-default" iconSize="i-large" @click="toggleCam" :class="{ active: camState }">
+          <NuxtImg :src="camState ? '/icons/chat/camera.svg' : '/icons/chat/camera-off.svg'" width="32px"></NuxtImg>
+        </CButton>
+        <CButton class="video-call__end-btn" bgColor="var(--app-color-negavite)" type="icon-default" iconSize="i-large" @click="onEndCall"><NuxtImg src="/icons/chat/call_end.svg" width="32px"></NuxtImg></CButton>
       </div>
     </div>
     <div v-if="incoming && !accepted" class="video-call__incoming">
       <span>Входящий звонок...</span>
-      <button @click="onAcceptCall">Принять</button>
-      <button @click="onDeclineCall">Отклонить</button>
+      <div class="video-call__incoming-actions">
+      <CButton type="primary" @click="onAcceptCall">Принять</CButton>
+      <CButton type="quaternary" @click="onDeclineCall">Отклонить</CButton>
+      </div>
     </div>
   </div>
 </template>
@@ -100,7 +102,7 @@ function toggleCam() {
   position: fixed;
   z-index: 10000;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(20,0,40,0.95);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,20 +112,20 @@ function toggleCam() {
   width: 90vw;
   max-width: 900px;
   height: 80vh;
-  background: #1a0030;
+  background: var(--app-blue-50);
   border-radius: 24px;
   box-shadow: 0 8px 32px #0008;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 0 0 0;
+  padding: 16px;
 }
 .video-call__header {
   width: 100%;
   text-align: center;
-  color: #fff;
+  color: var(--app-text-primary);
   font-size: 22px;
-  margin-bottom: 8px;
+  margin: 12px 0px 24px 0px;
   position: relative;
 }
 .video-call__close {
@@ -132,7 +134,9 @@ function toggleCam() {
   top: 0;
   background: none;
   border: none;
-  color: #fff;
+  img {
+    filter: var(--app-filter-text-light-permanent);
+  }
   font-size: 32px;
   cursor: pointer;
 }
@@ -152,7 +156,7 @@ function toggleCam() {
   height: 120px;
   border-radius: 12px;
   box-shadow: 0 2px 12px #000a;
-  background: #222;
+  background: var(--app-text-secondary);
   object-fit: cover;
   z-index: 2;
 }
@@ -161,7 +165,7 @@ function toggleCam() {
   max-width: 700px;
   height: 60vh;
   border-radius: 18px;
-  background: #000;
+    background: var(--app-text-secondary);
   object-fit: cover;
   z-index: 1;
 }
@@ -171,24 +175,13 @@ function toggleCam() {
   align-items: center;
   gap: 32px;
   margin: 24px 0 16px 0;
-  button {
-    background: #2a0040;
-    border: none;
-    color: #fff;
-    font-size: 28px;
-    border-radius: 50%;
-    width: 56px;
-    height: 56px;
-    cursor: pointer;
-    &.end {
-      background: #c115c9;
-      color: #fff;
-      font-size: 18px;
-      width: 120px;
-      border-radius: 32px;
+    img {
+      filter: var(--app-filter-black);
     }
-    &.active {
-      background: #7d066d;
+  .video-call__end-btn {
+    
+    img {
+      filter: var(--app-filter-text-light-permanent);
     }
   }
 }
@@ -197,14 +190,18 @@ function toggleCam() {
   left: 50%;
   top: 50%;
   transform: translate(-50%,-50%);
-  background: #fff2;
+  background: var(--app-blue-200);
   border-radius: 16px;
   padding: 32px 48px;
-  color: #fff;
+  color: var(--app-text-primary);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
   z-index: 10001;
+}
+.video-call__incoming-actions {
+  display: flex;
+  gap: 16px;
 }
 </style>

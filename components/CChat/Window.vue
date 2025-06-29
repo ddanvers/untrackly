@@ -2,13 +2,9 @@
   <section class="chat">
     <header class="chat__header">
       <span class="chat__title">{{ title }}</span>
-      <div>
-            <button class="chat__call" @click="$emit('call', 'video')" title="Видеозвонок">
-        <NuxtImg src="/icons/chat/video.svg" width="32px" height="32px" />
-      </button>
-      <button class="chat__call" @click="$emit('call', 'audio')" title="Аудиозвонок">
-        <NuxtImg src="/icons/chat/phone.svg" width="32px" height="32px" />
-      </button>
+      <div class="chat__actions">
+<CButton @click="onVideoCall" bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg></CButton>
+<CButton @click="onAudioCall" bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg></CButton>
       </div>
     </header>
 
@@ -65,6 +61,12 @@ function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
+function onVideoCall() {
+  emit('call', 'video')
+}
+function onAudioCall() {
+  emit('call', 'audio')
+}
 // при монтировании скроллим вниз
 onMounted(() => {
   console.log('[Window.vue] mounted')
@@ -134,10 +136,17 @@ $app-narrow-mobile: 364px;
   &__header {
     display: flex;
     justify-content: space-between;
-
+    align-items: center;
     padding: 16px;
   }
-  &__title { font-size: 32px;     color: var(--app-yellow-600);
+  &__actions {
+    display: flex;
+    gap: 8px;
+    img {
+      filter: var(--app-filter-pink-500);
+    }
+  }
+  &__title { font-size: 32px;     color: var(--app-text-primary);
   @media screen and (max-width: $app-mobile) {
     font-size: 24px;
   }

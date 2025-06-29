@@ -12,7 +12,7 @@
           <NuxtImg v-if="prependImg" :src="prependImg"></NuxtImg>
         </slot>
       </div>
-      <div class="label">
+      <div class="label" :style="{ color: textColor }">
         <slot></slot>
       </div>
       <div class="append">
@@ -29,12 +29,13 @@ type Props = {
   type?: "primary" | "secondary" | "tertiary" | "quaternary" | "icon-default";
   buttonType?: "submit" | "button";
   loading?: boolean;
-  size?: "large" | "default" | "small";
+  size?: "large" | "default" | "small" | "extra-large";
   fill?: boolean;
   prependImg?: string;
   appendImg?: string;
   disabled?: boolean;
   bgColor?: string;
+  textColor?: string;
   iconSize?: "i-large" | "i-medium" | "i-small";
   height?: string;
   width?: string;
@@ -102,6 +103,10 @@ button:disabled {
   padding: 0 20px;
   height: 48px;
 }
+.extra-large {
+  padding: 0 20px;
+  height: 56px;
+}
 .default {
   padding: 0 20px;
   height: 44px;
@@ -118,7 +123,7 @@ button:disabled {
 }
 
 .primary {
-  background: var(--app-purple-500);
+  background: var(--app-pink-500);
   transition: background 0.3s ease;
   position: relative;
   z-index: 3;
@@ -134,16 +139,16 @@ button:disabled {
     }
   }
   &:hover {
-    background: var(--app-purple-600);
+    background: var(--app-pink-600);
   }
   &:active {
-    background: var(--app-purple-700);
+    background: var(--app-pink-700);
   }
   &:disabled {
     background: var(--app-grey-200);
   }
   &.loading {
-    background: var(--app-purple-500);
+    background: var(--app-pink-500);
     .c-button-loading {
       z-index: 3;
       color: var(--app-grey-050);
@@ -152,20 +157,20 @@ button:disabled {
 }
 
 .secondary {
-  background: var(--app-purple-50);
+  background: var(--app-pink-50);
   position: relative;
   overflow: hidden;
   transition: background 0.3s ease, color 0.3s ease;
   .label {
-      color: var(--app-grey-900);
+      color: var(--app-text-primary);
   }
   .c-button-content {
   }
   &:hover {
-    background: var(--app-purple-100);
+    background: var(--app-pink-100);
   }
   &:active {
-    background: var(--app-purple-200);
+    background: var(--app-pink-200);
   }
   &:disabled {
     background: var(--app-grey-200);
@@ -174,7 +179,7 @@ button:disabled {
     }
   }
   &.loading {
-    background: var(--app-purple-50);
+    background: var(--app-pink-50);
     .c-button-loading {
       color: var(--app-grey-700);
     }
@@ -186,22 +191,22 @@ button:disabled {
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
-  border: 1px solid var(--app-purple-400);
+  border: 1px solid var(--app-pink-400);
   .label {
-    color: var(--app-purple-500);
+    color: var(--app-pink-500);
   }
   .c-button-content {
   }
   &:hover {
-    border-color: var(--app-purple-600);
+    border-color: var(--app-pink-600);
     .label {
-      color: var(--app-purple-600);
+      color: var(--app-pink-600);
     }
   }
   &:active {
-    border-color: var(--app-purple-500);
+    border-color: var(--app-pink-500);
     .label {
-      color: var(--app-purple-500);
+      color: var(--app-pink-500);
     }
   }
   &:disabled {
@@ -211,9 +216,9 @@ button:disabled {
     }
   }
   &.loading {
-    border-color: var(--app-purple-500);
+    border-color: var(--app-pink-500);
     .c-button-loading {
-      color: var(--app-purple-500);
+      color: var(--app-pink-500);
     }
   }
 }
@@ -225,18 +230,18 @@ button:disabled {
   transition: all 0.3s ease;
   border: none;
   .label {
-    color: var(--app-purple-400);
+    color: var(--app-pink-500);
   }
   .c-button-content {
   }
   &:hover {
     .label {
-      color: var(--app-purple-500);
+      color: var(--app-pink-500);
     }
   }
   &:active {
     .label {
-      color: var(--app-purple-600);
+      color: var(--app-pink-600);
     }
   }
   &:disabled {
@@ -246,7 +251,7 @@ button:disabled {
   }
   &.loading {
     .c-button-loading {
-      color: var(--app-purple-400);
+      color: var(--app-pink-400);
     }
   }
 }
@@ -267,7 +272,7 @@ button:disabled {
     left: 0;
     bottom: 0;
     right: 0;
-    background: rgb(0, 0, 0, 0.05);
+    background: rgb(0, 0, 0, 0.1);
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
@@ -302,5 +307,12 @@ button:disabled {
   to {
     transform: rotate(360deg);
   }
+}
+.dark {
+  .icon-default {
+  &::after {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
 }
 </style>

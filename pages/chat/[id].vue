@@ -11,7 +11,7 @@
             class="person-invitation__link-wrapper"
             :style="{
               height: fixedHeight ? fixedHeight + 'px' : 'auto',
-              backgroundColor: animating ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: animating ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
             }"
           >
             <span class="person-invitation__link">{{ displayText }}</span>
@@ -31,27 +31,25 @@
         <CButton
           @click="goToChat"
           v-if="!isInvited"
-          height="78px"
           class="person-invitation__button"
-          size="large"
+          size="extra-large"
         >
           <span>Перейти в чат</span>
         </CButton>
         <CButton
           @click="goToChat"
           v-if="isInvited"
-          height="78px"
           class="person-invitation__button"
-          size="large"
+          size="extra-large"
         >
           <span>Принять</span>
         </CButton>
         <CButton
           @click="rejectInvite"
           v-if="isInvited"
-          height="78px"
           class="person-invitation__button"
-          size="large"
+          size="extra-large"
+          type="secondary"
         >
           <span>Отклонить</span>
         </CButton>
@@ -186,9 +184,9 @@ function sendFileHandler(payload: any) {
 
 const showCall = ref(false)
 const callStatusText = computed(() => {
-  if (callState.value === 'calling') return 'Звонок...'
+  if (callState.value === 'calling') return 'Звоним собеседнику...'
   if (callState.value === 'incoming') return 'Входящий звонок'
-  if (callState.value === 'active') return 'Видеозвонок'
+  if (callState.value === 'active') return 'Идёт звонок'
   if (callState.value === 'ended') return 'Звонок завершён'
   return ''
 })
@@ -268,7 +266,7 @@ $app-narrow-mobile: 364px;
   height: 100vh;
   min-height: max-content;
   width: 100vw;
-  background: var(--app-purple-gradient-bg);
+  background: var(--app-pink-gradient-bg);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -305,7 +303,7 @@ $app-narrow-mobile: 364px;
       text-wrap: balance;
       text-align: center;
       color: var(--app-text-primary);
-      max-width: 800px;
+      max-width: 560px;
       @media screen and (max-width: $app-mobile) {
         font-size: 20px;
       }
@@ -378,9 +376,8 @@ $app-narrow-mobile: 364px;
       }
       .person-invitation__button {
         width: fit-content;
-
         span {
-          font-size: 22px;
+          font-size: 20px;
         }
       }
     }
@@ -424,7 +421,7 @@ $app-narrow-mobile: 364px;
   border-top: 5px solid var(--app-text-primary);;
   border-bottom: 5px solid var(--app-text-primary);;
   position: relative;
-  background: linear-gradient(var(--app-purple-500) 30px, transparent 0) no-repeat;
+  background: linear-gradient(var(--app-pink-500) 30px, transparent 0) no-repeat;
   background-size: 2px 40px;
   background-position: 50% 0px;
   animation: spinx 5s linear infinite;
@@ -452,25 +449,25 @@ $app-narrow-mobile: 364px;
 }
 @keyframes lqt {
   0%, 100% {
-    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0% 0px;
   }
   50% {
-    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0% 40px;
   }
   50.1% {
-    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0% -40px;
   }
 }
 @keyframes lqb {
   0% {
-    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0 40px;
   }
   100% {
-    background-image: linear-gradient(var(--app-purple-500) 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0 -40px;
   }
 }

@@ -27,7 +27,7 @@ $app-narrow-mobile: 364px;
 .page-hero {
   height: 100vh;
   width: 100vw;
-  background: var(--app-purple-gradient-bg);
+  background: var(--app-pink-gradient-bg);
   position: relative;
   padding: 24px;
   &__logo-container {
