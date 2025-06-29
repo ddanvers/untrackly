@@ -3,34 +3,59 @@
     <div class="video-call__container">
       <div class="video-call__header">
         <span>{{ callStatusText }}</span>
-        <button class="video-call__close" @click="onEndCall"><NuxtImg src="/icons/close.svg" width="24px"></NuxtImg></button>
+        <button class="video-call__close" @click="onEndCall">
+          <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
+        </button>
       </div>
       <div class="video-call__videos">
         <video ref="myVideo" class="video-call__my-video" autoplay playsinline muted></video>
         <video ref="remoteVideo" class="video-call__remote-video" autoplay playsinline></video>
       </div>
       <div class="video-call__controls">
-        <CButton type="icon-default" iconSize="i-large" @click="toggleMic" :class="{ active: micState }">
-          <NuxtImg :src="micState ? '/icons/chat/microphone.svg' : '/icons/chat/microphone-off.svg'" width="32px"></NuxtImg>
+        <CButton
+          type="icon-default"
+          iconSize="i-large"
+          @click="toggleMic"
+          :class="{ active: micState }"
+        >
+          <NuxtImg
+            :src="micState ? '/icons/chat/microphone.svg' : '/icons/chat/microphone-off.svg'"
+            width="32px"
+          ></NuxtImg>
         </CButton>
-        <CButton type="icon-default" iconSize="i-large" @click="toggleCam" :class="{ active: camState }">
-          <NuxtImg :src="camState ? '/icons/chat/camera.svg' : '/icons/chat/camera-off.svg'" width="32px"></NuxtImg>
+        <CButton
+          type="icon-default"
+          iconSize="i-large"
+          @click="toggleCam"
+          :class="{ active: camState }"
+        >
+          <NuxtImg
+            :src="camState ? '/icons/chat/camera.svg' : '/icons/chat/camera-off.svg'"
+            width="32px"
+          ></NuxtImg>
         </CButton>
-        <CButton class="video-call__end-btn" bgColor="var(--app-color-negavite)" type="icon-default" iconSize="i-large" @click="onEndCall"><NuxtImg src="/icons/chat/call_end.svg" width="32px"></NuxtImg></CButton>
+        <CButton
+          class="video-call__end-btn"
+          bgColor="var(--app-color-negavite)"
+          type="icon-default"
+          iconSize="i-large"
+          @click="onEndCall"
+          ><NuxtImg src="/icons/chat/call_end.svg" width="32px"></NuxtImg
+        ></CButton>
       </div>
     </div>
     <div v-if="incoming && !accepted" class="video-call__incoming">
       <span>Входящий звонок...</span>
       <div class="video-call__incoming-actions">
-      <CButton type="primary" @click="onAcceptCall">Принять</CButton>
-      <CButton type="quaternary" @click="onDeclineCall">Отклонить</CButton>
+        <CButton type="primary" @click="onAcceptCall">Принять</CButton>
+        <CButton type="quaternary" @click="onDeclineCall">Отклонить</CButton>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { onMounted, ref, watch } from "vue";
 
 const props = defineProps({
   visible: Boolean,
@@ -41,58 +66,77 @@ const props = defineProps({
   remoteStream: { type: Object as () => MediaStream | null, default: null },
   camEnabled: Boolean,
   micEnabled: Boolean,
-})
-const emit = defineEmits(['accept', 'decline', 'end', 'toggleMic', 'toggleCam'])
+});
+const emit = defineEmits([
+  "accept",
+  "decline",
+  "end",
+  "toggleMic",
+  "toggleCam",
+]);
 
-const myVideo = ref<HTMLVideoElement | null>(null)
-const remoteVideo = ref<HTMLVideoElement | null>(null)
+const myVideo = ref<HTMLVideoElement | null>(null);
+const remoteVideo = ref<HTMLVideoElement | null>(null);
 
 // Локальные состояния для мгновенного UI-отклика
-const camState = ref(props.camEnabled)
-const micState = ref(props.micEnabled)
+const camState = ref(props.camEnabled);
+const micState = ref(props.micEnabled);
 
-watch(() => props.camEnabled, (val) => {
-  camState.value = val
-})
-watch(() => props.micEnabled, (val) => {
-  micState.value = val
-})
+watch(
+  () => props.camEnabled,
+  (val) => {
+    camState.value = val;
+  },
+);
+watch(
+  () => props.micEnabled,
+  (val) => {
+    micState.value = val;
+  },
+);
 
-watch(() => props.localStream, (stream) => {
-  if (myVideo.value) {
-    myVideo.value.srcObject = stream || null
-  }
-})
+watch(
+  () => props.localStream,
+  (stream) => {
+    if (myVideo.value) {
+      myVideo.value.srcObject = stream || null;
+    }
+  },
+);
 
-watch(() => props.remoteStream, (stream) => {
-  if (remoteVideo.value) {
-    remoteVideo.value.srcObject = stream || null
-  }
-})
+watch(
+  () => props.remoteStream,
+  (stream) => {
+    if (remoteVideo.value) {
+      remoteVideo.value.srcObject = stream || null;
+    }
+  },
+);
 
 onMounted(() => {
-  if (myVideo.value) myVideo.value.srcObject = props.localStream || null
-  if (remoteVideo.value) remoteVideo.value.srcObject = props.remoteStream || null
-})
+  if (myVideo.value) myVideo.value.srcObject = props.localStream || null;
+  if (remoteVideo.value)
+    remoteVideo.value.srcObject = props.remoteStream || null;
+});
 
 function onAcceptCall() {
-  emit('accept', { mic: micState.value, cam: camState.value })
+  emit("accept", { mic: micState.value, cam: camState.value });
 }
 function onDeclineCall() {
-  emit('decline')
+  emit("decline");
 }
 function onEndCall() {
-  emit('end')
+  emit("end");
 }
 function toggleMic() {
-  const newState = !micState.value
-  micState.value = newState
-  emit('toggleMic', newState)
+  const newState = !micState.value;
+  micState.value = newState;
+  emit("toggleMic", newState);
 }
 function toggleCam() {
-  const newState = !camState.value
-  camState.value = newState
-  emit('toggleCam', newState)
+  const newState = !camState.value;
+  camState.value = newState;
+  emit("toggleCam", newState);
 }
 // Потоки и состояние управляются через props и локальный fallback
 </script>
@@ -101,7 +145,10 @@ function toggleCam() {
 .video-call__overlay {
   position: fixed;
   z-index: 10000;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -165,7 +212,7 @@ function toggleCam() {
   max-width: 700px;
   height: 60vh;
   border-radius: 18px;
-    background: var(--app-text-secondary);
+  background: var(--app-text-secondary);
   object-fit: cover;
   z-index: 1;
 }
@@ -175,11 +222,10 @@ function toggleCam() {
   align-items: center;
   gap: 32px;
   margin: 24px 0 16px 0;
-    img {
-      filter: var(--app-filter-black);
-    }
+  img {
+    filter: var(--app-filter-black);
+  }
   .video-call__end-btn {
-    
     img {
       filter: var(--app-filter-text-light-permanent);
     }
@@ -189,7 +235,7 @@ function toggleCam() {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%,-50%);
+  transform: translate(-50%, -50%);
   background: var(--app-blue-200);
   border-radius: 16px;
   padding: 32px 48px;
