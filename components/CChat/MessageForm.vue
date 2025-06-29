@@ -9,7 +9,7 @@
           <NuxtImg :src="getIconByType(item.file.name.split('.').pop())" class="form__attachment-icon" width="32px"></NuxtImg>
           <span class="form__attachment-file">{{ item.file.name }}</span>
         </template>
-        <button type="button" class="form__detach" @click="detach(idx)">✕</button>
+        <button type="button" class="form__detach" @click="detach(idx)"><NuxtImg src="/icons/close.svg" width="24px"></NuxtImg></button>
       </div>
     </div>
     <form class="form" @submit.prevent="onSubmit">
@@ -19,7 +19,7 @@
         v-model="text"
         class="form__input"
         type="text"
-        placeholder="Ваше сообщение"
+        placeholder="Напишите ваше сообщение"
         @keyup.enter="onSubmit"
         rows="3"
       />
@@ -112,19 +112,19 @@ function detach(idx: number) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #0f0f2f;
+  padding-top: 16px;
+  background-color: var(--app-dirty-blue-100);
 }
 .form {
   display: flex;
   align-items: center;
   padding: 0px 16px 16px;
+  gap: 16px;
   flex-wrap: wrap;
-  &__attach {
-    background: none;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    color: #580057;
+  &__attach, &__send {
+    img {
+      filter: var(--app-filter-pink-500)
+    }
   }
   &__input {
     flex: 1;
@@ -133,25 +133,28 @@ function detach(idx: number) {
     border: none;
     outline: none;
     resize: none;
-    background: #f5eed9;
-    color: #111;
+    background: var(--app-blue-50);
+    color: var(--app-text-primary);
     font-size: 14px;
+    &::placeholder {
+      color: var(--app-text-secondary);
+    }
   }
   &__attachments {
     position: relative;
     display: flex;
     gap: 12px;
-    margin-top: 8px;
     width: 100%;
-    left: 72px;
-    padding: 16px;
+    left: 76px;
+    padding: 12px;
+    padding-top: 0;
     max-width: calc(100% - 72px * 2);
     overflow: auto;
   }
   &__attachment {
     display: flex;
     align-items: center;
-    background: #f0e3f6;
+    background: var(--app-blue-200);
     border-radius: 8px;
     padding: 4px 8px;
     gap: 8px;
@@ -163,7 +166,7 @@ function detach(idx: number) {
     border-radius: 4px;
   }
   &__attachment-file {
-    color: #222;
+    color: var(--app-text-primary);
     font-size: 14px;
     max-width: 120px;
     overflow: hidden;
@@ -173,10 +176,20 @@ function detach(idx: number) {
   &__detach {
     background: none;
     border: none;
-    color: rgb(194, 0, 204);
     font-size: 16px;
     cursor: pointer;
     margin-left: 4px;
+    width: 24px;
+    height: 24px;
+    img {
+      filter: var(--app-filter-pink-500);
+    }
+    &:hover {
+      color: var(--app-pink-600);
+    }
+    &:active {
+      color: var(--app-pink-700);
+    }
   }
 }
 </style>

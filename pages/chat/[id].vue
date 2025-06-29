@@ -11,13 +11,13 @@
             class="person-invitation__link-wrapper"
             :style="{
               height: fixedHeight ? fixedHeight + 'px' : 'auto',
-              backgroundColor: animating ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: animating ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
             }"
           >
             <span class="person-invitation__link">{{ displayText }}</span>
           </div>
-        <CButton @click="copy" bgColor="#000000" :disabled="copying">
-          <span style="color: white">Скопировать</span>
+        <CButton @click="copy" type="secondary">
+          <span>Скопировать</span>
         </CButton>
         </div>
       </section>
@@ -31,30 +31,25 @@
         <CButton
           @click="goToChat"
           v-if="!isInvited"
-          height="78px"
-          bgColor="#000000"
           class="person-invitation__button"
-          size="large"
+          size="extra-large"
         >
           <span>Перейти в чат</span>
         </CButton>
         <CButton
           @click="goToChat"
           v-if="isInvited"
-          height="78px"
-          bgColor="#000000"
           class="person-invitation__button"
-          size="large"
+          size="extra-large"
         >
           <span>Принять</span>
         </CButton>
         <CButton
           @click="rejectInvite"
           v-if="isInvited"
-          height="78px"
-          bgColor="#000000"
           class="person-invitation__button"
-          size="large"
+          size="extra-large"
+          type="secondary"
         >
           <span>Отклонить</span>
         </CButton>
@@ -76,13 +71,26 @@
         @sendFile="sendFileHandler"
         @sendAllFiles="sendFileHandler"
         :meId="peer?.id"
+        @call="onCall"
+      />
+      <CVideoCall
+        :visible="showCall"
+        :incoming="callState === 'incoming'"
+        :accepted="callState === 'active'"
+        :callStatusText="callStatusText"
+        @accept="onAcceptCall"
+        @decline="onDeclineCall"
+        @end="onEndCall"
+        @toggleMic="onToggleMic"
+        @toggleCam="onToggleCam"
       />
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, watch } from "vue";
+import { ref, shallowRef, watch, computed } from "vue";
+import CVideoCall from '~/components/CChat/CVideoCall.vue'
 
 interface Message {
   id: string;
@@ -105,7 +113,7 @@ const fixedHeight = ref<number | null>(null);
 const animating = ref(false);
 const displayText = ref(getInviteLink());
 
-const { messages, initPeer, sendMessage, sendFile, sendAllFiles, peer, isConnectionEstablished } = usePeer(
+const { messages, initPeer, sendMessage, sendFile, sendAllFiles, peer, isConnectionEstablished, callState, localStream, remoteStream, startCall, acceptCall, declineCall, endCall, callType, toggleCamera, toggleMic } = usePeer(
   sessionId,
   !isInvited.value
 );
@@ -174,12 +182,79 @@ function sendFileHandler(payload: any) {
   }
 }
 
+const showCall = ref(false)
+const callStatusText = computed(() => {
+  if (callState.value === 'calling') return 'Звоним собеседнику...'
+  if (callState.value === 'incoming') return 'Входящий звонок'
+  if (callState.value === 'active') return 'Идёт звонок'
+  if (callState.value === 'ended') return 'Звонок завершён'
+  return ''
+})
+
+function onCall(type: 'audio' | 'video') {
+  showCall.value = true
+  startCall(type === 'video')
+  callType.value = type
+}
+function onAcceptCall(opts?: { mic?: boolean, cam?: boolean }) {
+  acceptCall(callType.value === 'video')
+  setTimeout(() => {
+    if (opts) {
+      if (localStream.value) {
+        localStream.value.getAudioTracks().forEach(t => t.enabled = opts.mic !== false)
+        localStream.value.getVideoTracks().forEach(t => t.enabled = opts.cam !== false)
+      }
+    }
+  }, 500)
+}
+function onDeclineCall() {
+  declineCall()
+  showCall.value = false
+}
+function onEndCall() {
+  endCall()
+  showCall.value = false
+}
+function onToggleMic(enabled: boolean) {
+  toggleMic(enabled)
+}
+function onToggleCam(enabled: boolean) {
+  toggleCamera(enabled)
+}
+
+watch(callState, (val) => {
+  if (val === 'idle') {
+    showCall.value = false
+    // Сброс UI состояния микрофона/камеры после завершения звонка
+    setTimeout(() => {
+      const videoComp = document.querySelector('.video-call__overlay')
+      if (videoComp) {
+        const micBtn = videoComp.querySelector('.video-call__controls button:nth-child(1)')
+        const camBtn = videoComp.querySelector('.video-call__controls button:nth-child(2)')
+        if (micBtn) micBtn.classList.remove('active')
+        if (camBtn) camBtn.classList.remove('active')
+      }
+    }, 300)
+  }
+  if (val === 'calling' || val === 'incoming' || val === 'active') showCall.value = true
+})
+
 watch(isConnectionEstablished, () => {
   console.log('[id.vue] isConnectionEstablished changed', isConnectionEstablished.value)
   if (isConnectionEstablished.value) {
     step.value = "chat";
   }
 });
+
+watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
+  if (!show) return
+  const videoComp = document.querySelector('.video-call__overlay')
+  if (!videoComp) return
+  const myVideo = videoComp.querySelector('.video-call__my-video') as HTMLVideoElement
+  const remoteVideo = videoComp.querySelector('.video-call__remote-video') as HTMLVideoElement
+  if (myVideo && my) myVideo.srcObject = my
+  if (remoteVideo && remote) remoteVideo.srcObject = remote
+})
 </script>
 
 <style scoped lang="scss">
@@ -191,7 +266,7 @@ $app-narrow-mobile: 364px;
   height: 100vh;
   min-height: max-content;
   width: 100vw;
-  background: linear-gradient(-60deg, #7d066d 0%, #000000 89%);
+  background: var(--app-pink-gradient-bg);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -227,8 +302,8 @@ $app-narrow-mobile: 364px;
       font-size: 24px;
       text-wrap: balance;
       text-align: center;
-      color: white;
-      max-width: 800px;
+      color: var(--app-text-primary);
+      max-width: 560px;
       @media screen and (max-width: $app-mobile) {
         font-size: 20px;
       }
@@ -259,7 +334,7 @@ $app-narrow-mobile: 364px;
       width: 320px;
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(4px);
-      color: white;
+      color: var(--app-text-primary);
       font-size: 18px;
       font-weight: 500;
       text-align: center;
@@ -301,10 +376,8 @@ $app-narrow-mobile: 364px;
       }
       .person-invitation__button {
         width: fit-content;
-
         span {
-          color: white;
-          font-size: 22px;
+          font-size: 20px;
         }
       }
     }
@@ -315,7 +388,7 @@ $app-narrow-mobile: 364px;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
+    color: var(--app-text-primary);
     font-size: 18px;
         display: flex;
     align-items: center;
@@ -345,10 +418,10 @@ $app-narrow-mobile: 364px;
   display: inline-block;
   width: 50px;
   height: 80px;
-  border-top: 5px solid #fff;
-  border-bottom: 5px solid #fff;
+  border-top: 5px solid var(--app-text-primary);;
+  border-bottom: 5px solid var(--app-text-primary);;
   position: relative;
-  background: linear-gradient(#c115c9 30px, transparent 0) no-repeat;
+  background: linear-gradient(var(--app-pink-500) 30px, transparent 0) no-repeat;
   background-size: 2px 40px;
   background-position: 50% 0px;
   animation: spinx 5s linear infinite;
@@ -376,25 +449,25 @@ $app-narrow-mobile: 364px;
 }
 @keyframes lqt {
   0%, 100% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0% 0px;
   }
   50% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0% 40px;
   }
   50.1% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0% -40px;
   }
 }
 @keyframes lqb {
   0% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0 40px;
   }
   100% {
-    background-image: linear-gradient(#c115c9 40px, transparent 0);
+    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
     background-position: 0 -40px;
   }
 }

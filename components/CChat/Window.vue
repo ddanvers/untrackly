@@ -2,7 +2,10 @@
   <section class="chat">
     <header class="chat__header">
       <span class="chat__title">{{ title }}</span>
-      <!-- <button class="chat__call" @click="$emit('call')">Позвонить</button> -->
+      <div class="chat__actions">
+<CButton @click="onVideoCall" bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg></CButton>
+<CButton @click="onAudioCall" bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg></CButton>
+      </div>
     </header>
 
     <div 
@@ -48,6 +51,7 @@ const emit = defineEmits<{
   (e: 'sendFile', file: File): void
   (e: 'sendAllFiles', payload: { text: string, files: { name: string, type: string, size: number, file: File, preview?: string }[] }): void
   (e: 'readMessage', id: string): void
+  (e: 'call', type: 'audio' | 'video'): void
 }>()
 
 const bodyRef = ref<HTMLElement>()
@@ -57,6 +61,12 @@ function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
+function onVideoCall() {
+  emit('call', 'video')
+}
+function onAudioCall() {
+  emit('call', 'audio')
+}
 // при монтировании скроллим вниз
 onMounted(() => {
   console.log('[Window.vue] mounted')
@@ -118,7 +128,7 @@ $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat {
-    background-color: #0E0D22;
+    background-color: var(--app-dirty-blue-100);
     height: 100%;
     width: 100%;
     display: flex;
@@ -126,10 +136,17 @@ $app-narrow-mobile: 364px;
   &__header {
     display: flex;
     justify-content: space-between;
-
+    align-items: center;
     padding: 16px;
   }
-  &__title { font-size: 32px;     color: #F8EAD1;
+  &__actions {
+    display: flex;
+    gap: 8px;
+    img {
+      filter: var(--app-filter-pink-500);
+    }
+  }
+  &__title { font-size: 32px;     color: var(--app-text-primary);
   @media screen and (max-width: $app-mobile) {
     font-size: 24px;
   }
@@ -138,7 +155,7 @@ $app-narrow-mobile: 364px;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    background: #0f0f2f;
+    background-color: var(--app-dirty-blue-50);
     height: 100%;
     overflow-y: auto;
     padding: 16px;
