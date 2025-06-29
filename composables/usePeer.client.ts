@@ -63,7 +63,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       if (shouldAutoAcceptWithVideo) {
         shouldAutoAcceptWithVideo = false
         console.log('[usePeer] peer.on(call): auto-accepting with video')
-        acceptCall(true)
+        acceptCall({ cam: true, mic: true })
       }
       // Иначе — обычное поведение (ожидание accept)
     })
@@ -287,19 +287,18 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   let mediaConn: any = null
   let callTimeout: any = null
   // --- Camera state flags ---
-  const isCameraEnabled = ref(true)
+  const isCameraEnabled = ref(false) // по умолчанию выключено
   const isCameraToggling = ref(false)
   let shouldAutoAcceptWithVideo = false
 
-  async function startCall(withVideo = true) {
-    console.log('[usePeer] startCall: called', { withVideo, callState: callState.value, conn: !!conn.value })
+  async function startCall(withVideo = false, withAudio = false) {
+    console.log('[usePeer] startCall: called', { withVideo, withAudio, callState: callState.value, conn: !!conn.value })
     callState.value = 'calling'
     callType.value = withVideo ? 'video' : 'audio'
     isCameraEnabled.value = !!withVideo
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      if (!withVideo) {
-    stream.getVideoTracks().forEach(t => t.enabled = false)
-  }
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    stream.getVideoTracks().forEach(t => t.enabled = !!withVideo)
+    stream.getAudioTracks().forEach(t => t.enabled = !!withAudio)
     // Оставляем только live-треки
     const liveTracks = stream.getTracks().filter(t => t.readyState === 'live')
     const liveStream = new MediaStream(liveTracks)
@@ -320,15 +319,14 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     callTimeout = setTimeout(() => { console.warn('[usePeer] startCall: callTimeout'); endCall() }, 30000)
   }
 
-  async function acceptCall(withVideo = true) {
+  async function acceptCall(opts?: { cam?: boolean, mic?: boolean }) {
       callState.value = 'active'
-  callType.value = withVideo ? 'video' : 'audio'
-    console.log('[usePeer] acceptCall: called', { withVideo, callState: callState.value, mediaConn })
-    isCameraEnabled.value = !!withVideo
+  callType.value = opts?.cam ? 'video' : 'audio'
+    console.log('[usePeer] acceptCall: called', { opts, callState: callState.value, mediaConn })
+    isCameraEnabled.value = !!opts?.cam
      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-       if (!withVideo) {
-    stream.getVideoTracks().forEach(t => t.enabled = false)
-  }
+       stream.getVideoTracks().forEach(t => t.enabled = !!opts?.cam)
+       stream.getAudioTracks().forEach(t => t.enabled = !!opts?.mic)
     localStream.value = stream
     console.log('[usePeer] acceptCall: got localStream', stream)
     if (mediaConn) {
