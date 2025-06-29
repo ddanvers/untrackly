@@ -166,10 +166,10 @@
 <script lang="ts" setup>
 const colorMode = useColorMode();
 const toggleTheme = () => {
-  if (colorMode.value === 'light') {
-    colorMode.preference = 'dark';
+  if (colorMode.value === "light") {
+    colorMode.preference = "dark";
   } else {
-    colorMode.preference = 'light';
+    colorMode.preference = "light";
   }
 };
 </script>

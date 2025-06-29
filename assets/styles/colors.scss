@@ -1,5 +1,4 @@
 :root {
-
   // --app-red-source: #c91521;
   // --app-red-900: #800003;
   // --app-red-800: #9f0011;
@@ -60,7 +59,7 @@
   // --app-grey-100: #dddddd;
   // --app-grey-50: #ececec;
 
-    /* a2d2ff */
+  /* a2d2ff */
   --app-blue-source: #a2d2ff;
   --app-blue-900: #0c3d5a;
   --app-blue-800: #1e4f71;
@@ -72,7 +71,7 @@
   --app-blue-200: #a1cbf2;
   --app-blue-100: #bbe1ff;
   --app-blue-50: #d5f7ff;
-  
+
   /* bde0fe */
   --app-dirty-blue-source: #bde0fe;
   --app-dirty-blue-900: #203c4f;
@@ -85,7 +84,7 @@
   --app-dirty-blue-200: #accae4;
   --app-dirty-blue-100: #c4e0f9;
   --app-dirty-blue-50: #ddf7ff;
-  
+
   /* cdb4db */
   --app-purple-source: #cdb4db;
   --app-purple-900: #43334d;
@@ -98,7 +97,7 @@
   --app-purple-200: #d5bfe1;
   --app-purple-100: #ebd5f6;
   --app-purple-50: #ffedff;
-  
+
   /* ffafcc */
   --app-pink-source: #ffafcc;
   --app-pink-900: #5c273d;
@@ -111,7 +110,7 @@
   --app-pink-200: #fab3cc;
   --app-pink-100: #ffcae2;
   --app-pink-50: #ffe3f8;
-  
+
   /* ffc8dd */
   --app-dirty-pink-source: #ffc8dd;
   --app-dirty-pink-900: #522e3d;
@@ -133,78 +132,82 @@
   --app-text-secondary: #535353;
   --app-text-light-permanent: #ffffff;
   --app-color-negavite: #d40c0c;
-  
-  --app-filter-black: brightness(0) saturate(100%) invert(0%) sepia(85%) saturate(7500%) hue-rotate(183deg) brightness(90%) contrast(112%);
-  --app-filter-pink-500: brightness(0) saturate(100%) invert(52%) sepia(40%) saturate(427%) hue-rotate(285deg) brightness(89%) contrast(89%);
-    --app-pink-gradient-bg: linear-gradient(-60deg, #B9708C 0%, #f0f0f0 89%);
-  --app-filter-grey-50: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(2523%) hue-rotate(266deg) brightness(116%) contrast(91%);
---app-filter-text-light-permanent: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(2851%) hue-rotate(202deg) brightness(117%) contrast(91%);
+
+  --app-filter-black: brightness(0) saturate(100%) invert(0%) sepia(85%) saturate(7500%)
+    hue-rotate(183deg) brightness(90%) contrast(112%);
+  --app-filter-pink-500: brightness(0) saturate(100%) invert(52%) sepia(40%) saturate(427%)
+    hue-rotate(285deg) brightness(89%) contrast(89%);
+  --app-pink-gradient-bg: linear-gradient(-60deg, #b9708c 0%, #f0f0f0 89%);
+  --app-filter-grey-50: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(2523%)
+    hue-rotate(266deg) brightness(116%) contrast(91%);
+  --app-filter-text-light-permanent: brightness(0) saturate(100%) invert(100%) sepia(0%)
+    saturate(2851%) hue-rotate(202deg) brightness(117%) contrast(91%);
 }
 
 .dark {
-    /* a2d2ff */
+  /* a2d2ff */
   --app-blue-source: #a2d2ff;
-  --app-blue-900: #0F4D71;
-  --app-blue-800: #235C85;
-  --app-blue-700: #4D83B0;
+  --app-blue-900: #0f4d71;
+  --app-blue-800: #235c85;
+  --app-blue-700: #4d83b0;
   --app-blue-600: #45769e;
-  --app-blue-500: #6C97BC;
-  --app-blue-400: #83ACD0;
-  --app-blue-300: #89B5DE;
+  --app-blue-500: #6c97bc;
+  --app-blue-400: #83acd0;
+  --app-blue-300: #89b5de;
   --app-blue-200: #1a4e80;
-  --app-blue-100: #00355D;
+  --app-blue-100: #00355d;
   --app-blue-50: #003743;
-  
+
   /* bde0fe */
   --app-dirty-blue-source: #bde0fe;
-  --app-dirty-blue-900: #274A61;
-  --app-dirty-blue-800: #385C76;
-  --app-dirty-blue-700: #4A708B;
+  --app-dirty-blue-900: #274a61;
+  --app-dirty-blue-800: #385c76;
+  --app-dirty-blue-700: #4a708b;
   --app-dirty-blue-600: #547690;
-  --app-dirty-blue-500: #698AA5;
-  --app-dirty-blue-400: #8FABC3;
-  --app-dirty-blue-300: #A6C1D7;
-  --app-dirty-blue-200: #ACCAE4;
+  --app-dirty-blue-500: #698aa5;
+  --app-dirty-blue-400: #8fabc3;
+  --app-dirty-blue-300: #a6c1d7;
+  --app-dirty-blue-200: #accae4;
   --app-dirty-blue-100: #083052;
-  --app-dirty-blue-50: #002E3B;
-  
+  --app-dirty-blue-50: #002e3b;
+
   /* cdb4db */
   --app-purple-source: #cdb4db;
-  --app-purple-900: #43334D;
+  --app-purple-900: #43334d;
   --app-purple-800: #574462;
-  --app-purple-700: #6B5778;
-  --app-purple-600: #806A8D;
-  --app-purple-500: #957EA2;
-  --app-purple-400: #AA93B7;
-  --app-purple-300: #BFA8CC;
+  --app-purple-700: #6b5778;
+  --app-purple-600: #806a8d;
+  --app-purple-500: #957ea2;
+  --app-purple-400: #aa93b7;
+  --app-purple-300: #bfa8cc;
   --app-purple-200: #422651;
-  --app-purple-100: #2E0D3F;
+  --app-purple-100: #2e0d3f;
   --app-purple-50: #161616;
-  
+
   /* ffafcc */
   --app-pink-source: #ffafcc;
-  --app-pink-900: #6E2F49;
-  --app-pink-800: #853F5C;
-  --app-pink-700: #9D526E;
-  --app-pink-600: #A35C77;
-  --app-pink-500: #C1819A;
-  --app-pink-400: #D697AF;
-  --app-pink-300: #E59CB6;
+  --app-pink-900: #6e2f49;
+  --app-pink-800: #853f5c;
+  --app-pink-700: #9d526e;
+  --app-pink-600: #a35c77;
+  --app-pink-500: #c1819a;
+  --app-pink-400: #d697af;
+  --app-pink-300: #e59cb6;
   --app-pink-200: #640727;
-  --app-pink-100: #4E0023;
-  --app-pink-50: #1B1B1B;
-  
+  --app-pink-100: #4e0023;
+  --app-pink-50: #1b1b1b;
+
   /* ffc8dd */
   --app-dirty-pink-source: #ffc8dd;
-  --app-dirty-pink-900: #522E3D;
-  --app-dirty-pink-800: #683F50;
-  --app-dirty-pink-700: #7E5163;
+  --app-dirty-pink-900: #522e3d;
+  --app-dirty-pink-800: #683f50;
+  --app-dirty-pink-700: #7e5163;
   --app-dirty-pink-600: #946477;
-  --app-dirty-pink-500: #AA788C;
-  --app-dirty-pink-400: #BF8DA1;
-  --app-dirty-pink-300: #D5A3B6;
-  --app-dirty-pink-200: #5A1B33;
-  --app-dirty-pink-100: #47021C;
+  --app-dirty-pink-500: #aa788c;
+  --app-dirty-pink-400: #bf8da1;
+  --app-dirty-pink-300: #d5a3b6;
+  --app-dirty-pink-200: #5a1b33;
+  --app-dirty-pink-100: #47021c;
   --app-dirty-pink-50: #181818;
 
   --app-text-primary: #f3f3f3;
@@ -212,6 +215,8 @@
   --app-text-secondary: #d4d4d4;
   --app-pink-gradient-bg: linear-gradient(-60deg, #5c273d 0%, #000000 89%);
 
-  --app-filter-black: brightness(0) saturate(100%) invert(100%) sepia(2%) saturate(7485%) hue-rotate(320deg) brightness(106%) contrast(98%);
-  --app-filter-pink-500: brightness(0) saturate(100%) invert(58%) sepia(29%) saturate(459%) hue-rotate(285deg) brightness(94%) contrast(86%);
+  --app-filter-black: brightness(0) saturate(100%) invert(100%) sepia(2%) saturate(7485%)
+    hue-rotate(320deg) brightness(106%) contrast(98%);
+  --app-filter-pink-500: brightness(0) saturate(100%) invert(58%) sepia(29%) saturate(459%)
+    hue-rotate(285deg) brightness(94%) contrast(86%);
 }

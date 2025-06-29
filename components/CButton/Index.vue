@@ -160,9 +160,11 @@ button:disabled {
   background: var(--app-pink-50);
   position: relative;
   overflow: hidden;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
   .label {
-      color: var(--app-text-primary);
+    color: var(--app-text-primary);
   }
   .c-button-content {
   }
@@ -310,9 +312,9 @@ button:disabled {
 }
 .dark {
   .icon-default {
-  &::after {
-    background: rgba(255, 255, 255, 0.1);
+    &::after {
+      background: rgba(255, 255, 255, 0.1);
+    }
   }
-}
 }
 </style>

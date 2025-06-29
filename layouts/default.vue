@@ -1,7 +1,9 @@
 <template>
   <div class="page-container">
     <div class="page-content">
-        <section class="page-content__header"><CThemeToggle class="page-content__theme-toggle" /></section>
+      <section class="page-content__header">
+        <CThemeToggle class="page-content__theme-toggle" />
+      </section>
       <slot />
     </div>
   </div>

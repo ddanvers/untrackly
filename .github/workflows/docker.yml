@@ -2,7 +2,7 @@ name: Build and Push Docker image
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-      
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 

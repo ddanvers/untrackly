@@ -1,20 +1,39 @@
 <template>
   <section class="message-form__container">
     <div v-if="attachedFiles.length" class="form__attachments">
-      <div v-for="(item, idx) in attachedFiles" :key="item.file.name + idx" class="form__attachment">
+      <div
+        v-for="(item, idx) in attachedFiles"
+        :key="item.file.name + idx"
+        class="form__attachment"
+      >
         <template v-if="item.file.type.startsWith('image/')">
           <img :src="item.preview" class="form__attachment-img" />
         </template>
         <template v-else>
-          <NuxtImg :src="getIconByType(item.file.name.split('.').pop())" class="form__attachment-icon" width="32px"></NuxtImg>
+          <NuxtImg
+            :src="getIconByType(item.file.name.split('.').pop())"
+            class="form__attachment-icon"
+            width="32px"
+          ></NuxtImg>
           <span class="form__attachment-file">{{ item.file.name }}</span>
         </template>
-        <button type="button" class="form__detach" @click="detach(idx)"><NuxtImg src="/icons/close.svg" width="24px"></NuxtImg></button>
+        <button type="button" class="form__detach" @click="detach(idx)">
+          <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
+        </button>
       </div>
     </div>
     <form class="form" @submit.prevent="onSubmit">
-      <CButton @click="onAttachClick" button-type="button" bgColor="transparent" type="icon-default" class="form__attach" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/attach_file.svg" width="32px"></NuxtImg></CButton>
-      <input ref="fileInput" type="file" multiple style="display:none" @change="onFileChange" />
+      <CButton
+        @click="onAttachClick"
+        button-type="button"
+        bgColor="transparent"
+        type="icon-default"
+        class="form__attach"
+        size="large"
+        icon-size="i-large"
+        ><NuxtImg src="/icons/chat/attach_file.svg" width="32px"></NuxtImg
+      ></CButton>
+      <input ref="fileInput" type="file" multiple style="display: none" @change="onFileChange" />
       <textarea
         v-model="text"
         class="form__input"
@@ -23,87 +42,98 @@
         @keyup.enter="onSubmit"
         rows="3"
       />
-      <CButton bgColor="transparent" type="icon-default" class="form__send" size="large" icon-size="i-large"><NuxtImg src="/icons/chat/send.svg" width="32px"></NuxtImg></CButton>
+      <CButton
+        bgColor="transparent"
+        type="icon-default"
+        class="form__send"
+        size="large"
+        icon-size="i-large"
+        ><NuxtImg src="/icons/chat/send.svg" width="32px"></NuxtImg
+      ></CButton>
     </form>
   </section>
 </template>
 
 <script setup lang="ts">
-const emit = defineEmits(['send', 'attach', 'detach', 'sendAllFiles', 'sendFile'])
+const emit = defineEmits([
+  "send",
+  "attach",
+  "detach",
+  "sendAllFiles",
+  "sendFile",
+]);
 
-const text = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
-const attachedFiles = ref<{ file: File, preview?: string }[]>([])
+const text = ref("");
+const fileInput = ref<HTMLInputElement | null>(null);
+const attachedFiles = ref<{ file: File; preview?: string }[]>([]);
 
-function getIconByType(type?: string) {
-  switch (type) {
-    case 'doc':
-    case 'docx':
-      return '/icons/file_formats/doc.svg'
-    case 'xls':
-    case 'xlsx':
-      return '/icons/file_formats/xls.svg'
-    case 'ppt':
-    case 'pptx':
-      return '/icons/file_formats/ppt.svg'
-    case 'pdf':
-    case 'csv':
-    case 'txt':
-    case 'zip':
-    case 'mp3':
-    case 'mp4':
-    case 'zip':
-      return `/icons/file_formats/${type}.svg`
-    default:
-      return '/icons/file_formats/file.svg'
-  }
-}
+const fileIcons = {
+  doc: "doc.svg",
+  docx: "doc.svg",
+  xls: "xls.svg",
+  xlsx: "xls.svg",
+  ppt: "ppt.svg",
+  pptx: "ppt.svg",
+  pdf: "pdf.svg",
+  csv: "csv.svg",
+  txt: "txt.svg",
+  zip: "zip.svg",
+  mp3: "mp3.svg",
+  mp4: "mp4.svg",
+};
+const getIconByType = (type?: string) => {
+  return `/icons/file_formats/${
+    type && type in fileIcons
+      ? fileIcons[type as keyof typeof fileIcons]
+      : "file.svg"
+  }`;
+};
 function onSubmit() {
-  const trimmedText = text.value.trim()
-  if (!trimmedText && !attachedFiles.value.length) return
+  const trimmedText = text.value.trim();
+  if (!trimmedText && !attachedFiles.value.length) return;
 
   // Только текст
   if (trimmedText && !attachedFiles.value.length) {
-    emit('send', trimmedText)
-    text.value = ''
-    return
+    emit("send", trimmedText);
+    text.value = "";
+    return;
   }
   // Любые файлы (в том числе одно изображение), с текстом или без
   if (attachedFiles.value.length) {
-    const files = attachedFiles.value.map(f => ({
+    const files = attachedFiles.value.map((f) => ({
       name: f.file.name,
       type: f.file.type,
       size: f.file.size,
       file: f.file,
-      preview: f.preview
-    }))
-    emit('sendAllFiles', { text: trimmedText, files })
-    text.value = ''
-    attachedFiles.value = []
+      preview: f.preview,
+    }));
+    emit("sendAllFiles", { text: trimmedText, files });
+    text.value = "";
+    attachedFiles.value = [];
   }
 }
 
 function onAttachClick() {
-  fileInput.value?.click()
+  fileInput.value?.click();
 }
 
 function onFileChange(e: Event) {
-  const files = (e.target as HTMLInputElement).files
-  if (files && files.length) {
+  const files = (e.target as HTMLInputElement).files;
+  if (files?.length) {
     for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      let preview: string | undefined
-      if (file.type.startsWith('image/')) {
-        preview = URL.createObjectURL(file)
+      const file = files[i];
+      let preview: string | undefined;
+      if (file.type.startsWith("image/")) {
+        preview = URL.createObjectURL(file);
       }
-      attachedFiles.value.push({ file, preview })
+      attachedFiles.value.push({ file, preview });
     }
-    (e.target as HTMLInputElement).value = ''
+    (e.target as HTMLInputElement).value = "";
   }
 }
 
 function detach(idx: number) {
-  attachedFiles.value.splice(idx, 1)
+  attachedFiles.value.splice(idx, 1);
 }
 </script>
 
@@ -121,9 +151,10 @@ function detach(idx: number) {
   padding: 0px 16px 16px;
   gap: 16px;
   flex-wrap: wrap;
-  &__attach, &__send {
+  &__attach,
+  &__send {
     img {
-      filter: var(--app-filter-pink-500)
+      filter: var(--app-filter-pink-500);
     }
   }
   &__input {
