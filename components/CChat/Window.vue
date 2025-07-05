@@ -2,11 +2,11 @@
   <section class="chat">
     <header class="chat__header">
       <span class="chat__title">{{ title }}</span>
-      <div class="chat__actions">
+      <nav class="chat__actions">
         <CButton
           @click="onVideoCall"
           bgColor="transparent"
-          type="icon-default"
+          variant="icon-default"
           class="form__send"
           size="large"
           icon-size="i-large"
@@ -15,16 +15,15 @@
         <CButton
           @click="onAudioCall"
           bgColor="transparent"
-          type="icon-default"
+          variant="icon-default"
           class="form__send"
           size="large"
           icon-size="i-large"
           ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg
         ></CButton>
-      </div>
+      </nav>
     </header>
-
-    <div class="chat__body" ref="bodyRef" @scroll="onScroll">
+    <section class="chat__body" ref="bodyRef" @scroll="onScroll">
       <CChatMessage
         v-for="msg in messages"
         :key="msg.id"
@@ -32,8 +31,7 @@
         :isMe="msg.sender === meId"
         @read="onRead(msg.id)"
       />
-    </div>
-
+    </section>
     <CChatMessageForm @send="sendMessage" @sendAllFiles="onSendAllFiles" @sendFile="sendFile" />
   </section>
 </template>
@@ -86,27 +84,24 @@ function onVideoCall() {
 function onAudioCall() {
   emit("call", "audio");
 }
-// при монтировании скроллим вниз
+
 onMounted(() => {
   console.log("[Window.vue] mounted");
   scrollToBottom();
 });
 
-// отправка
 function sendMessage(text: string) {
   console.log("[Window.vue] sendMessage", text);
   emit("sendMessage", text);
   setTimeout(scrollToBottom, 0);
 }
 
-// отправка файла
 function sendFile(file: File) {
   console.log("[Window.vue] sendFile", file);
   emit("sendFile", file);
   setTimeout(scrollToBottom, 0);
 }
 
-// отправка всех файлов
 function onSendAllFiles(payload: {
   text: string;
   files: {
@@ -121,14 +116,12 @@ function onSendAllFiles(payload: {
   emit("sendAllFiles", payload);
 }
 
-// чтение при скролле: помечаем прочитанные, когда они попадают в зону видимости
 function onScroll() {
   const el = bodyRef.value;
   if (!el) {
     console.log("[Window.vue] onScroll: no bodyRef");
     return;
   }
-  // находим все сообщения в DOM
   const items = el.querySelectorAll<HTMLElement>(".chat__message");
   items.forEach((item) => {
     const rect = item.getBoundingClientRect();
@@ -139,7 +132,6 @@ function onScroll() {
   });
 }
 
-// ручной вызов от ChatMessage
 function onRead(id: string) {
   console.log("[Window.vue] onRead", id);
   emit("readMessage", id);
