@@ -1,30 +1,25 @@
 <template>
   <div
+    class="chat-message"
     :class="{
-      chat__message: true,
-      'chat__message--me': isMe,
+      'chat-message--me': isMe,
     }"
     :data-id="message.id"
-    @mouseenter="markRead"
   >
-    <div class="chat__message__meta">
-      <span class="chat__sender">{{ isMe ? "Вы" : "Собеседник" }}</span>
-      <span class="chat__time">{{ formattedTime }}</span>
+    <div class="chat-message__meta">
+      <span class="chat-message__sender">{{ isMe ? "Вы" : "Собеседник" }}</span>
+      <time class="chat-message__time">{{ formattedTime }}</time>
     </div>
-    <div class="chat__message__bubble">
-      <template
-        v-if="
-          message.type === 'file-group' &&
-          message.files &&
-          message.files.length === 1 &&
-          message.files[0].type &&
-          message.files[0].type.startsWith('image/')
-        "
-      >
-        <div v-if="message.text" class="chat__group-text">{{ message.text }}</div>
-        <div class="file-preview-wrapper">
+    <div class="chat-message__bubble">
+      <template v-if="isMessageHasOnlyImage(message) && message.files?.length">
+        <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
+        <div class="image-preview">
           <a :href="message.files[0].fileUrl" target="_blank">
-            <img :src="message.files[0].fileUrl" :alt="message.files[0].name" class="chat__image" />
+            <img
+              :src="message.files[0].fileUrl"
+              :alt="message.files[0].name"
+              class="chat-message__image"
+            />
           </a>
           <a
             :href="message.files[0].fileUrl"
@@ -36,28 +31,23 @@
           ></a>
         </div>
       </template>
-      <template v-else-if="message.type === 'file-group' && message.files && message.files.length">
-        <div v-if="message.text" class="chat__group-text">{{ message.text }}</div>
-        <div class="chat__attachments-group form__attachments file-group-block">
-          <div
+      <template v-else-if="message.type === 'file-group' && message.files?.length">
+        <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
+        <ul class="file-attachments-list">
+          <li
             v-for="(file, idx) in message.files"
-            :key="file.name + idx"
-            class="form__attachment file-attachment"
+            :key="file.name"
+            class="file-attachment"
             :class="{
-              'file-attachment--img': file.type && file.type.startsWith('image/'),
+              'file-attachment__item--img': file.type && file.type.startsWith('image/'),
             }"
           >
             <template v-if="file.type && file.type.startsWith('image/')">
-              <div class="file-img-wrapper">
+              <div class="file-attachment__img-wrapper">
                 <a :href="file.fileUrl" target="_blank">
-                  <img :src="file.fileUrl" class="form__attachment-img" />
+                  <img :src="file.fileUrl" class="file-attachment__img" />
                 </a>
-                <a
-                  :href="file.fileUrl"
-                  :download="file.name"
-                  class="download-icon download-icon-img"
-                  title="Скачать"
-                >
+                <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
                   <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
                 ></a>
               </div>
@@ -65,18 +55,18 @@
             <template v-else>
               <img
                 :src="getIconByType(file.name.split('.').pop())"
-                class="form__attachment-icon"
+                class="file-attachment__type-icon"
                 width="32px"
               />
-              <a :href="file.fileUrl" target="_blank" class="form__attachment-file file-link">{{
+              <a :href="file.fileUrl" target="_blank" class="file-attachment__link">{{
                 file.name
               }}</a>
               <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
                 <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
               ></a>
             </template>
-          </div>
-        </div>
+          </li>
+        </ul>
       </template>
       <template v-else>
         {{ message.text }}
@@ -103,53 +93,47 @@ interface Message {
   fileMime?: string;
   files?: FileAttachment[];
 }
+const DEFAULT_FILE_ICON = "file.svg";
+const FILE_ICONS = {
+  doc: "doc.svg",
+  docx: "doc.svg",
+  xls: "xls.svg",
+  xlsx: "xls.svg",
+  ppt: "ppt.svg",
+  pptx: "ppt.svg",
+  pdf: "pdf.svg",
+  csv: "csv.svg",
+  txt: "txt.svg",
+  zip: "zip.svg",
+  mp3: "mp3.svg",
+  mp4: "mp4.svg",
+};
+
 const props = defineProps<{
   message: Message;
   isMe: boolean;
 }>();
-
 const emit = defineEmits<(e: "read", id: string) => void>();
 
 const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 });
-function markRead() {
-  if (!props.message.read) {
-    emit("read", props.message.id);
-  }
-}
-const isSingleImageGroup = computed(() => {
-  const files = props.message.files;
+
+const getIconByType = (type?: string) => {
+  return `/icons/file_formats/${
+    type && type in FILE_ICONS
+      ? FILE_ICONS[type as keyof typeof FILE_ICONS]
+      : DEFAULT_FILE_ICON
+  }`;
+};
+function isMessageHasOnlyImage(message: Message) {
   return (
-    props.message.type === "file-group" &&
-    Array.isArray(files) &&
-    files.length === 1 &&
-    files[0].type &&
-    files[0].type.startsWith("image/")
+    message.type === "file-group" &&
+    message.files?.length === 1 &&
+    message.files[0].type &&
+    message.files[0].type.startsWith("image/")
   );
-});
-function getIconByType(ext?: string) {
-  // Можно заменить на NuxtImg или использовать свои svg-иконки
-  if (!ext) return "/icons/file_formats/file.svg";
-  const map: Record<string, string> = {
-    pdf: "/icons/file_formats/pdf.svg",
-    doc: "/icons/file_formats/doc.svg",
-    docx: "/icons/file_formats/doc.svg",
-    xls: "/icons/file_formats/xls.svg",
-    xlsx: "/icons/file_formats/xls.svg",
-    ppt: "/icons/file_formats/ppt.svg",
-    pptx: "/icons/file_formats/ppt.svg",
-    txt: "/icons/file_formats/txt.svg",
-    zip: "/icons/file_formats/zip.svg",
-    jpg: "/icons/file_formats/jpg.svg",
-    jpeg: "/icons/file_formats/jpg.svg",
-    png: "/icons/file_formats/jpg.svg",
-    mp3: "/icons/file_formats/mp3.svg",
-    mp4: "/icons/file_formats/mp4.svg",
-    csv: "/icons/file_formats/csv.svg",
-  };
-  return map[ext.toLowerCase()] || "/icons/file_formats/file.svg";
 }
 </script>
 
@@ -158,7 +142,7 @@ $app-desktop: 1294px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
-.chat__message {
+.chat-message {
   max-width: 50%;
   width: max-content;
   margin-right: auto;
@@ -180,92 +164,78 @@ $app-narrow-mobile: 364px;
     border-radius: 8px;
     overflow-wrap: anywhere;
   }
-  &.chat__message--me {
+  &__group-text {
+    margin-top: 8px;
+    color: var(--app-text-primary);
+    font-size: 15px;
+  }
+  &.chat-message--me {
     margin-left: auto;
     margin-right: 0;
-    .chat__message__bubble {
+    .chat-message__bubble {
       background: var(--app-blue-500);
       color: var(--app-text-primary-white);
     }
-    .chat__group-text {
+    .chat-message__group-text {
       color: var(--app-text-primary-white);
     }
   }
 }
-.chat__image {
+.chat-message__image {
   max-width: 320px;
   max-height: 320px;
   border-radius: 8px;
   margin: 8px 0;
   display: block;
 }
-.chat__attachments-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 4px;
-}
-.chat__group-text {
-  margin-top: 8px;
-  color: var(--app-text-primary);
-  font-size: 15px;
-}
-.form__attachments {
+.file-attachments-list {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  margin-top: 8px;
-}
-.form__attachment {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 6px;
-  height: 72px;
-  padding: 4px 8px;
-  flex: 1 1 calc(50% - 8px);
-}
-.form__attachment-img {
-  height: calc(72px - 6px * 2);
-  border-radius: 4px;
-  display: block;
-  object-fit: cover;
-  width: calc(100% - 8px);
-}
-.form__attachment-icon {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-}
-.form__attachment-file {
-  color: var(--app-text-primary);
-  font-size: 14px;
-}
-.file-group-block {
   border-radius: 8px;
   padding: 8px 8px 4px 8px;
   margin-top: 8px;
   margin-bottom: 4px;
-}
-.file-attachment {
-  position: relative;
-  background: var(--app-blue-200);
-  border-radius: 6px;
-  padding: 6px 36px 6px 8px;
-  margin: 2px 0;
-}
-.file-link {
-  color: var(--app-text-primary);
-  font-size: 14px;
-  margin-right: 8px;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
+  .file-attachment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    height: 72px;
+    flex: 1 1 calc(50% - 8px);
+    position: relative;
+    background: var(--app-blue-200);
+    padding: 6px 36px 6px 8px;
+    margin: 2px 0;
+    &__img-wrapper {
+      display: inline-block;
+      width: 100%;
+      .file-attachment__img {
+        height: calc(72px - 6px * 2);
+        border-radius: 4px;
+        display: block;
+        object-fit: cover;
+        width: calc(100% - 8px);
+      }
+    }
+    &__file-type-icon {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    &__link {
+      color: var(--app-text-primary);
+      font-size: 14px;
+      margin-right: 8px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+    }
+  }
 }
 .download-icon {
   position: absolute;
@@ -287,25 +257,5 @@ $app-narrow-mobile: 364px;
 }
 .download-icon:hover {
   background: var(--app-pink-600);
-}
-
-.file-img-wrapper {
-  display: inline-block;
-  width: 100%;
-}
-.file-preview-wrapper {
-  position: relative;
-  display: inline-block;
-  margin-top: 8px;
-  width: 100%;
-  img {
-    width: 100%;
-    object-fit: cover;
-  }
-  .download-icon {
-    top: 16px;
-    right: 8px;
-    transform: translate(50%, -50%);
-  }
 }
 </style>

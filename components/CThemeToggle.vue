@@ -1,7 +1,6 @@
 <template>
   <button
     class="theme-toggle"
-    :aria-pressed="isDark.toString()"
     @click="toggleTheme"
     @keydown.enter.prevent="toggleTheme"
     @keydown.space.prevent="toggleTheme"

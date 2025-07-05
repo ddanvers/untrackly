@@ -26,7 +26,11 @@
               displayText
             }}</span>
           </div>
-          <CButton @click="copyInvitationLink" type="secondary" :aria-label="'Скопировать ссылку'">
+          <CButton
+            @click="copyInvitationLink"
+            variant="secondary"
+            :aria-label="'Скопировать ссылку'"
+          >
             <span>Скопировать</span>
           </CButton>
         </div>
@@ -65,7 +69,7 @@
               @click="rejectInvite"
               class="chat-invitation__button chat-invitation__button--secondary"
               size="extra-large"
-              type="secondary"
+              variant="secondary"
               :aria-label="'Отклонить приглашение'"
             >
               <span>Отклонить</span>
@@ -241,7 +245,7 @@ watch(callState, (val) => {
   if (val === "idle") {
     showCall.value = false;
     setTimeout(() => {
-      const videoComp = document.querySelector(".video-call__overlay");
+      const videoComp = document.querySelector(".video-call");
       if (videoComp) {
         const micBtn = videoComp.querySelector(
           ".video-call__controls button:nth-child(1)",
@@ -265,7 +269,7 @@ watch(isConnectionEstablished, () => {
 
 watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
   if (!show) return;
-  const videoComp = document.querySelector(".video-call__overlay");
+  const videoComp = document.querySelector(".video-call");
   if (!videoComp) return;
   const myVideo = videoComp.querySelector(
     ".video-call__my-video",
@@ -427,7 +431,7 @@ $app-narrow-mobile: 364px;
     }
   }
 
-  &__waiting-window {
+  .chat-waiting {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -440,7 +444,7 @@ $app-narrow-mobile: 364px;
     gap: 24px;
   }
 
-  &__chat-window {
+  .chat-window {
     width: 960px;
     max-width: 100%;
     position: absolute;

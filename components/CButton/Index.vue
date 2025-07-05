@@ -1,23 +1,35 @@
 <template>
   <button
-    :class="['c-button', classButton, { loading, fill }]"
-    :disabled="disabled || loading"
-    :style="{ backgroundColor: bgColor, height: height, width: width }"
+    :class="buttonClasses"
+    :disabled="isDisabled"
+    :style="inlineStyles"
     :type="buttonType"
+    :aria-label="ariaLabel"
+    :aria-busy="loading"
+    :aria-describedby="ariaDescribedBy"
+    role="button"
+    @click="handleClick"
   >
-    <div v-if="loading" class="c-button-loading"></div>
-    <div v-else class="c-button-content">
-      <div class="prepend">
+    <div v-if="loading" class="c-button__loading" aria-hidden="true">
+      <span class="c-button__spinner" :aria-label="loadingAriaLabel"></span>
+    </div>
+    <div v-else class="c-button__content">
+      <div class="c-button__prepend">
         <slot name="prepend">
-          <NuxtImg v-if="prependImg" :src="prependImg"></NuxtImg>
+          <NuxtImg
+            v-if="prependImg"
+            :src="prependImg"
+            :alt="prependImgAlt"
+            class="c-button__icon"
+          />
         </slot>
       </div>
-      <div class="label" :style="{ color: textColor }">
+      <div class="c-button__label" :style="labelStyles">
         <slot></slot>
       </div>
-      <div class="append">
+      <div class="c-button__append">
         <slot name="append">
-          <NuxtImg v-if="appendImg" :src="appendImg"></NuxtImg>
+          <NuxtImg v-if="appendImg" :src="appendImg" :alt="appendImgAlt" class="c-button__icon" />
         </slot>
       </div>
     </div>
@@ -25,32 +37,86 @@
 </template>
 
 <script setup lang="ts">
-type Props = {
-  type?: "primary" | "secondary" | "tertiary" | "quaternary" | "icon-default";
-  buttonType?: "submit" | "button";
+interface ButtonProps {
+  variant?: ButtonVariant;
+  buttonType?: ButtonType;
   loading?: boolean;
-  size?: "large" | "default" | "small" | "extra-large";
+  size?: ButtonSize;
   fill?: boolean;
   prependImg?: string;
+  prependImgAlt?: string;
   appendImg?: string;
+  appendImgAlt?: string;
   disabled?: boolean;
   bgColor?: string;
   textColor?: string;
-  iconSize?: "i-large" | "i-medium" | "i-small";
+  iconSize?: IconSize;
   height?: string;
   width?: string;
-};
-const props = withDefaults(defineProps<Props>(), {
-  type: "primary",
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
+  loadingAriaLabel?: string;
+}
+
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "tertiary"
+  | "quaternary"
+  | "icon-default";
+type ButtonType = "submit" | "button";
+type ButtonSize = "large" | "default" | "small" | "extra-large";
+type IconSize = "i-large" | "i-medium" | "i-small";
+
+type ButtonEmits = (event: "click", payload: Event) => void;
+
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: "primary",
   size: "default",
   loading: false,
   disabled: false,
   buttonType: "submit",
   fill: false,
   iconSize: "i-small",
+  prependImgAlt: "",
+  appendImgAlt: "",
+  loadingAriaLabel: "Loading...",
 });
-const classButton = computed(() => [props.type, props.size, props.iconSize]);
+const emit = defineEmits<ButtonEmits>();
+
+const isDisabled = computed((): boolean => props.disabled || props.loading);
+const buttonClasses = computed(() => [
+  "c-button",
+  getCSSClassesForVariant(),
+  getCSSClassesForStates(),
+]);
+const inlineStyles = computed(() => ({
+  backgroundColor: props.bgColor,
+  height: props.height,
+  width: props.width,
+}));
+const labelStyles = computed(() => ({
+  color: props.textColor,
+}));
+
+const getCSSClassesForVariant = (): string[] => [
+  props.variant,
+  props.size,
+  props.iconSize,
+];
+
+const getCSSClassesForStates = () => ({
+  loading: props.loading,
+  fill: props.fill,
+});
+
+const handleClick = (event: Event): void => {
+  if (!isDisabled.value) {
+    emit("click", event);
+  }
+};
 </script>
+
 <style lang="scss" scoped>
 .c-button {
   border: none;
@@ -60,29 +126,34 @@ const classButton = computed(() => [props.type, props.size, props.iconSize]);
   width: fit-content;
   border-radius: 8px;
   transition: 0.5s;
-  .c-button-content {
+
+  &__content {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    .prepend,
-    .append {
+
+    .c-button__prepend,
+    .c-button__append {
       max-width: 24px;
       max-height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
-      img {
+
+      .c-button__icon {
         width: 24px;
         height: 24px;
       }
     }
-    .label {
+
+    .c-button__label {
       font-size: 14px;
       font-weight: 400;
     }
   }
-  .c-button-loading {
+
+  &__loading {
     height: 18px;
     width: 18px;
     position: relative;
@@ -92,21 +163,32 @@ const classButton = computed(() => [props.type, props.size, props.iconSize]);
     animation: rotate 1s linear infinite;
     margin: auto;
   }
+
+  &__spinner {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
 }
+
 .c-button.fill {
   width: 100%;
 }
-button:disabled {
+
+.c-button:disabled {
   cursor: not-allowed;
 }
+
 .large {
   padding: 0 20px;
   height: 48px;
 }
+
 .extra-large {
   padding: 0 20px;
   height: 56px;
 }
+
 .default {
   padding: 0 20px;
   height: 44px;
@@ -115,8 +197,9 @@ button:disabled {
 .small {
   padding: 0 20px;
   height: 32px;
-  .c-button-content {
-    .label {
+
+  .c-button__content {
+    .c-button__label {
       font-size: 14px;
     }
   }
@@ -128,28 +211,36 @@ button:disabled {
   position: relative;
   z-index: 3;
   overflow: hidden;
-  .label {
+
+  .c-button__label {
     color: var(--app-white);
   }
-  .c-button-content {
+
+  .c-button__content {
     position: relative;
     z-index: 3;
-    img {
+
+    .c-button__icon {
       filter: var(--app-filter-text-light-permanent);
     }
   }
+
   &:hover {
     background: var(--app-pink-600);
   }
+
   &:active {
     background: var(--app-pink-700);
   }
+
   &:disabled {
     background: var(--app-grey-200);
   }
+
   &.loading {
     background: var(--app-pink-500);
-    .c-button-loading {
+
+    .c-button__loading {
       z-index: 3;
       color: var(--app-grey-050);
     }
@@ -163,26 +254,31 @@ button:disabled {
   transition:
     background 0.3s ease,
     color 0.3s ease;
-  .label {
+
+  .c-button__label {
     color: var(--app-text-primary);
   }
-  .c-button-content {
-  }
+
   &:hover {
     background: var(--app-pink-100);
   }
+
   &:active {
     background: var(--app-pink-200);
   }
+
   &:disabled {
     background: var(--app-grey-200);
-    .label {
+
+    .c-button__label {
       color: var(--app-grey-050);
     }
   }
+
   &.loading {
     background: var(--app-pink-50);
-    .c-button-loading {
+
+    .c-button__loading {
       color: var(--app-grey-700);
     }
   }
@@ -194,32 +290,39 @@ button:disabled {
   overflow: hidden;
   transition: all 0.3s ease;
   border: 1px solid var(--app-pink-400);
-  .label {
+
+  .c-button__label {
     color: var(--app-pink-500);
   }
-  .c-button-content {
-  }
+
   &:hover {
     border-color: var(--app-pink-600);
-    .label {
+
+    .c-button__label {
       color: var(--app-pink-600);
     }
   }
+
   &:active {
     border-color: var(--app-pink-500);
-    .label {
+
+    .c-button__label {
       color: var(--app-pink-500);
     }
   }
+
   &:disabled {
     border-color: var(--app-grey-300);
-    .label {
+
+    .c-button__label {
       color: var(--app-grey-500);
     }
   }
+
   &.loading {
     border-color: var(--app-pink-500);
-    .c-button-loading {
+
+    .c-button__loading {
       color: var(--app-pink-500);
     }
   }
@@ -231,28 +334,31 @@ button:disabled {
   overflow: hidden;
   transition: all 0.3s ease;
   border: none;
-  .label {
+
+  .c-button__label {
     color: var(--app-pink-500);
   }
-  .c-button-content {
-  }
+
   &:hover {
-    .label {
+    .c-button__label {
       color: var(--app-pink-500);
     }
   }
+
   &:active {
-    .label {
+    .c-button__label {
       color: var(--app-pink-600);
     }
   }
+
   &:disabled {
-    .label {
+    .c-button__label {
       color: var(--app-grey-500);
     }
   }
+
   &.loading {
-    .c-button-loading {
+    .c-button__loading {
       color: var(--app-pink-400);
     }
   }
@@ -266,6 +372,7 @@ button:disabled {
   position: relative;
   overflow: hidden;
   transition: opacity 0.3s ease;
+
   &::after {
     content: "";
     display: block;
@@ -279,37 +386,46 @@ button:disabled {
     transition: opacity 0.3s ease;
     pointer-events: none;
   }
+
   &.i-small {
     height: 32px;
     width: 56px;
-    .label {
+
+    .c-button__label {
       height: 16px;
     }
   }
+
   &.i-medium {
     height: 44px;
     width: 64px;
-    .label {
+
+    .c-button__label {
       height: 24px;
     }
   }
+
   &.i-large {
-    .label {
+    .c-button__label {
       height: 32px;
     }
   }
+
   &:hover::after {
     opacity: 0.5;
   }
+
   &:active::after {
     opacity: 1;
   }
 }
+
 @keyframes rotate {
   to {
     transform: rotate(360deg);
   }
 }
+
 .dark {
   .icon-default {
     &::after {
