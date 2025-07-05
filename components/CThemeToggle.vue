@@ -1,264 +1,151 @@
 <template>
-  <div
+  <button
     class="theme-toggle"
-    :class="{ 'theme-toggle--dark': colorMode.value === 'dark' }"
+    :aria-pressed="isDark.toString()"
     @click="toggleTheme"
+    @keydown.enter.prevent="toggleTheme"
+    @keydown.space.prevent="toggleTheme"
+    :title="isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'"
+    aria-label="Переключить тему"
+    type="button"
   >
-    <div class="theme-toggle__circle"></div>
-    <div class="theme-toggle__icons">
-      <div class="icon-wrapper icon-sun">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M8 3.5C5.51475 3.5 3.5 5.51475 3.5 8C3.5 10.4853 5.51475 12.5 8 12.5C10.4853 12.5 12.5 10.4853 12.5 8C12.5 5.51475 10.4853 3.5 8 3.5ZM8 12C5.79075 12 4 10.209 4 8C4 5.791 5.79075 4 8 4C10.2093 4 12 5.791 12 8C12 10.209 10.2093 12 8 12Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M8 5C7.86175 5 7.75 5.11175 7.75 5.25C7.75 5.38825 7.86175 5.5 8 5.5C9.3805 5.5 10.5 6.61925 10.5 8C10.5 8.13825 10.6118 8.25 10.75 8.25C10.8883 8.25 11 8.13825 11 8C11 6.34325 9.65675 5 8 5Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M15.75 7.75H13.25C13.1118 7.75 13 7.86175 13 8C13 8.13825 13.1118 8.25 13.25 8.25H15.75C15.8883 8.25 16 8.13825 16 8C16 7.86175 15.8883 7.75 15.75 7.75Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M2.86432 9.11795L1.89857 9.3767C1.76507 9.4127 1.68582 9.5497 1.72182 9.6832C1.75757 9.81645 1.89432 9.8957 2.02807 9.8597L2.99382 9.60095C3.12707 9.5652 3.20632 9.42845 3.17057 9.2947C3.13482 9.16145 2.99757 9.0822 2.86432 9.11795Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M12.33 5.49998C12.3993 5.61973 12.552 5.66073 12.6718 5.59148L14.8368 4.34148C14.9565 4.27248 14.9975 4.11948 14.928 3.99998C14.8593 3.88023 14.7063 3.83948 14.5868 3.90873L12.4218 5.15873C12.302 5.22798 12.2613 5.38023 12.33 5.49998Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M4.4645 11.5341C4.367 11.4363 4.20875 11.4368 4.111 11.5341L3.404 12.2411C3.30625 12.3388 3.3065 12.4973 3.40425 12.5948C3.50175 12.6926 3.65975 12.6923 3.7575 12.5946L4.4645 11.8876C4.56225 11.7903 4.56225 11.6318 4.4645 11.5341Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M10.5001 3.67082C10.6198 3.73982 10.7726 3.69907 10.8418 3.57932L12.0918 1.41432C12.1611 1.29457 12.1201 1.14157 12.0001 1.07257C11.8806 1.00357 11.7281 1.04457 11.6588 1.16407L10.4091 3.32932C10.3396 3.44907 10.3806 3.60157 10.5001 3.67082Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M6.70611 12.8289C6.57311 12.7931 6.43611 12.8729 6.39986 13.0056L6.14111 13.9714C6.10536 14.1051 6.18511 14.2421 6.31836 14.2779C6.45161 14.3139 6.58836 14.2346 6.62411 14.1009L6.88286 13.1351C6.91911 13.0024 6.83986 12.8651 6.70611 12.8289Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M8.00012 3C8.13862 3 8.25037 2.8885 8.25062 2.75V0.25C8.25062 0.11175 8.13887 0 8.00012 0C7.86237 0 7.75062 0.11175 7.75037 0.25L7.75062 2.75C7.75062 2.88825 7.86237 3 8.00012 3Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M9.60054 13.0056C9.56529 12.8726 9.42829 12.7931 9.29429 12.8289C9.16104 12.8646 9.08229 13.0019 9.11754 13.1351L9.37629 14.1009C9.41229 14.2346 9.54954 14.3134 9.68304 14.2776C9.81654 14.2419 9.89529 14.1054 9.85929 13.9714L9.60054 13.0056Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M5.15926 3.57899C5.22801 3.69874 5.38101 3.73974 5.50001 3.67074C5.62001 3.60149 5.66126 3.44899 5.59201 3.32899L4.34201 1.16399C4.27301 1.04449 4.12001 1.00349 4.00001 1.07274C3.88076 1.14149 3.83976 1.29449 3.90876 1.41399L5.15926 3.57899Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M11.8894 11.5341C11.7924 11.4366 11.6339 11.4366 11.5359 11.5341C11.4382 11.6316 11.4389 11.7901 11.5359 11.8876L12.2429 12.5946C12.3409 12.6926 12.4992 12.6918 12.5967 12.5943C12.6944 12.4968 12.6944 12.3391 12.5964 12.2411L11.8894 11.5341Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M1.16354 4.34166L3.32904 5.59141C3.44829 5.66041 3.60104 5.61966 3.66979 5.50041C3.73904 5.38066 3.69854 5.22791 3.57879 5.15866L1.41354 3.90866C1.29404 3.83941 1.14104 3.88041 1.07179 4.00041C1.00329 4.11966 1.04404 4.27266 1.16354 4.34166Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M13.0067 9.60114L13.9724 9.85989C14.1062 9.89614 14.2429 9.81589 14.2787 9.68264C14.3147 9.54964 14.2357 9.41289 14.1019 9.37689L13.1362 9.11814C13.0034 9.08189 12.8659 9.16139 12.8299 9.29489C12.7939 9.42839 12.8739 9.56514 13.0067 9.60114Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M3 8.0005C3.00025 7.862 2.88875 7.7505 2.7505 7.75L0.25 7.7505C0.112 7.7505 0 7.86175 0 8.0005C0.00025 8.13825 0.112 8.2505 0.25025 8.2505L2.7505 8.25C2.88825 8.25 3.00025 8.1385 3 8.0005Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M13.1364 6.88314L14.1021 6.62439C14.2359 6.58864 14.3146 6.45114 14.2786 6.31764C14.2431 6.18489 14.1066 6.10564 13.9726 6.14139L13.0069 6.40014C12.8736 6.43539 12.7944 6.57289 12.8301 6.70639C12.8654 6.83989 13.0031 6.91839 13.1364 6.88314Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M3.66989 10.5005C3.60114 10.3805 3.44839 10.3395 3.32864 10.4085L1.16339 11.659C1.04389 11.728 1.00239 11.8805 1.07164 12.0005C1.14089 12.1197 1.29389 12.1607 1.41339 12.0917L3.57839 10.8412C3.69764 10.7725 3.73914 10.6202 3.66989 10.5005Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M11.536 4.46206C11.6332 4.56006 11.7915 4.55906 11.8895 4.46206L12.5965 3.75506C12.6945 3.65706 12.694 3.49906 12.596 3.40131C12.499 3.30381 12.3407 3.30356 12.243 3.40156L11.536 4.10856C11.438 4.20556 11.4385 4.36456 11.536 4.46206Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M5.50006 12.3306C5.38031 12.2613 5.22806 12.3023 5.15881 12.4216L3.90881 14.5873C3.84006 14.7068 3.88006 14.8593 4.00006 14.9286C4.11981 14.9971 4.27256 14.9561 4.34181 14.8368L5.59131 12.6713C5.66031 12.5523 5.62006 12.3998 5.50006 12.3306Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M9.29456 3.16839C9.42731 3.20464 9.56406 3.12439 9.60081 2.99164L9.85956 2.02589C9.89531 1.89214 9.81556 1.75514 9.68231 1.71964C9.54956 1.68364 9.41231 1.76264 9.37656 1.89639L9.11781 2.86214C9.08106 2.99489 9.16131 3.13239 9.29456 3.16839Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M8 13C7.86175 12.9995 7.7505 13.1115 7.75 13.2495L7.7505 15.7505C7.7505 15.888 7.86125 16 8 16C8.13825 16 8.25 15.8878 8.25025 15.75L8.2495 13.2495C8.2495 13.1118 8.13875 13 8 13Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M6.40007 2.99149C6.43482 3.12474 6.57282 3.20399 6.70632 3.16824C6.83932 3.13299 6.91782 2.99549 6.88307 2.86199L6.62432 1.89624C6.58807 1.76249 6.45107 1.68349 6.31757 1.71974C6.18482 1.75524 6.10507 1.89174 6.14132 2.02574L6.40007 2.99149Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M10.8408 12.422C10.772 12.3025 10.62 12.261 10.5 12.3308C10.3803 12.3993 10.3398 12.552 10.4083 12.6718L11.6593 14.837C11.728 14.9565 11.88 14.998 12 14.9285C12.1198 14.8593 12.1605 14.7063 12.0918 14.5868L10.8408 12.422Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M4.11085 4.46188C4.2076 4.56038 4.3666 4.55938 4.46435 4.46188C4.5621 4.36488 4.5611 4.20663 4.46435 4.10838L3.75735 3.40138C3.6591 3.30338 3.5011 3.30388 3.4036 3.40188C3.3061 3.49888 3.3056 3.65713 3.40385 3.75488L4.11085 4.46188Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M14.8371 11.658L12.6714 10.4087C12.5519 10.3397 12.3996 10.3797 12.3306 10.5002C12.2611 10.6195 12.3026 10.7717 12.4216 10.8412L14.5876 12.091C14.7069 12.1597 14.8591 12.1197 14.9284 11.9997C14.9971 11.88 14.9561 11.7272 14.8371 11.658Z"
-          />
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M2.99361 6.40046L2.02761 6.14146C1.89361 6.10546 1.75686 6.18521 1.72136 6.31846C1.68536 6.45121 1.76411 6.58846 1.89811 6.62471L2.86386 6.88321C2.99661 6.91971 3.13411 6.83946 3.17011 6.70646C3.20636 6.57396 3.12636 6.43721 2.99361 6.40046Z"
-          />
-        </svg>
-      </div>
-      <div class="icon-wrapper icon-moon">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M4.32757 1.41146C3.81918 2.44475 3.55029 3.58636 3.55029 4.75986C3.55029 8.95861 6.95712 12.3744 11.1448 12.3744C12.3765 12.3744 13.5667 12.0801 14.6333 11.5247C13.3428 13.853 10.8831 15.3581 8.11374 15.3581C3.99265 15.3581 0.640432 11.9971 0.640432 7.86514C0.640432 5.16247 2.08636 2.73 4.32757 1.41146ZM6.073 0.000244141C2.58154 0.908357 0 4.08043 0 7.86514C0 12.3576 3.63312 15.9996 8.11374 15.9996C11.9473 15.9996 15.1519 13.3307 16 9.74756C14.7473 10.9746 13.0355 11.7323 11.1454 11.7323C7.30465 11.7323 4.19072 8.61017 4.19072 4.75926C4.19072 2.91716 4.90798 1.24657 6.073 0.000244141Z"
-          />
-        </svg>
-      </div>
-    </div>
-  </div>
+    <span class="icon">
+      <svg
+        class="icon__shape icon__shape--sun"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        fill="currentColor"
+      >
+        <circle cx="12" cy="12" r="5" />
+        <g stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </g>
+      </svg>
+      <svg
+        class="icon__shape icon__shape--moon"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path d="M12 2A9.91 9.91 0 0 0 9 2.46A10 10 0 0 1 9 21.54A10 10 0 1 0 12 2Z" />
+      </svg>
+    </span>
+  </button>
 </template>
 
-<script lang="ts" setup>
+<script setup lang="ts">
 const colorMode = useColorMode();
-const toggleTheme = () => {
-  if (colorMode.value === "light") {
-    colorMode.preference = "dark";
-  } else {
-    colorMode.preference = "light";
-  }
-};
+const isDark = ref(false);
+
+onMounted(() => {
+  isDark.value = colorMode.value === "dark";
+});
+
+function toggleTheme() {
+  isDark.value = !isDark.value;
+  colorMode.preference = isDark.value ? "dark" : "light";
+}
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .theme-toggle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: max-content;
-  height: 32px;
-  padding: 5px;
-  border-radius: 32px;
-  background-color: var(--app-grey-050);
-  transition: all 0.5s ease;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: none;
+  border-radius: 50%;
   cursor: pointer;
-  user-select: none;
-  box-shadow: inset rgb(0, 0, 0, 0.2) 0 2px 6px;
-  .icon-sun {
-    svg {
-      fill: var(--app-white);
-      transition: fill 0.5s ease;
-    }
-  }
-  .icon-moon {
-    svg {
-      fill: var(--app-grey-300);
-      transition: fill 0.5s ease;
-    }
-  }
-  &:hover {
-    .theme-toggle__circle {
-      transform-origin: left center;
-      transform: scaleX(1.05) translateY(-50%);
-    }
-  }
-  .theme-toggle__circle {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: linear-gradient(180deg, #fccb94, #e77b0c);
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: all 0.4s ease;
-  }
-}
-.theme-toggle.theme-toggle--dark {
-  background-color: var(--app-grey-400);
-  box-shadow: inset rgba(255, 255, 255, 0.2) 0 2px 6px;
-  .theme-toggle__circle {
-    transform: translate(48px, -50%);
-    background: linear-gradient(180deg, #acacac, #2f2f2f);
-  }
-  &:hover {
-    .theme-toggle__circle {
-      transform-origin: right center;
-      transform: scaleX(1.05) translate(46px, -50%);
-    }
-  }
-  .icon-sun {
-    svg {
-      fill: var(--app-grey-100);
-    }
-  }
-  .icon-moon {
-    svg {
-      fill: var(--app-black);
-    }
-  }
-}
-.theme-toggle__icons {
+  padding: 0.25rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 24px;
-  width: 100%;
+  justify-content: center;
+  transition:
+    transform 0.2s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  transform: scale(1.2);
+  outline: none;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.icon {
   position: relative;
-  z-index: 1;
-  .icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.icon__shape {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: center center;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
+.icon__shape--sun {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+.icon__shape--moon {
+  opacity: 0;
+  transform: rotate(-45deg) scale(1);
+}
+.dark {
+  .theme-toggle {
+    background: rgba(0, 0, 0, 0.6);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
+
+  .theme-toggle .icon__shape--sun {
+    opacity: 0;
+    transform: rotate(45deg) scale(1);
+  }
+
+  .theme-toggle .icon__shape--moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  .theme-toggle:hover,
+  .theme-toggle:focus-visible {
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+  }
+
+  .theme-toggle .icon__shape--sun {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.6);
+  }
+
+  .theme-toggle .icon__shape--moon {
+    opacity: 1;
+    transform: rotate(30deg) scale(1);
+  }
+}
+
+.theme-toggle {
+  color: var(--app-pink-500);
 }
 </style>

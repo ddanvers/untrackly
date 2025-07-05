@@ -1,77 +1,100 @@
 <template>
-  <main class="page-chat">
-    <section v-if="step === 'invite'" class="person-invitation">
-      <section v-if="!isInvited" class="person-invitation__content">
-        <div class="person-invitation__hint">
+  <main class="chat-page" aria-label="Чат">
+    <section
+      v-if="step === 'invite'"
+      class="chat-invitation"
+      aria-labelledby="chat-invitation-title"
+    >
+      <header class="chat-invitation__header">
+        <h1 id="chat-invitation-title" class="chat-invitation__title">Приглашение в чат</h1>
+      </header>
+      <section v-if="!isInvited" class="chat-invitation__content" aria-label="Поделиться ссылкой">
+        <h2 class="visually-hidden">Поделиться ссылкой</h2>
+        <p class="chat-invitation__hint">
           Поделитесь пригласительной ссылкой с участником чата любым удобным для вас способом
-        </div>
-        <div class="person-invitation__link-container">
+        </p>
+        <div class="chat-invitation__link-container">
           <div
             ref="linkBlock"
-            class="person-invitation__link-wrapper"
+            class="chat-invitation__link-wrapper"
             :style="{
               height: fixedHeight ? fixedHeight + 'px' : 'auto',
               backgroundColor: animating ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
             }"
           >
-            <span class="person-invitation__link">{{ displayText }}</span>
+            <span class="chat-invitation__link" aria-label="Ссылка для приглашения">{{
+              displayText
+            }}</span>
           </div>
-          <CButton @click="copy" type="secondary">
+          <CButton @click="copyInvitationLink" type="secondary" :aria-label="'Скопировать ссылку'">
             <span>Скопировать</span>
           </CButton>
         </div>
       </section>
-      <section v-else class="person-invitation__content">
-        <div class="person-invitation__hint">
+      <section v-else class="chat-invitation__content" aria-label="Принять приглашение">
+        <h2 class="visually-hidden">Принять приглашение</h2>
+        <p class="chat-invitation__hint">
           С вами поделились пригласительной ссылкой. <br />
           Примите приглашение, чтобы начать чат.
-        </div>
+        </p>
       </section>
-      <section class="person-invitation__button-container">
-        <CButton
-          @click="goToChat"
-          v-if="!isInvited"
-          class="person-invitation__button"
-          size="extra-large"
-        >
-          <span>Перейти в чат</span>
-        </CButton>
-        <CButton
-          @click="goToChat"
-          v-if="isInvited"
-          class="person-invitation__button"
-          size="extra-large"
-        >
-          <span>Принять</span>
-        </CButton>
-        <CButton
-          @click="rejectInvite"
-          v-if="isInvited"
-          class="person-invitation__button"
-          size="extra-large"
-          type="secondary"
-        >
-          <span>Отклонить</span>
-        </CButton>
-      </section>
+      <nav class="chat-invitation__button-container" aria-label="Действия приглашения">
+        <ul class="chat-invitation__actions">
+          <li v-if="!isInvited">
+            <CButton
+              @click="goToChat"
+              class="chat-invitation__button"
+              size="extra-large"
+              :aria-label="'Перейти в чат'"
+            >
+              <span>Перейти в чат</span>
+            </CButton>
+          </li>
+          <li v-if="isInvited">
+            <CButton
+              @click="goToChat"
+              class="chat-invitation__button"
+              size="extra-large"
+              :aria-label="'Принять приглашение'"
+            >
+              <span>Принять</span>
+            </CButton>
+          </li>
+          <li v-if="isInvited">
+            <CButton
+              @click="rejectInvite"
+              class="chat-invitation__button chat-invitation__button--secondary"
+              size="extra-large"
+              type="secondary"
+              :aria-label="'Отклонить приглашение'"
+            >
+              <span>Отклонить</span>
+            </CButton>
+          </li>
+        </ul>
+      </nav>
     </section>
 
-    <section v-else-if="step === 'waiting'" class="page-chat__waiting-window">
-      Ожидается подключение собеседника
-      <span class="loader"></span>
+    <section
+      v-else-if="step === 'waiting'"
+      class="chat-waiting"
+      aria-label="Ожидание подключения собеседника"
+    >
+      <h2 class="chat-waiting__title">Ожидается подключение собеседника</h2>
+      <span class="chat-waiting__loader loader" aria-hidden="true"></span>
     </section>
 
-    <section v-else-if="step === 'chat'" class="page-chat__chat-window">
+    <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
       <CChatWindow
         title="Ваш собеседник"
         :messages="messages"
         @sendMessage="sendMessage"
         @sendFile="sendFileHandler"
         @sendAllFiles="sendFileHandler"
-        :meId="peer?.id"
+        :meId="peer?.id || ''"
         @call="onCall"
       />
-      <CVideoCall
+      <CChatVideoCall
         :visible="showCall"
         :incoming="callState === 'incoming'"
         :accepted="callState === 'active'"
@@ -87,35 +110,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from "vue";
-import CVideoCall from "~/components/CChat/CVideoCall.vue";
-
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: number;
-  read?: boolean;
-  type?: string;
-  fileUrl?: string;
-  fileName?: string;
-}
+const route = useRoute();
 
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
-const route = useRoute();
 const linkBlock = ref<HTMLElement | null>(null);
-const copying = ref(false);
+const copying = shallowRef(false);
 const sessionId = route.params.id as string;
-const isInvited = ref(route.query.invited);
-const fixedHeight = ref<number | null>(null);
-const animating = ref(false);
-const displayText = ref(getInviteLink());
+const isInvited = shallowRef(route.query.invited);
+const fixedHeight = shallowRef<number | null>(null);
+const animating = shallowRef(false);
+const displayText = shallowRef(getInviteLink());
+const showCall = ref(false);
 
 const {
   messages,
   initPeer,
   sendMessage,
-  sendFile,
   sendAllFiles,
   peer,
   isConnectionEstablished,
@@ -131,30 +141,31 @@ const {
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
 
+const callStatusText = computed(() => {
+  if (callState.value === "calling") return "Звоним собеседнику...";
+  if (callState.value === "incoming") return "Входящий звонок";
+  if (callState.value === "active") return "Идёт звонок";
+  if (callState.value === "ended") return "Звонок завершён";
+  return "";
+});
+
 function getInviteLink() {
   if (!window) return "Генерируем ссылку...";
   return `${window.location.href}?invited=true`;
 }
 
-async function copy() {
-  if (copying.value) return; // Если уже копируем — выходим
-
-  copying.value = true; // Блокируем кнопку
-
+async function copyInvitationLink() {
+  if (copying.value) return;
+  copying.value = true;
   if (!linkBlock.value) {
-    copying.value = false; // Если нет блока, разблокируем и выходим
+    copying.value = false;
     return;
   }
-
   fixedHeight.value = linkBlock.value.offsetHeight;
-
   await navigator.clipboard.writeText(getInviteLink());
-
   animating.value = true;
   displayText.value = "";
-
   const targetText = "Скопировано";
-
   setTimeout(() => {
     let i = 0;
     const interval = setInterval(() => {
@@ -166,7 +177,7 @@ async function copy() {
           displayText.value = getInviteLink();
           animating.value = false;
           fixedHeight.value = null;
-          copying.value = false; // Разблокируем кнопку после окончания анимации
+          copying.value = false;
         }, 1000);
       }
     }, 50);
@@ -183,63 +194,45 @@ function rejectInvite() {
 }
 
 function sendFileHandler(payload: any) {
-  console.log("[id.vue] sendFileHandler", payload);
-  // Всегда ожидаем массив файлов (даже если один файл)
   if (payload && Array.isArray(payload.files) && payload.files.length > 0) {
-    console.log(
-      "[id.vue] sendFileHandler: отправка группы файлов (всегда массив)",
-      payload.files,
-    );
     sendAllFiles(payload);
-  } else {
-    // fallback: возможно только текст или пустой массив
-    console.warn(
-      "[id.vue] sendFileHandler: нет файлов для отправки или неизвестный payload",
-      payload,
-    );
   }
 }
-
-const showCall = ref(false);
-const callStatusText = computed(() => {
-  if (callState.value === "calling") return "Звоним собеседнику...";
-  if (callState.value === "incoming") return "Входящий звонок";
-  if (callState.value === "active") return "Идёт звонок";
-  if (callState.value === "ended") return "Звонок завершён";
-  return "";
-});
 
 function onCall(type: "audio" | "video") {
   showCall.value = true;
   startCall(type === "video");
   callType.value = type;
 }
+
 function onAcceptCall(opts?: { mic?: boolean; cam?: boolean }) {
-  acceptCall(callType.value === "video");
+  acceptCall({ cam: callType.value === "video" });
   setTimeout(() => {
-    if (opts) {
-      if (localStream.value) {
-        localStream.value.getAudioTracks().forEach((t) => {
-          t.enabled = opts.mic !== false;
-        });
-        localStream.value.getVideoTracks().forEach((t) => {
-          t.enabled = opts.cam !== false;
-        });
-      }
+    if (opts && localStream.value) {
+      localStream.value.getAudioTracks().forEach((t) => {
+        t.enabled = opts.mic !== false;
+      });
+      localStream.value.getVideoTracks().forEach((t) => {
+        t.enabled = opts.cam !== false;
+      });
     }
   }, 500);
 }
+
 function onDeclineCall() {
   declineCall();
   showCall.value = false;
 }
+
 function onEndCall() {
   endCall();
   showCall.value = false;
 }
+
 function onToggleMic(enabled: boolean) {
   toggleMic(enabled);
 }
+
 function onToggleCam(enabled: boolean) {
   toggleCamera(enabled);
 }
@@ -247,7 +240,6 @@ function onToggleCam(enabled: boolean) {
 watch(callState, (val) => {
   if (val === "idle") {
     showCall.value = false;
-    // Сброс UI состояния микрофона/камеры после завершения звонка
     setTimeout(() => {
       const videoComp = document.querySelector(".video-call__overlay");
       if (videoComp) {
@@ -257,20 +249,15 @@ watch(callState, (val) => {
         const camBtn = videoComp.querySelector(
           ".video-call__controls button:nth-child(2)",
         );
-        if (micBtn) micBtn.classList.remove("active");
-        if (camBtn) camBtn.classList.remove("active");
+        micBtn?.classList.remove("active");
+        camBtn?.classList.remove("active");
       }
     }, 300);
   }
-  if (val === "calling" || val === "incoming" || val === "active")
-    showCall.value = true;
+  if (["calling", "incoming", "active"].includes(val)) showCall.value = true;
 });
 
 watch(isConnectionEstablished, () => {
-  console.log(
-    "[id.vue] isConnectionEstablished changed",
-    isConnectionEstablished.value,
-  );
   if (isConnectionEstablished.value) {
     step.value = "chat";
   }
@@ -296,7 +283,7 @@ $app-desktop: 1294px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
-.page-chat {
+.chat-page {
   height: 100vh;
   min-height: max-content;
   width: 100vw;
@@ -307,12 +294,24 @@ $app-narrow-mobile: 364px;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  .person-invitation {
+  .chat-invitation {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 24px;
     width: 100%;
+
+    &__header {
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    &__title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--app-text-primary);
+      margin: 0;
+    }
 
     &__content {
       display: flex;
@@ -411,12 +410,20 @@ $app-narrow-mobile: 364px;
         gap: 16px;
         align-items: center;
       }
-      .person-invitation__button {
+      .chat-invitation__button {
         width: fit-content;
         span {
           font-size: 20px;
         }
       }
+    }
+
+    &__actions {
+      display: flex;
+      gap: 40px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
   }
 
@@ -525,5 +532,16 @@ $app-narrow-mobile: 364px;
     transform: rotate(360deg);
     background-position: 50% 36px;
   }
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
