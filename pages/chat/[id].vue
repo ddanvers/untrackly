@@ -442,6 +442,10 @@ $app-narrow-mobile: 364px;
     align-items: center;
     justify-content: center;
     gap: 24px;
+    &__title {
+      font-size: 18px;
+      font-weight: 400;
+    }
   }
 
   .chat-window {

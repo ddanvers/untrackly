@@ -2,7 +2,7 @@
   <section class="video-call" v-if="visible">
     <div class="video-call__content">
       <header class="video-call__header">
-        <h2>{{ callStatusText }}</h2>
+        <h2 class="video-call__title">{{ callStatusText }}</h2>
         <button class="video-call__close-btn" @click="onEndCall">
           <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
         </button>
@@ -45,7 +45,7 @@
       </nav>
     </div>
     <section v-if="incoming && !accepted" class="video-call__incoming">
-      <h3>Входящий звонок...</h3>
+      <h3 class="video-call__incoming-title">Входящий звонок...</h3>
       <nav class="video-call__incoming-actions">
         <CButton variant="primary" @click="onAcceptCall">Принять</CButton>
         <CButton variant="quaternary" @click="onDeclineCall">Отклонить</CButton>
@@ -170,6 +170,10 @@ function toggleCam() {
       font-size: 22px;
       margin: 12px 0px 24px 0px;
       position: relative;
+      .video-call__title {
+        font-size: 24px;
+        font-weight: 400;
+      }
     }
     .video-call__close-btn {
       position: absolute;
@@ -245,6 +249,10 @@ function toggleCam() {
     .video-call__incoming-actions {
       display: flex;
       gap: 16px;
+    }
+    .video-call__incoming-title {
+      font-size: 16px;
+      font-weight: 400;
     }
   }
 }
