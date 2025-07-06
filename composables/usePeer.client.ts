@@ -105,13 +105,14 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       handleCallSignals(data);
       // Фильтрация сигнальных сообщений звонка и управления потоками
       if (
-        data &&
-        (data.type === "call-request" ||
-          data.type === "call-decline" ||
-          data.type === "call-end" ||
-          data.type === "video-on" ||
-          data.type === "video-off" ||
-          data.type === "restart-call-with-video")
+        (data &&
+          (data.type === "call-request" ||
+            data.type === "call-decline" ||
+            data.type === "call-end" ||
+            data.type === "video-on" ||
+            data.type === "video-off" ||
+            data.type === "restart-call-with-video")) ||
+        data?.type === "read"
       ) {
         // Не пушим сигнальные сообщения в messages
         return;
@@ -129,6 +130,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           text: "",
           timestamp: data.timestamp,
           type: "file",
+          read: false,
           fileUrl,
           fileName: data.fileName,
           fileMime: data.fileMime,
@@ -178,6 +180,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         msg = {
           id: data.id,
           sender: data.sender,
+          read: false,
           text: data.text,
           timestamp: data.timestamp,
           type: "file-group",
@@ -210,6 +213,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           sender: peer.value?.id as string,
           text,
           timestamp: Date.now(),
+          read: false,
         }),
       );
       messages.value.push({
@@ -217,6 +221,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         sender: peer.value?.id as string,
         text,
         timestamp: Date.now(),
+        read: false,
       });
       console.log("[usePeer] sendMessage: sent and pushed", text);
     } else {
@@ -254,6 +259,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           fileName: file.name,
           fileMime: file.type,
           fileData: arrayBuffer,
+          read: false,
         });
         console.log("[usePeer] sendFile: sent to peer", file.name);
         // Для локального отображения
@@ -269,6 +275,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           fileUrl,
           fileName: file.name,
           fileMime: file.type,
+          read: false,
         });
         console.log("[usePeer] sendFile: local message pushed", file.name);
       };
@@ -312,6 +319,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
             timestamp: Date.now(),
             type: "file-group",
             files: filesToSend,
+            read: false,
           };
           conn.value!.send(msg);
           // Для локального отображения
@@ -559,6 +567,11 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       }, 100);
       return;
     }
+    if (data?.type === "read") {
+      const msg = messages.value.find((m) => m.id === data.id);
+      if (msg) msg.read = true;
+      return;
+    }
     if (data.type === "call-request") {
       callState.value = "incoming";
       callType.value = data.video ? "video" : "audio";
@@ -625,7 +638,14 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       }
     }
   }
-
+  function readMessage(id: string) {
+    const msg = messages.value.find((m) => m.id === id);
+    if (!msg || msg.read) return;
+    msg.read = true;
+    if (conn.value?.open) {
+      conn.value.send({ type: "read", id });
+    }
+  }
   // --- Управление камерой и микрофоном во время звонка с debounce ---
   const debounce = useDebounce();
   function debouncedToggleCamera(enabled: boolean) {
@@ -647,6 +667,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     sendAllFiles,
     attachedFiles,
     destroy,
+    readMessage,
     // --- Видеозвонки ---
     callState,
     callType,

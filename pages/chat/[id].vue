@@ -95,6 +95,7 @@
         @sendMessage="sendMessage"
         @sendFile="sendFileHandler"
         @sendAllFiles="sendFileHandler"
+        @readMessage="readMessage"
         :meId="peer?.id || ''"
         @call="onCall"
       />
@@ -131,6 +132,7 @@ const {
   initPeer,
   sendMessage,
   sendAllFiles,
+  readMessage,
   peer,
   isConnectionEstablished,
   callState,
@@ -192,7 +194,6 @@ function goToChat() {
   initPeer();
   step.value = "waiting";
 }
-
 function rejectInvite() {
   navigateTo("/");
 }

@@ -85,7 +85,8 @@ const getIconByType = (type?: string) => {
       : DEFAULT_FILE_ICON
   }`;
 };
-function sendMessage() {
+function sendMessage(event?: KeyboardEvent) {
+  if (event?.shiftKey) return;
   const trimmedText = text.value.trim();
   if (!trimmedText && !attachedFiles.value.length) return;
   if (trimmedText && !attachedFiles.value.length) {
@@ -134,6 +135,57 @@ function detachFile(idx: number) {
   gap: 8px;
   padding-top: 16px;
   background-color: var(--app-dirty-blue-100);
+  &__attachments-list {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    left: 92px;
+    padding: 12px;
+    padding-top: 0;
+    max-width: calc(100% - 72px * 2);
+    overflow: auto;
+  }
+  .form-file-attachment {
+    display: flex;
+    align-items: center;
+    background: var(--app-blue-200);
+    border-radius: 8px;
+    padding: 4px 8px;
+    gap: 8px;
+    position: relative;
+    &__img {
+      max-width: 48px;
+      max-height: 48px;
+      border-radius: 4px;
+    }
+    &__file {
+      color: var(--app-text-primary);
+      font-size: 14px;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    &__detach-btn {
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 4px;
+      width: 24px;
+      height: 24px;
+      img {
+        filter: var(--app-filter-pink-500);
+      }
+      &:hover {
+        color: var(--app-pink-600);
+      }
+      &:active {
+        color: var(--app-pink-700);
+      }
+    }
+  }
   &__actions {
     display: flex;
     align-items: center;
@@ -158,57 +210,6 @@ function detachFile(idx: number) {
       font-size: 14px;
       &::placeholder {
         color: var(--app-text-secondary);
-      }
-    }
-    &__attachments-list {
-      position: relative;
-      display: flex;
-      gap: 12px;
-      width: 100%;
-      left: 76px;
-      padding: 12px;
-      padding-top: 0;
-      max-width: calc(100% - 72px * 2);
-      overflow: auto;
-    }
-    .form-file-attachment {
-      display: flex;
-      align-items: center;
-      background: var(--app-blue-200);
-      border-radius: 8px;
-      padding: 4px 8px;
-      gap: 8px;
-      position: relative;
-      &__img {
-        max-width: 48px;
-        max-height: 48px;
-        border-radius: 4px;
-      }
-      &__file {
-        color: var(--app-text-primary);
-        font-size: 14px;
-        max-width: 120px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      &__detach-btn {
-        background: none;
-        border: none;
-        font-size: 16px;
-        cursor: pointer;
-        margin-left: 4px;
-        width: 24px;
-        height: 24px;
-        img {
-          filter: var(--app-filter-pink-500);
-        }
-        &:hover {
-          color: var(--app-pink-600);
-        }
-        &:active {
-          color: var(--app-pink-700);
-        }
       }
     }
   }

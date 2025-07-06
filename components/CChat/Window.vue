@@ -72,11 +72,9 @@ const emit = defineEmits<{
 }>();
 
 const bodyRef = ref<HTMLElement>();
-
-function scrollToBottom() {
-  const el = bodyRef.value;
-  if (el) el.scrollTop = el.scrollHeight;
-}
+const isAtBottom = ref(true);
+const notificationSound = new Audio("/sounds/notification.mp3");
+notificationSound.preload = "auto";
 
 function onVideoCall() {
   emit("call", "video");
@@ -116,22 +114,6 @@ function onSendAllFiles(payload: {
   emit("sendAllFiles", payload);
 }
 
-function onScroll() {
-  const el = bodyRef.value;
-  if (!el) {
-    console.log("[Window.vue] onScroll: no bodyRef");
-    return;
-  }
-  const items = el.querySelectorAll<HTMLElement>(".chat__message");
-  items.forEach((item) => {
-    const rect = item.getBoundingClientRect();
-    if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
-      const id = item.dataset.id!;
-      emit("readMessage", id);
-    }
-  });
-}
-
 function onRead(id: string) {
   console.log("[Window.vue] onRead", id);
   emit("readMessage", id);
@@ -141,6 +123,36 @@ watch(
   () => props.messages,
   (val) => {
     console.log("[Window.vue] messages updated", val);
+  },
+);
+function scrollToBottom() {
+  const el = bodyRef.value;
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function onScroll() {
+  const el = bodyRef.value!;
+  isAtBottom.value = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+}
+
+onMounted(() => {
+  scrollToBottom();
+});
+
+watch(
+  () => props.messages.length,
+  (newLen, oldLen) => {
+    if (newLen > oldLen) {
+      if (!isAtBottom.value) {
+        const newMsg = props.messages[newLen - 1];
+        if (newMsg.sender !== props.meId) {
+          notificationSound.play().catch(() => {});
+        }
+      }
+      if (isAtBottom.value) {
+        nextTick(scrollToBottom);
+      }
+    }
   },
 );
 </script>
