@@ -49,7 +49,7 @@ onMounted(() => {
   top: calc(100% + 16px + v-bind("props.topOffset"));
   transform: translateX(-50%);
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--app-text-secondary);
   box-shadow: 0px 3px 8px 0px rgba(0, 0, 0, 0.2);
   color: var(--app-text-primary);
   width: max-content;

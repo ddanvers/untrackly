@@ -5,10 +5,30 @@
       'chat-message--me': isMe,
     }"
     :data-id="message.id"
+    ref="elRef"
   >
     <div class="chat-message__meta">
       <span class="chat-message__sender">{{ isMe ? "Вы" : "Собеседник" }}</span>
-      <time class="chat-message__time">{{ formattedTime }}</time>
+      <div class="chat-message__time-read-container">
+        <div v-if="isMe" class="chat-message__read-status">
+          <NuxtImg
+            :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
+            width="20px"
+          ></NuxtImg>
+        </div>
+        <CHint force-center="right" top-offset="-8px">
+          <ul class="chat-message__hint-read-status-list">
+            <li>
+              <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение отправлено
+            </li>
+            <li>
+              <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
+              прочитано
+            </li>
+          </ul>
+        </CHint>
+        <time class="chat-message__time">{{ formattedTime }}</time>
+      </div>
     </div>
     <div class="chat-message__bubble">
       <template v-if="isMessageHasOnlyImage(message) && message.files?.length">
@@ -71,23 +91,6 @@
       <template v-else>
         {{ message.text }}
       </template>
-      <div v-if="isMe" class="chat-message__read-status">
-        <NuxtImg
-          :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
-          width="20px"
-        ></NuxtImg>
-      </div>
-      <CHint force-center="right" top-offset="-8px">
-        <ul class="chat-message__hint-read-status-list">
-          <li>
-            <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение отправлено
-          </li>
-          <li>
-            <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
-            прочитано
-          </li>
-        </ul>
-      </CHint>
     </div>
   </div>
 </template>
@@ -132,6 +135,9 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<(e: "read", id: string) => void>();
 
+const elRef = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
 const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
@@ -152,6 +158,25 @@ function isMessageHasOnlyImage(message: Message) {
     message.files[0].type.startsWith("image/")
   );
 }
+onMounted(() => {
+  nextTick(() => {
+    if (!props.isMe && !props.message.read && elRef.value) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            emit("read", props.message.id);
+            observer?.disconnect();
+          }
+        },
+        { root: elRef.value.parentElement, threshold: 0.5 },
+      );
+      observer.observe(elRef.value);
+    }
+  });
+});
+onBeforeUnmount(() => {
+  observer?.disconnect();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -170,10 +195,27 @@ $app-narrow-mobile: 364px;
   &__meta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 48px;
     font-size: 14px;
     color: var(--app-text-secondary);
     margin-bottom: 8px;
+    position: relative;
+    .chat-message__time-read-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      .chat-message__read-status {
+        bottom: 6px;
+        right: 6px;
+        width: 20px;
+        height: 20px;
+        img {
+          filter: var(--app-filter-pink-500);
+        }
+      }
+    }
   }
   &__bubble {
     background: var(--app-blue-100);
@@ -181,6 +223,13 @@ $app-narrow-mobile: 364px;
     padding: 16px;
     border-radius: 8px;
     overflow-wrap: anywhere;
+    .image-preview {
+      position: relative;
+      .download-icon {
+        top: 4px;
+        right: -4px;
+      }
+    }
   }
   &__group-text {
     margin-top: 8px;
@@ -194,16 +243,6 @@ $app-narrow-mobile: 364px;
       background: var(--app-blue-500);
       color: var(--app-text-primary-white);
       position: relative;
-      .chat-message__read-status {
-        position: absolute;
-        bottom: 6px;
-        right: 6px;
-        width: 20px;
-        height: 20px;
-        img {
-          filter: var(--app-filter-text-light-permanent);
-        }
-      }
     }
     .chat-message__group-text {
       color: var(--app-text-primary-white);
@@ -214,20 +253,19 @@ $app-narrow-mobile: 364px;
     padding: 0;
     list-style: none;
     font-size: 12px;
-    color: var(--app-text-light-permanent);
+    color: var(--app-text-primary-white);
     li {
       display: flex;
       align-items: center;
       gap: 6px;
       img {
-        filter: var(--app-filter-text-light-permanent);
+        filter: var(--app-filter-pink-500);
       }
     }
   }
 }
 .chat-message__image {
-  max-width: 320px;
-  max-height: 320px;
+  max-width: 100%;
   border-radius: 8px;
   margin: 8px 0;
   display: block;
