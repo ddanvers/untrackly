@@ -71,6 +71,23 @@
       <template v-else>
         {{ message.text }}
       </template>
+      <div v-if="isMe" class="chat-message__read-status">
+        <NuxtImg
+          :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
+          width="20px"
+        ></NuxtImg>
+      </div>
+      <CHint force-center="right" top-offset="-8px">
+        <ul class="chat-message__hint-read-status-list">
+          <li>
+            <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение отправлено
+          </li>
+          <li>
+            <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
+            прочитано
+          </li>
+        </ul>
+      </CHint>
     </div>
   </div>
 </template>
@@ -146,6 +163,7 @@ $app-narrow-mobile: 364px;
   max-width: 50%;
   width: max-content;
   margin-right: auto;
+  overflow: visible;
   @media screen and (max-width: $app-mobile) {
     max-width: 100%;
   }
@@ -175,9 +193,35 @@ $app-narrow-mobile: 364px;
     .chat-message__bubble {
       background: var(--app-blue-500);
       color: var(--app-text-primary-white);
+      position: relative;
+      .chat-message__read-status {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        width: 20px;
+        height: 20px;
+        img {
+          filter: var(--app-filter-text-light-permanent);
+        }
+      }
     }
     .chat-message__group-text {
       color: var(--app-text-primary-white);
+    }
+  }
+  &__hint-read-status-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: var(--app-text-light-permanent);
+    li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      img {
+        filter: var(--app-filter-text-light-permanent);
+      }
     }
   }
 }
