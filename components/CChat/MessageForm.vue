@@ -283,13 +283,14 @@ function detachFile(idx: number) {
     justify-content: center;
     font-size: 16px;
     color: var(--app-text-primary);
-    z-index: 10;
+    z-index: -1;
     pointer-events: all;
   }
 
   &.drag-active &__drop-zone {
     opacity: 1;
     transform: scale(1);
+    z-index: 10;
   }
 }
 </style>
