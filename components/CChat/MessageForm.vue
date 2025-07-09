@@ -1,5 +1,19 @@
 <template>
-  <section class="message-form">
+  <section
+    class="message-form"
+    :class="{ 'drag-active': dragActive }"
+    @dragenter.prevent="onSectionDragEnter"
+    @dragover.prevent
+  >
+    <div
+      class="message-form__drop-zone"
+      @dragenter.prevent
+      @dragover.prevent
+      @dragleave.prevent="onOverlayDragLeave"
+      @drop.prevent="onOverlayDrop"
+    >
+      Перетащите файлы сюда
+    </div>
     <ul v-if="attachedFiles.length" class="message-form__attachments-list">
       <li v-for="(item, idx) in attachedFiles" :key="item.file.name" class="form-file-attachment">
         <template v-if="item.file.type.startsWith('image/')">
@@ -36,6 +50,7 @@
         type="text"
         placeholder="Напишите ваше сообщение"
         @keyup.enter="sendMessage"
+        @paste="onPaste"
         rows="3"
       />
       <CButton
@@ -75,6 +90,7 @@ const emit = defineEmits([
 ]);
 
 const text = ref("");
+const dragActive = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const attachedFiles = ref<{ file: File; preview?: string }[]>([]);
 
@@ -107,20 +123,54 @@ function sendMessage(event?: KeyboardEvent) {
     attachedFiles.value = [];
   }
 }
+function onPaste(event: ClipboardEvent) {
+  const items = event.clipboardData?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.kind === "file") {
+      const file = item.getAsFile();
+      if (file?.type.startsWith("image/")) {
+        const preview = URL.createObjectURL(file);
+        attachedFiles.value.push({ file, preview });
+      }
+    }
+  }
+}
+function onSectionDragEnter() {
+  dragActive.value = true;
+}
+
+function onOverlayDragLeave(event: DragEvent) {
+  const to = event.relatedTarget as HTMLElement | null;
+  if (!event.currentTarget?.contains(to!)) {
+    dragActive.value = false;
+  }
+}
+
+function onOverlayDrop(e: DragEvent) {
+  dragActive.value = false;
+  const files = e.dataTransfer?.files;
+  if (files?.length) addFiles(files);
+}
+function addFiles(files: FileList) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    let preview: string | undefined;
+    if (file.type.startsWith("image/")) {
+      preview = URL.createObjectURL(file);
+    }
+    attachedFiles.value.push({ file, preview });
+  }
+}
+
 function onAttachClick() {
   fileInput.value?.click();
 }
 function onFileChange(e: Event) {
   const files = (e.target as HTMLInputElement).files;
   if (files?.length) {
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      let preview: string | undefined;
-      if (file.type.startsWith("image/")) {
-        preview = URL.createObjectURL(file);
-      }
-      attachedFiles.value.push({ file, preview });
-    }
+    addFiles(files);
     (e.target as HTMLInputElement).value = "";
   }
 }
@@ -212,6 +262,34 @@ function detachFile(idx: number) {
         color: var(--app-text-secondary);
       }
     }
+  }
+  position: relative;
+
+  &__drop-zone {
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
+    opacity: 0;
+    transform: scale(0.9);
+
+    position: absolute;
+    inset: 0;
+    background: var(--app-blue-100);
+    border: 2px dashed var(--app-blue-500);
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--app-text-primary);
+    z-index: 10;
+    pointer-events: all;
+  }
+
+  &.drag-active &__drop-zone {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 </style>
