@@ -55,11 +55,8 @@ function toggleTheme() {
 
 <style scoped>
 .theme-toggle {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 48px;
+  height: 48px;
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -84,8 +81,8 @@ function toggleTheme() {
 
 .icon {
   position: relative;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 32px;
+  height: 32px;
 }
 
 .icon__shape {
