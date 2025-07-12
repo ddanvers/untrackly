@@ -94,7 +94,6 @@ $app-narrow-mobile: 364px;
       width: 100vw;
       height: 100vh;
       min-height: max-content;
-      padding: 24px 16px;
     }
     &__logo {
       background-image: linear-gradient(to left, #006d07 0%, #04700b 52%, #000000 100%);

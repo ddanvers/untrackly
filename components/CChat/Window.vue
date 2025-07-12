@@ -23,7 +23,14 @@
         ></CButton>
       </nav>
     </header>
-    <section class="chat__body" ref="bodyRef" @scroll="onScroll">
+    <section
+      class="chat__body"
+      :class="{
+        'chat__body--minimized': isVideoCallMinimized,
+      }"
+      ref="bodyRef"
+      @scroll="onScroll"
+    >
       <CChatMessage
         v-for="msg in messages"
         :key="msg.id"
@@ -49,6 +56,7 @@ const props = defineProps<{
   title: string;
   meId: string;
   messages: Message[];
+  isVideoCallMinimized: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -196,6 +204,12 @@ $app-narrow-mobile: 364px;
     height: 100%;
     overflow-y: auto;
     padding: 16px;
+    @media screen and (max-width: $app-laptop) {
+      &--minimized {
+        height: calc((100vh - 80px - 105px) / 2);
+        margin-top: calc((100vh - 80px - 105px) / 2);
+      }
+    }
   }
 }
 </style>

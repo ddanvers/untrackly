@@ -90,7 +90,7 @@
 
     <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
       <CChatWindow
-        title="Ваш собеседник"
+        title="Собеседник"
         :messages="messages"
         @sendMessage="sendMessage"
         @sendFile="sendFileHandler"
@@ -98,12 +98,14 @@
         @readMessage="readMessage"
         :meId="peer?.id || ''"
         @call="onCall"
+        :isVideoCallMinimized="isVideoCallMinimized"
       />
       <CChatVideoCall
         :visible="showCall"
         :incoming="callState === 'incoming'"
         :accepted="callState === 'active'"
         :callStatusText="callStatusText"
+        @minimize="onMinimizeVideoCall"
         @accept="onAcceptCall"
         @decline="onDeclineCall"
         @end="onEndCall"
@@ -126,7 +128,7 @@ const fixedHeight = shallowRef<number | null>(null);
 const animating = shallowRef(false);
 const displayText = shallowRef(getInviteLink());
 const showCall = ref(false);
-
+const isVideoCallMinimized = ref(false);
 const {
   messages,
   initPeer,
@@ -209,7 +211,9 @@ function onCall(type: "audio" | "video") {
   startCall(type === "video");
   callType.value = type;
 }
-
+function onMinimizeVideoCall(state: boolean) {
+  isVideoCallMinimized.value = state;
+}
 function onAcceptCall(opts?: { mic?: boolean; cam?: boolean }) {
   acceptCall({ cam: callType.value === "video" });
   setTimeout(() => {

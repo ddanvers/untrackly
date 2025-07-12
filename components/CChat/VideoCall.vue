@@ -113,6 +113,7 @@ const emit = defineEmits([
   "end",
   "toggleMic",
   "toggleCam",
+  "minimize",
 ]);
 
 const isMinimized = ref(false);
@@ -142,6 +143,7 @@ function toggleWindowMinimize() {
       top: movedWindowPosition.value.savedPosition?.top,
     };
   }
+  emit("minimize", isMinimized.value);
 }
 
 function getEventCoords(e: MouseEvent | TouchEvent) {
@@ -201,6 +203,7 @@ function onDeclineCall() {
 }
 function onEndCall() {
   emit("end");
+  isMinimized.value = false;
 }
 function toggleMic() {
   const newState = !micState.value;
@@ -214,7 +217,8 @@ function toggleCam() {
 }
 
 function adjustOnResize() {
-  if (!isMinimized.value || !videoCallEl.value) return;
+  if (!isMinimized.value || !videoCallEl.value || window.innerWidth < 960)
+    return;
 
   const el = videoCallEl.value;
   const rect = el.getBoundingClientRect();
@@ -332,6 +336,9 @@ $app-narrow-mobile: 364px;
     flex-direction: column;
     align-items: center;
     padding: 16px;
+    @media screen and (max-height: 750px) {
+      height: 90vh;
+    }
     .video-call__header {
       display: flex;
       justify-content: space-between;
@@ -385,7 +392,7 @@ $app-narrow-mobile: 364px;
       border-radius: 12px;
       box-shadow: 0 2px 12px #000a;
       background: var(--app-text-secondary);
-      object-fit: cover;
+      object-fit: contain;
       z-index: 2;
     }
     .video-call__remote-video {
@@ -397,7 +404,7 @@ $app-narrow-mobile: 364px;
         width 0.2s ease,
         height 0.2s ease;
       background: var(--app-text-secondary);
-      object-fit: cover;
+      object-fit: contain;
       z-index: 1;
     }
     .video-call__controls {
@@ -463,6 +470,51 @@ $app-narrow-mobile: 364px;
           border-radius: 12px;
           box-shadow: none;
           position: static;
+        }
+      }
+    }
+    @media screen and (max-width: $app-laptop) {
+      top: 80px !important;
+      left: 0px !important;
+      .video-call__drag-btn {
+        opacity: 0;
+        transition: none;
+        pointer-events: none;
+      }
+      .video-call__header {
+        margin: 12px 0px;
+        @media screen and (max-width: $app-mobile) {
+          margin: 0px 0px 12px 0px;
+        }
+      }
+      .video-call__content {
+        width: 100vw;
+        max-width: 100vw;
+        height: calc((100vh - 80px - 104px) / 2);
+        border-radius: 0;
+        box-shadow: none;
+        border-bottom: 1px solid var(--app-dirty-blue-300);
+        @media screen and (max-width: $app-mobile) {
+          padding: 8px;
+        }
+        .video-call__videos {
+          flex-direction: row-reverse;
+          height: calc(100% - 44px - 44px - 12px - 24px);
+          .video-call__remote-video,
+          .video-call__my-video {
+            height: 100%;
+            width: calc(50% - 16px);
+            flex: 1 1 auto;
+          }
+        }
+        .video-call__controls {
+          margin: 12px 0 0 0;
+          @media screen and (max-width: $app-narrow-mobile) {
+            display: none;
+          }
+          @media screen and (max-height: 650px) {
+            display: none;
+          }
         }
       }
     }
