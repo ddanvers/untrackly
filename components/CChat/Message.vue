@@ -15,21 +15,54 @@
             :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
             width="20px"
           ></NuxtImg>
+          <CHint force-center="right" top-offset="-8px">
+            <ul class="chat-message__hint-read-status-list">
+              <li>
+                <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение
+                отправлено
+              </li>
+              <li>
+                <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
+                прочитано
+              </li>
+            </ul>
+          </CHint>
         </div>
-        <CHint force-center="right" top-offset="-8px">
-          <ul class="chat-message__hint-read-status-list">
-            <li>
-              <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение отправлено
-            </li>
-            <li>
-              <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
-              прочитано
+        <time class="chat-message__time">{{ formattedTime }}</time>
+        <CButtonDropdown
+          :contentStyles="{ right: '0', top: 'calc(100% + 4px)', width: 'fit-content' }"
+          variant="absolute"
+          class="chat-message__menu-btn"
+          v-model="menuOpened"
+        >
+          <template #button>
+            <NuxtImg src="/icons/dots_vertical.svg" width="24px"></NuxtImg
+          ></template>
+          <ul class="chat-message__menu">
+            <li class="chat-message__menu-item" @click="replyToMessage(message)">
+              Ответить <NuxtImg src="/icons/chat/reply.svg" width="24px"></NuxtImg>
             </li>
           </ul>
-        </CHint>
-        <time class="chat-message__time">{{ formattedTime }}</time>
+        </CButtonDropdown>
       </div>
     </div>
+    <div
+      v-if="message.replyMessage"
+      class="chat-message__reply-preview"
+      @click="onClickReplyPreview"
+    >
+      <div class="message-form__reply">
+        <div class="message-form__reply-content">
+          <span class="message-form__reply-author">
+            {{ message.replyMessage.sender === meId ? "Вы" : "Собеседник" }}
+          </span>
+          <p class="message-form__reply-text">
+            {{ message.replyMessage.text || "Файл" }}
+          </p>
+        </div>
+      </div>
+    </div>
+
     <div class="chat-message__bubble">
       <template v-if="isMessageHasOnlyImage(message) && message.files?.length">
         <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
@@ -107,11 +140,17 @@ interface Message {
   text: string;
   timestamp: number;
   read?: boolean;
+  replyMessage?: ReplyMessageData;
   type?: string;
   fileUrl?: string;
   fileName?: string;
   fileMime?: string;
   files?: FileAttachment[];
+}
+interface ReplyMessageData {
+  id: string;
+  sender: string;
+  text: string;
 }
 const DEFAULT_FILE_ICON = "file.svg";
 const FILE_ICONS = {
@@ -132,17 +171,26 @@ const FILE_ICONS = {
 const props = defineProps<{
   message: Message;
   isMe: boolean;
+  meId: string;
 }>();
-const emit = defineEmits<(e: "read", id: string) => void>();
+const emit = defineEmits<{
+  (e: "reply", message: Message): void;
+  (e: "read", id: string): void;
+  (e: "scroll-to-message", id: string): void; // <— новое событие
+}>();
 
 const elRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
-
+const menuOpened = ref(false);
 const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 });
-
+function onClickReplyPreview() {
+  if (props.message.replyMessage) {
+    emit("scroll-to-message", props.message.replyMessage.id);
+  }
+}
 const getIconByType = (type?: string) => {
   return `/icons/file_formats/${
     type && type in FILE_ICONS
@@ -150,6 +198,10 @@ const getIconByType = (type?: string) => {
       : DEFAULT_FILE_ICON
   }`;
 };
+function replyToMessage(message: Message) {
+  emit("reply", message);
+  menuOpened.value = false;
+}
 function isMessageHasOnlyImage(message: Message) {
   return (
     message.type === "file-group" &&
@@ -186,6 +238,8 @@ $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat-message {
   max-width: 50%;
+  padding: 12px;
+  border-radius: 12px;
   width: max-content;
   margin-right: auto;
   overflow: visible;
@@ -215,6 +269,81 @@ $app-narrow-mobile: 364px;
           filter: var(--app-filter-pink-500);
         }
       }
+      .chat-message__menu-btn {
+        cursor: pointer;
+        img {
+          filter: var(--app-filter-text-secondary);
+        }
+      }
+      .chat-message__menu {
+        background: var(--app-blue-100);
+        border-radius: 6px;
+        padding: 6px;
+        display: flex;
+        gap: 4px;
+
+        .chat-message__menu-item {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          color: var(--app-text-primary);
+          transition: background 0.3s ease;
+          img {
+            filter: var(--app-filter-text-secondary);
+          }
+          &:hover {
+            background: var(--app-blue-200);
+          }
+          &:active {
+            background: var(--app-blue-300);
+          }
+        }
+      }
+    }
+  }
+  .chat-message__reply-preview {
+    margin: 12px 0px 12px 12px;
+  }
+
+  .message-form__reply {
+    display: flex;
+    align-items: center;
+    background: var(--app-blue-50);
+    border-left: 4px solid var(--app-pink-500);
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: var(--app-blue-100);
+    }
+    &:active {
+      background: var(--app-blue-200);
+    }
+
+    &-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    &-author {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--app-text-secondary);
+    }
+
+    &-text {
+      font-size: 14px;
+      color: var(--app-text-primary);
+      max-height: 40px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
   &__bubble {

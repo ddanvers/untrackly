@@ -93,7 +93,6 @@
         title="Собеседник"
         :messages="messages"
         @sendMessage="sendMessage"
-        @sendFile="sendFileHandler"
         @sendAllFiles="sendFileHandler"
         @readMessage="readMessage"
         :meId="peer?.id || ''"
@@ -294,7 +293,6 @@ $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat-page {
   height: 100vh;
-  min-height: max-content;
   width: 100vw;
   background: var(--app-pink-gradient-bg);
   position: relative;
@@ -303,6 +301,9 @@ $app-narrow-mobile: 364px;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  @media screen and (max-width: $app-laptop) {
+    padding: 0;
+  }
   .chat-invitation {
     display: flex;
     flex-direction: column;
@@ -456,11 +457,7 @@ $app-narrow-mobile: 364px;
   .chat-window {
     width: 960px;
     max-width: 100%;
-    position: absolute;
-    top: 50%;
     height: calc(100% - 48px);
-    left: 50%;
-    transform: translate(-50%, -50%);
     border-radius: 24px;
     overflow: hidden;
     @media screen and (max-width: $app-laptop) {

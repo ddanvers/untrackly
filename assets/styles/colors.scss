@@ -133,6 +133,8 @@
   --app-text-light-permanent: #ffffff;
   --app-color-negavite: #d40c0c;
 
+  --app-filter-text-secondary: brightness(0) saturate(100%) invert(30%) sepia(0%) saturate(0%)
+    hue-rotate(153deg) brightness(95%) contrast(83%);
   --app-filter-black: brightness(0) saturate(100%) invert(0%) sepia(85%) saturate(7500%)
     hue-rotate(183deg) brightness(90%) contrast(112%);
   --app-filter-pink-500: brightness(0) saturate(100%) invert(52%) sepia(40%) saturate(427%)
@@ -215,6 +217,8 @@
   --app-text-secondary: #d4d4d4;
   --app-pink-gradient-bg: linear-gradient(-60deg, #5c273d 0%, #000000 89%);
 
+  --app-filter-text-secondary: brightness(0) saturate(100%) invert(96%) sepia(0%) saturate(69%)
+    hue-rotate(139deg) brightness(91%) contrast(89%);
   --app-filter-black: brightness(0) saturate(100%) invert(100%) sepia(2%) saturate(7485%)
     hue-rotate(320deg) brightness(106%) contrast(98%);
   --app-filter-pink-500: brightness(0) saturate(100%) invert(58%) sepia(29%) saturate(459%)
