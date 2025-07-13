@@ -15,19 +15,35 @@
             :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
             width="20px"
           ></NuxtImg>
+          <CHint force-center="right" top-offset="-8px">
+            <ul class="chat-message__hint-read-status-list">
+              <li>
+                <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение
+                отправлено
+              </li>
+              <li>
+                <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
+                прочитано
+              </li>
+            </ul>
+          </CHint>
         </div>
-        <CHint force-center="right" top-offset="-8px">
-          <ul class="chat-message__hint-read-status-list">
-            <li>
-              <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение отправлено
-            </li>
-            <li>
-              <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
-              прочитано
+        <time class="chat-message__time">{{ formattedTime }}</time>
+        <CButtonDropdown
+          :contentStyles="{ right: '0', top: 'calc(100% + 4px)', width: 'fit-content' }"
+          variant="absolute"
+          class="chat-message__menu-btn"
+          v-model="menuOpened"
+        >
+          <template #button>
+            <NuxtImg src="/icons/dots_vertical.svg" width="24px"></NuxtImg
+          ></template>
+          <ul class="chat-message__menu">
+            <li class="chat-message__menu-item" @click="replyToMessage(message)">
+              Ответить <NuxtImg src="/icons/chat/reply.svg" width="24px"></NuxtImg>
             </li>
           </ul>
-        </CHint>
-        <time class="chat-message__time">{{ formattedTime }}</time>
+        </CButtonDropdown>
       </div>
     </div>
     <div class="chat-message__bubble">
@@ -133,11 +149,14 @@ const props = defineProps<{
   message: Message;
   isMe: boolean;
 }>();
-const emit = defineEmits<(e: "read", id: string) => void>();
+const emit = defineEmits({
+  reply: (message: Message) => true,
+  read: (id: string) => true,
+});
 
 const elRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
-
+const menuOpened = ref(false);
 const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
@@ -150,6 +169,10 @@ const getIconByType = (type?: string) => {
       : DEFAULT_FILE_ICON
   }`;
 };
+function replyToMessage(message: Message) {
+  emit("reply", message);
+  menuOpened.value = false;
+}
 function isMessageHasOnlyImage(message: Message) {
   return (
     message.type === "file-group" &&
@@ -186,6 +209,8 @@ $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat-message {
   max-width: 50%;
+  padding: 12px;
+  border-radius: 12px;
   width: max-content;
   margin-right: auto;
   overflow: visible;
@@ -213,6 +238,39 @@ $app-narrow-mobile: 364px;
         height: 20px;
         img {
           filter: var(--app-filter-pink-500);
+        }
+      }
+      .chat-message__menu-btn {
+        cursor: pointer;
+        img {
+          filter: var(--app-filter-text-secondary);
+        }
+      }
+      .chat-message__menu {
+        background: var(--app-blue-100);
+        border-radius: 6px;
+        padding: 6px;
+        display: flex;
+        gap: 4px;
+
+        .chat-message__menu-item {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          color: var(--app-text-primary);
+          transition: background 0.3s ease;
+          img {
+            filter: var(--app-filter-text-secondary);
+          }
+          &:hover {
+            background: var(--app-blue-200);
+          }
+          &:active {
+            background: var(--app-blue-300);
+          }
         }
       }
     }

@@ -32,14 +32,24 @@
       @scroll="onScroll"
     >
       <CChatMessage
+        class="chat__message"
         v-for="msg in messages"
+        :id="msg.id"
         :key="msg.id"
         :message="msg"
         :isMe="msg.sender === meId"
         @read="onRead(msg.id)"
+        @reply="onReply"
       />
     </section>
-    <CChatMessageForm @send="sendMessage" @sendAllFiles="onSendAllFiles" @sendFile="sendFile" />
+    <CChatMessageForm
+      @send="sendMessage"
+      @sendAllFiles="onSendAllFiles"
+      @sendFile="sendFile"
+      :replyingTo="replyingTo"
+      @cancelReply="cancelReply"
+      @go-to-reply="goToReply"
+    />
   </section>
 </template>
 
@@ -82,6 +92,7 @@ const emit = defineEmits<{
 const bodyRef = ref<HTMLElement>();
 const isAtBottom = ref(true);
 const notificationSound = new Audio("/sounds/notification.mp3");
+const replyingTo = ref<Message | null>(null);
 notificationSound.preload = "auto";
 
 function onVideoCall() {
@@ -90,7 +101,32 @@ function onVideoCall() {
 function onAudioCall() {
   emit("call", "audio");
 }
-
+function onReply(message: Message) {
+  replyingTo.value = message;
+}
+function scrollToMessage(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // триггерим анимацию
+  el.classList.add("chat__message--highlight");
+  // по окончании убираем класс, чтобы можно было воспроизвести позже
+  el.addEventListener(
+    "animationend",
+    () => el.classList.remove("chat__message--highlight"),
+    {
+      once: true,
+    },
+  );
+}
+function goToReply() {
+  if (replyingTo.value) {
+    scrollToMessage(replyingTo.value.id);
+  }
+}
+function cancelReply() {
+  replyingTo.value = null;
+}
 onMounted(() => {
   console.log("[Window.vue] mounted");
   scrollToBottom();
@@ -199,17 +235,35 @@ $app-narrow-mobile: 364px;
   &__body {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 12px;
     background-color: var(--app-dirty-blue-50);
     height: 100%;
     overflow-y: auto;
-    padding: 16px;
+    overflow-x: hidden;
+    padding: 4px;
     @media screen and (max-width: $app-laptop) {
       &--minimized {
         height: calc((100vh - 80px - 105px) / 2);
         margin-top: calc((100vh - 80px - 105px) / 2);
       }
     }
+    .chat__message {
+      &--highlight {
+        animation: pulse-highlight 2s ease both;
+      }
+    }
+  }
+}
+
+@keyframes pulse-highlight {
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: var(--app-dirty-blue-100);
+  }
+  100% {
+    background-color: transparent;
   }
 }
 </style>

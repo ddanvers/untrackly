@@ -5,6 +5,17 @@
     @dragenter.prevent="onSectionDragEnter"
     @dragover.prevent
   >
+    <section v-if="props.replyingTo" class="message-form__reply" @click="goToReply">
+      <div class="message-form__reply-content">
+        <span class="message-form__reply-author"> В ответ на </span>
+        <p class="message-form__reply-text">
+          {{ props.replyingTo.text || "Файл" }}
+        </p>
+      </div>
+      <button type="button" class="close-btn" @dragstart.prevent @click.stop="cancelReply">
+        <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
+      </button>
+    </section>
     <div
       class="message-form__drop-zone"
       @dragenter.prevent
@@ -27,7 +38,7 @@
           ></NuxtImg>
           <span class="form-file-attachment__file">{{ item.file.name }}</span>
         </template>
-        <button type="button" class="form-file-attachment__detach-btn" @click="detachFile(idx)">
+        <button type="button" class="close-btn" @click="detachFile(idx)" @dragstart.prevent>
           <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
         </button>
       </li>
@@ -65,6 +76,23 @@
   </section>
 </template>
 <script setup lang="ts">
+interface Message {
+  id: string;
+  sender: string;
+  text: string;
+  timestamp: number;
+  read?: boolean;
+  type?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileMime?: string;
+  files?: FileAttachment[];
+}
+interface FileAttachment {
+  name: string;
+  type: string;
+  fileUrl: string;
+}
 const DEFAULT_FILE_ICON = "file.svg";
 const FILE_ICONS = {
   doc: "doc.svg",
@@ -81,12 +109,17 @@ const FILE_ICONS = {
   mp4: "mp4.svg",
 };
 
+const props = defineProps<{
+  replyingTo?: Message;
+}>();
 const emit = defineEmits([
   "send",
   "attach",
   "detach",
   "sendAllFiles",
   "sendFile",
+  "cancelReply",
+  "goToReply",
 ]);
 
 const text = ref("");
@@ -101,6 +134,12 @@ const getIconByType = (type?: string) => {
       : DEFAULT_FILE_ICON
   }`;
 };
+function cancelReply() {
+  emit("cancelReply");
+}
+function goToReply() {
+  emit("goToReply");
+}
 function sendMessage(event?: KeyboardEvent) {
   if (event?.shiftKey) return;
   const trimmedText = text.value.trim();
@@ -185,6 +224,61 @@ function detachFile(idx: number) {
   gap: 8px;
   padding-top: 16px;
   background-color: var(--app-dirty-blue-100);
+  &__reply {
+    display: flex;
+    align-items: center;
+    background: var(--app-blue-50);
+    border-left: 4px solid var(--app-pink-500);
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin: 0px 16px 12px;
+    position: relative;
+    transition: background 0.3s ease;
+    cursor: pointer;
+    &:hover {
+      background: var(--app-blue-100);
+    }
+    &:active {
+      background: var(--app-blue-200);
+    }
+    &-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    &-author {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--app-text-secondary);
+    }
+
+    &-text {
+      font-size: 14px;
+      color: var(--app-text-primary);
+      max-height: 40px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &-cancel {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      img {
+        filter: var(--app-filter-pink-500);
+      }
+      &:hover img {
+        filter: var(--app-pink-600);
+      }
+      &:active img {
+        filter: var(--app-pink-700);
+      }
+    }
+  }
+
   &__attachments-list {
     position: relative;
     display: flex;
@@ -216,24 +310,6 @@ function detachFile(idx: number) {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-    &__detach-btn {
-      background: none;
-      border: none;
-      font-size: 16px;
-      cursor: pointer;
-      margin-left: 4px;
-      width: 24px;
-      height: 24px;
-      img {
-        filter: var(--app-filter-pink-500);
-      }
-      &:hover {
-        color: var(--app-pink-600);
-      }
-      &:active {
-        color: var(--app-pink-700);
-      }
     }
   }
   &__actions {
@@ -291,6 +367,25 @@ function detachFile(idx: number) {
     opacity: 1;
     transform: scale(1);
     z-index: 10;
+  }
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  margin-left: 4px;
+  width: 24px;
+  height: 24px;
+  user-select: none;
+  img {
+    filter: var(--app-filter-pink-500);
+  }
+  &:hover {
+    color: var(--app-pink-600);
+  }
+  &:active {
+    color: var(--app-pink-700);
   }
 }
 </style>
