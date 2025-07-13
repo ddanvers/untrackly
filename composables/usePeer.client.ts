@@ -7,12 +7,18 @@ interface Message {
   sender: string;
   text: string;
   timestamp: number;
+  replyMessage: ReplyMessageData | null;
   read?: boolean;
   type?: string; // 'text' | 'file'
   fileUrl?: string; // для локального отображения
   fileName?: string;
   fileMime?: string;
   files?: { name: string; type: string; size: number; fileUrl: string }[];
+}
+interface ReplyMessageData {
+  id: string;
+  text: string;
+  sender: string;
 }
 export function usePeer(sessionId: string, isInitiator: boolean) {
   const peer = ref<Peer | null>(null);
@@ -120,27 +126,6 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       let msg: Message;
       if (typeof data === "string") {
         msg = JSON.parse(data);
-      } else if (data && data.type === "file") {
-        // Принимаем файл любого типа
-        const blob = new Blob([data.fileData], { type: data.fileMime });
-        const fileUrl = URL.createObjectURL(blob);
-        msg = {
-          id: data.id,
-          sender: data.sender,
-          text: "",
-          timestamp: data.timestamp,
-          type: "file",
-          read: false,
-          fileUrl,
-          fileName: data.fileName,
-          fileMime: data.fileMime,
-        };
-        console.log(
-          "[usePeer] File received",
-          data.fileName,
-          data.fileMime,
-          data.fileData?.byteLength,
-        );
       } else if (
         data &&
         data.type === "file-group" &&
@@ -183,6 +168,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           read: false,
           text: data.text,
           timestamp: data.timestamp,
+          replyMessage: data.replyMessage || null,
           type: "file-group",
           files: filesWithUrl,
         };
@@ -204,14 +190,18 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     });
   }
 
-  function sendMessage(text: string) {
-    console.log("[usePeer] sendMessage", text);
+  function sendMessage(payload: {
+    text: string;
+    replyMessage: ReplyMessageData | null;
+  }) {
+    console.log("[usePeer] sendMessage", payload);
     if (conn.value?.open) {
       conn.value.send(
         JSON.stringify({
           id: Date.now().toString(),
           sender: peer.value?.id as string,
-          text,
+          text: payload.text,
+          replyMessage: payload.replyMessage,
           timestamp: Date.now(),
           read: false,
         }),
@@ -219,11 +209,12 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       messages.value.push({
         id: Date.now().toString(),
         sender: peer.value?.id as string,
-        text,
+        text: payload.text,
+        replyMessage: payload.replyMessage,
         timestamp: Date.now(),
         read: false,
       });
-      console.log("[usePeer] sendMessage: sent and pushed", text);
+      console.log("[usePeer] sendMessage: sent and pushed", payload);
     } else {
       console.warn("[usePeer] sendMessage: conn not open", conn.value);
     }
@@ -239,56 +230,10 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     attachedFiles.value.splice(index, 1);
   }
 
-  function sendFile(file: File) {
-    console.log("[usePeer] sendFile called", file);
-    if (conn.value?.open) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const arrayBuffer = reader.result as ArrayBuffer;
-        console.log(
-          "[usePeer] sendFile: reader loaded",
-          file.name,
-          file.type,
-          file.size,
-        );
-        conn.value!.send({
-          id: Date.now().toString(),
-          sender: peer.value?.id as string,
-          timestamp: Date.now(),
-          type: "file",
-          fileName: file.name,
-          fileMime: file.type,
-          fileData: arrayBuffer,
-          read: false,
-        });
-        console.log("[usePeer] sendFile: sent to peer", file.name);
-        // Для локального отображения
-        const fileUrl = URL.createObjectURL(
-          new Blob([arrayBuffer], { type: file.type }),
-        );
-        messages.value.push({
-          id: Date.now().toString(),
-          sender: peer.value?.id as string,
-          text: "",
-          timestamp: Date.now(),
-          type: "file",
-          fileUrl,
-          fileName: file.name,
-          fileMime: file.type,
-          read: false,
-        });
-        console.log("[usePeer] sendFile: local message pushed", file.name);
-      };
-      reader.readAsArrayBuffer(file);
-      console.log("[usePeer] sendFile: reader started", file.name);
-    } else {
-      console.warn("[usePeer] sendFile: conn not open", conn.value);
-    }
-  }
-
   // Отправить одно сообщение с несколькими файлами и текстом
   function sendAllFiles(payload: {
     text: string;
+    replyMessage: ReplyMessageData | null;
     files: {
       name: string;
       type: string;
@@ -318,6 +263,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
             text: payload.text,
             timestamp: Date.now(),
             type: "file-group",
+            replyMessage: payload.replyMessage || null,
             files: filesToSend,
             read: false,
           };
@@ -661,7 +607,6 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     isConnectionEstablished,
     initPeer,
     sendMessage,
-    sendFile,
     attachFile,
     detachFile,
     sendAllFiles,

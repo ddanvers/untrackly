@@ -46,6 +46,23 @@
         </CButtonDropdown>
       </div>
     </div>
+    <div
+      v-if="message.replyMessage"
+      class="chat-message__reply-preview"
+      @click="onClickReplyPreview"
+    >
+      <div class="message-form__reply">
+        <div class="message-form__reply-content">
+          <span class="message-form__reply-author">
+            {{ message.replyMessage.sender === meId ? "Вы" : "Собеседник" }}
+          </span>
+          <p class="message-form__reply-text">
+            {{ message.replyMessage.text || "Файл" }}
+          </p>
+        </div>
+      </div>
+    </div>
+
     <div class="chat-message__bubble">
       <template v-if="isMessageHasOnlyImage(message) && message.files?.length">
         <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
@@ -123,11 +140,17 @@ interface Message {
   text: string;
   timestamp: number;
   read?: boolean;
+  replyMessage?: ReplyMessageData;
   type?: string;
   fileUrl?: string;
   fileName?: string;
   fileMime?: string;
   files?: FileAttachment[];
+}
+interface ReplyMessageData {
+  id: string;
+  sender: string;
+  text: string;
 }
 const DEFAULT_FILE_ICON = "file.svg";
 const FILE_ICONS = {
@@ -148,11 +171,13 @@ const FILE_ICONS = {
 const props = defineProps<{
   message: Message;
   isMe: boolean;
+  meId: string;
 }>();
-const emit = defineEmits({
-  reply: (message: Message) => true,
-  read: (id: string) => true,
-});
+const emit = defineEmits<{
+  (e: "reply", message: Message): void;
+  (e: "read", id: string): void;
+  (e: "scroll-to-message", id: string): void; // <— новое событие
+}>();
 
 const elRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
@@ -161,7 +186,11 @@ const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 });
-
+function onClickReplyPreview() {
+  if (props.message.replyMessage) {
+    emit("scroll-to-message", props.message.replyMessage.id);
+  }
+}
 const getIconByType = (type?: string) => {
   return `/icons/file_formats/${
     type && type in FILE_ICONS
@@ -273,6 +302,48 @@ $app-narrow-mobile: 364px;
           }
         }
       }
+    }
+  }
+  .chat-message__reply-preview {
+    margin: 12px 0px 12px 12px;
+  }
+
+  .message-form__reply {
+    display: flex;
+    align-items: center;
+    background: var(--app-blue-50);
+    border-left: 4px solid var(--app-pink-500);
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: var(--app-blue-100);
+    }
+    &:active {
+      background: var(--app-blue-200);
+    }
+
+    &-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    &-author {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--app-text-secondary);
+    }
+
+    &-text {
+      font-size: 14px;
+      color: var(--app-text-primary);
+      max-height: 40px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
   &__bubble {

@@ -117,7 +117,6 @@ const emit = defineEmits([
   "attach",
   "detach",
   "sendAllFiles",
-  "sendFile",
   "cancelReply",
   "goToReply",
 ]);

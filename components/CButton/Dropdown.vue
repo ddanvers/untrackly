@@ -82,16 +82,15 @@ const {
   align-items: center;
   justify-content: center;
   padding: 2px;
-  background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
   transition: background 0.3s ease;
   &:hover {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.05);
   }
   &:active {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.1);
   }
 }
 </style>

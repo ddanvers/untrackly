@@ -93,7 +93,6 @@
         title="Собеседник"
         :messages="messages"
         @sendMessage="sendMessage"
-        @sendFile="sendFileHandler"
         @sendAllFiles="sendFileHandler"
         @readMessage="readMessage"
         :meId="peer?.id || ''"
