@@ -23,7 +23,7 @@
         <div><CButton>Инициировать подключение</CButton></div>
       </div>
     </div>
-    <div class="page-hero__footer"></div>
+    <div class="page-hero__footer"><Snake></Snake></div>
   </main>
 </template>
 
