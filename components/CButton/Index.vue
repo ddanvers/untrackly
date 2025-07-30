@@ -124,7 +124,6 @@ const handleClick = (event: Event): void => {
   background: transparent;
   cursor: pointer;
   width: fit-content;
-  border-radius: 8px;
   transition: 0.5s;
 
   &__content {
@@ -206,14 +205,12 @@ const handleClick = (event: Event): void => {
 }
 
 .primary {
-  background: var(--app-pink-500);
+  background: var(--color-primary-on-fill);
   transition: background 0.3s ease;
-  position: relative;
-  z-index: 3;
   overflow: hidden;
 
   .c-button__label {
-    color: var(--app-white);
+    color: var(--color-black);
   }
 
   .c-button__content {
@@ -226,11 +223,11 @@ const handleClick = (event: Event): void => {
   }
 
   &:hover {
-    background: var(--app-pink-600);
+    background: var(--color-primary-on-hover);
   }
 
   &:active {
-    background: var(--app-pink-700);
+    background: var(--color-primary-on-active);
   }
 
   &:disabled {
