@@ -124,8 +124,7 @@ const handleClick = (event: Event): void => {
   background: transparent;
   cursor: pointer;
   width: fit-content;
-  transition: 0.5s;
-
+  min-width: max-content;
   &__content {
     position: relative;
     display: flex;
@@ -147,7 +146,7 @@ const handleClick = (event: Event): void => {
     }
 
     .c-button__label {
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 400;
     }
   }
@@ -190,7 +189,7 @@ const handleClick = (event: Event): void => {
 
 .default {
   padding: 0 20px;
-  height: 44px;
+  height: 40px;
 }
 
 .small {
@@ -245,7 +244,7 @@ const handleClick = (event: Event): void => {
 }
 
 .secondary {
-  background: var(--app-pink-50);
+  background: var(--color-neutral-on-fill);
   position: relative;
   overflow: hidden;
   transition:
@@ -253,15 +252,15 @@ const handleClick = (event: Event): void => {
     color 0.3s ease;
 
   .c-button__label {
-    color: var(--app-text-primary);
+    color: var(--color-primary-on-text);
   }
 
   &:hover {
-    background: var(--app-pink-100);
+    background: var(--color-neutral-on-hover);
   }
 
   &:active {
-    background: var(--app-pink-200);
+    background: var(--color-neutral-on-active);
   }
 
   &:disabled {

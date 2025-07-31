@@ -2,6 +2,12 @@
   <header class="layout-header">
     <div class="layout-header__logo-container">
       <NuxtImg src="/icons/logo.svg" width="56px"></NuxtImg>
+      <div class="logo-container">
+        <div class="logo-container__text">
+          <h1 class="logo-container__brand-name">untrackly</h1>
+          <p class="logo-container__slogan">Your words are only yours</p>
+        </div>
+      </div>
     </div>
     <div class="layout-header__menu-container">
       <nav class="nav-menu">
@@ -31,6 +37,10 @@ const props = defineProps<Props>();
 </script>
 
 <style scoped lang="scss">
+$app-desktop: 1384px;
+$app-laptop: 960px;
+$app-mobile: 600px;
+$app-narrow-mobile: 364px;
 .layout-header {
   display: flex;
   justify-content: space-between;
@@ -50,10 +60,46 @@ const props = defineProps<Props>();
     justify-content: flex-end;
     align-items: center;
     gap: 48px;
+    @media screen and (max-width: $app-mobile) {
+      display: none;
+    }
+  }
+  &__logo-container {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+    .logo-container {
+      display: none;
+    }
+    @media screen and (max-width: $app-mobile) {
+      .logo-container {
+        display: block;
+        &__text {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 6px;
+          padding: 12px;
+        }
+        &__brand-name {
+          font-weight: 400;
+          font-size: 22px;
+          color: var(--color-primary-on-text);
+        }
+        &__slogan {
+          font-weight: 400;
+          font-size: 14px;
+          color: var(--color-white);
+        }
+      }
+    }
   }
   .nav-menu {
     display: flex;
-    width: 20%;
+    min-width: max-content;
     height: 100%;
     justify-content: space-between;
     align-items: center;
@@ -68,21 +114,21 @@ const props = defineProps<Props>();
     &__item {
       display: flex;
       height: 100%;
-      width: 100%;
+      width: 120px;
       align-items: center;
       justify-content: center;
     }
     &__link {
-      color: #fff;
+      color: var(--color-white);
       font-size: 18px;
       font-weight: 400;
       text-decoration: none;
       transition: color 0.2s ease;
       &:hover {
-        color: var(--color-primary-on-text-hover);
+        color: var(--color-primary-on-hover);
       }
       &:active {
-        color: var(--color-primary-on-text-active);
+        color: var(--color-primary-on-active);
       }
       &--active {
         color: var(--color-primary-on-text);

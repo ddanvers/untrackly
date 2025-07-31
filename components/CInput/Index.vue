@@ -34,7 +34,7 @@
             class="append-icon"
             @click.stop="clearValue"
           >
-            <NuxtImg src="/icons/clear.svg" />
+            <NuxtImg src="/icons/close.svg" />
           </div>
           <div
             v-if="type === 'password' && inputType"
@@ -85,10 +85,10 @@ type Props = {
   noBlurSelectors?: string[];
 };
 const props = withDefaults(defineProps<Props>(), {
-  valid: true,
+  valid: false,
   type: "text",
   errorMessage: () => useI18n().t("input.error_message"),
-  errorShow: true,
+  errorShow: false,
   disabled: false,
   showClose: true,
   readonlyProp: false,
@@ -193,7 +193,7 @@ input[type="file"] {
   .input-label {
     font-size: 16px;
     font-weight: 400;
-    color: var(--color-primary-on-text);
+    color: var(--color-neutral-on-text);
     margin-bottom: 8px;
     user-select: none;
     span {
@@ -203,13 +203,13 @@ input[type="file"] {
   .input-main {
     height: 40px;
     width: 100%;
-    border: 2px solid var(--color-primary-on-outline);
+    border: 2px solid var(--color-neutral-on-outline);
     overflow-x: hidden;
     padding: 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.3s ease;
     input {
       background: transparent;
       border: none;
@@ -223,10 +223,11 @@ input[type="file"] {
       color: var(--color-primary-on-text);
     }
     input::placeholder {
-      color: var(--color-primary-on-bg);
+      color: var(--color-neutral-on-muted);
     }
   }
   .main-focus {
+    border-color: var(--color-primary-on-hover);
   }
   .disabled {
     background: #00426912;

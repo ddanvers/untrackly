@@ -33,7 +33,7 @@ $app-narrow-mobile: 364px;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  width: 100vw;
+  width: 100%;
   background-color: var(--color-bg-on-secondary);
 }
 </style>
