@@ -23,7 +23,7 @@
           </li>
         </ul>
       </nav>
-      <CThemeToggle></CThemeToggle>
+      <!-- <CThemeToggle></CThemeToggle> -->
     </div>
     <button
       v-if="isMobile"
@@ -65,9 +65,9 @@
           </li>
         </ul>
       </nav>
-      <div class="mobile-menu__footer">
+      <!-- <div class="mobile-menu__footer">
         <CThemeToggle class="mobile-menu__theme-toggle"></CThemeToggle>
-      </div>
+      </div> -->
     </aside>
   </header>
 </template>
@@ -242,9 +242,12 @@ $burger-size: 40px;
         &__slogan {
           font-weight: 400;
           font-size: 14px;
-          color: var(--color-white);
+          color: var(--color-black);
           margin: 0;
         }
+      }
+      @media screen and (max-width: $app-narrow-mobile) {
+        display: none;
       }
     }
   }
@@ -277,7 +280,7 @@ $burger-size: 40px;
   }
 
   &__link {
-    color: var(--color-white);
+    color: var(--color-black);
     font-size: 18px;
     font-weight: 400;
     text-decoration: none;
@@ -452,7 +455,7 @@ $burger-size: 40px;
   &__link {
     display: block;
     padding: 20px 24px;
-    color: var(--color-white);
+    color: var(--color-black);
     font-size: 18px;
     font-weight: 400;
     text-decoration: none;
@@ -507,7 +510,6 @@ $burger-size: 40px;
     width: 100%;
     max-width: 320px;
   }
-
   .layout-header {
     padding: 0 16px;
   }

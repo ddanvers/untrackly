@@ -6,7 +6,9 @@
       aria-labelledby="chat-invitation-title"
     >
       <header class="chat-invitation__header">
-        <h1 id="chat-invitation-title" class="chat-invitation__title">Приглашение в чат</h1>
+        <h1 id="chat-invitation-title" class="chat-invitation__title">
+          Приглашение в закрытый чат
+        </h1>
       </header>
       <section v-if="!isInvited" class="chat-invitation__content" aria-label="Поделиться ссылкой">
         <h2 class="visually-hidden">Поделиться ссылкой</h2>
@@ -85,7 +87,7 @@
       aria-label="Ожидание подключения собеседника"
     >
       <h2 class="chat-waiting__title">Ожидается подключение собеседника</h2>
-      <span class="chat-waiting__loader loader" aria-hidden="true"></span>
+      <Snake></Snake>
     </section>
 
     <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
@@ -117,7 +119,9 @@
 
 <script setup lang="ts">
 const route = useRoute();
-
+definePageMeta({
+  header: false,
+});
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
 const copying = shallowRef(false);
@@ -287,22 +291,26 @@ watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
 </script>
 
 <style scoped lang="scss">
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
+$app-medium-height: 750px;
+$app-small-height: 520px;
 .chat-page {
-  height: 100vh;
-  width: 100vw;
+  min-height: 100vh;
+  width: 100%;
   background: var(--app-pink-gradient-bg);
   position: relative;
   display: flex;
+  flex: 1 1 auto;
+  background-color: var(--color-bg-on-secondary);
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
   @media screen and (max-width: $app-laptop) {
-    padding: 0;
+    padding: 12px;
   }
   .chat-invitation {
     display: flex;
@@ -310,7 +318,6 @@ $app-narrow-mobile: 364px;
     align-items: center;
     gap: 24px;
     width: 100%;
-
     &__header {
       margin-bottom: 8px;
       text-align: center;
@@ -319,7 +326,7 @@ $app-narrow-mobile: 364px;
     &__title {
       font-size: 2rem;
       font-weight: 700;
-      color: var(--app-text-primary);
+      color: var(--color-primary-on-text);
       margin: 0;
     }
 
@@ -345,7 +352,7 @@ $app-narrow-mobile: 364px;
       font-size: 24px;
       text-wrap: balance;
       text-align: center;
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       max-width: 560px;
       @media screen and (max-width: $app-mobile) {
         font-size: 20px;
@@ -372,12 +379,11 @@ $app-narrow-mobile: 364px;
       max-width: 100%;
       justify-content: center;
       padding: 24px 32px;
-      border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.15);
       width: 320px;
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(4px);
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       font-size: 18px;
       font-weight: 500;
       text-align: center;

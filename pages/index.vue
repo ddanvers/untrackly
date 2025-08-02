@@ -19,11 +19,17 @@
           <CInput
             v-model="chatRoomId"
             label="Код комнаты"
-            placeholder="XXXX-XXXX-XXXX-XXXX"
+            placeholder="xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+            :readonlyProp="isChatRoomIdGenerated"
+            valid
           ></CInput>
-          <CButton variant="secondary">Сгенерировать</CButton>
+          <CButton variant="secondary" @click="toggleChatRoomIdGeneration">
+            {{ isChatRoomIdGenerated ? "Удалить код" : "Сгенерировать" }}
+          </CButton>
         </div>
-        <CButton fill>Инициировать подключение</CButton>
+        <CButton fill :disabled="!isChatRoomIdValid" @click="launchChat"
+          >Инициировать подключение</CButton
+        >
       </div>
     </div>
     <div class="page-hero__footer">
@@ -39,9 +45,27 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  header: true,
+});
 const chatRoomId = ref("");
+const isChatRoomIdGenerated = ref(false);
+const isChatRoomIdValid = computed(() => {
+  const uuidV4Regex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidV4Regex.test(chatRoomId.value);
+});
 function launchChat() {
-  navigateTo(`/chat/${crypto.randomUUID()}`);
+  navigateTo(`/chat/${chatRoomId.value}`);
+}
+function toggleChatRoomIdGeneration() {
+  if (isChatRoomIdGenerated.value) {
+    chatRoomId.value = "";
+    isChatRoomIdGenerated.value = false;
+    return;
+  }
+  chatRoomId.value = crypto.randomUUID();
+  isChatRoomIdGenerated.value = true;
 }
 const infoCards = [
   {
@@ -56,7 +80,7 @@ const infoCards = [
   },
   {
     title: "peer-to-peer",
-    description: "Нет серверов данных, прямое соединение через протокол WebRTC",
+    description: "Прямое подключение через протокол WebRTC",
     icon: "/icons/main/cards/web.svg",
   },
 ];
@@ -67,8 +91,10 @@ $app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
+$app-medium-height: 750px;
+$app-small-height: 520px;
 .page-hero {
-  height: 100vh;
+  height: calc(100vh - 72px);
   width: 100%;
   background: var(--color-bg-on-secondary);
   position: relative;
@@ -90,12 +116,18 @@ $app-narrow-mobile: 364px;
       padding: 0px 64px;
     }
     @media screen and (max-width: $app-laptop) {
-      min-height: 100vh;
+      min-height: calc(100vh - 72px);
       width: max-content;
       flex-direction: column;
       justify-content: center;
       gap: 48px;
       padding: 24px;
+    }
+    @media screen and (max-width: $app-narrow-mobile) {
+      padding: 8px;
+    }
+    @media screen and (max-height: $app-small-height) {
+      justify-content: flex-start;
     }
   }
   &__footer {
@@ -143,7 +175,7 @@ $app-narrow-mobile: 364px;
   &__slogan {
     font-weight: 400;
     font-size: 18px;
-    color: var(--color-white);
+    color: var(--color-black);
   }
   @media screen and (max-width: $app-desktop) {
     img {
@@ -189,10 +221,20 @@ $app-narrow-mobile: 364px;
     gap: 16px;
     width: 100%;
     align-items: flex-end;
+    @media screen and (max-width: $app-mobile) {
+      flex-direction: column;
+      button {
+        width: 100%;
+      }
+    }
+  }
+  @media screen and (max-width: $app-narrow-mobile) {
+    padding: 12px;
   }
 }
 .attractive-info-card {
   width: 380px;
+  max-width: 100%;
   height: 100%;
   padding: 24px;
   display: flex;
@@ -211,7 +253,7 @@ $app-narrow-mobile: 364px;
     font-weight: 400;
   }
   &__description {
-    color: var(--color-white);
+    color: var(--color-black);
     font-size: 16px;
     text-align: center;
   }

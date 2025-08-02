@@ -36,7 +36,7 @@
   --blue-4: #4ca6dc;
   --blue-3: #72c1f5;
   --blue-2: #97dcff;
-  --blue-1: #bcf8ff;
+  --blue-1: #ddf1f3;
 
   /* orange */
   --orange-source: #ffb000;
@@ -50,13 +50,16 @@
   --orange-3: #efba4f;
   --orange-2: #f8c765;
   --orange-1: #ffd98d;
+}
 
+.dark {
   --color-primary-on-text: var(--orange-5);
   --color-primary-on-hover: var(--orange-4);
   --color-primary-on-active: var(--orange-3);
   --color-primary-on-fill: var(--orange-5);
   --color-primary-on-outline: var(--orange-5);
   --color-primary-on-bg: var(--orange-1);
+  --color-primary-on-muted: var(--orange-1);
 
   --color-bg-on-primary: var(--dark-blue-10);
   --color-bg-on-primary-light: var(--dark-blue-9);
@@ -70,6 +73,8 @@
   --color-neutral-on-outline: var(--gray-4);
   --color-neutral-on-muted: var(--gray-5);
 
-  --color-white: #fff;
-  --color-black: #000;
+  --color-white: #000;
+  --color-black: #fff;
+  --filter-neutral-on-text: invert(99%) sepia(9%) saturate(68%) hue-rotate(61deg) brightness(111%)
+    contrast(89%);
 }

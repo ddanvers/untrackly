@@ -209,7 +209,7 @@ const handleClick = (event: Event): void => {
   overflow: hidden;
 
   .c-button__label {
-    color: var(--color-black);
+    color: var(--color-permanent-black);
   }
 
   .c-button__content {
@@ -230,7 +230,8 @@ const handleClick = (event: Event): void => {
   }
 
   &:disabled {
-    background: var(--app-grey-200);
+    opacity: 0.4;
+    background: var(--color-primary-on-muted);
   }
 
   &.loading {
@@ -264,11 +265,7 @@ const handleClick = (event: Event): void => {
   }
 
   &:disabled {
-    background: var(--app-grey-200);
-
-    .c-button__label {
-      color: var(--app-grey-050);
-    }
+    opacity: 0.5;
   }
 
   &.loading {

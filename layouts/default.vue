@@ -1,14 +1,20 @@
 <template>
-  <div class="page-container">
+  <div
+    class="page-container"
+    :class="{
+      'page-container--no-header': !route.meta.header,
+    }"
+  >
     <div class="page-content">
       <section class="page-content__header">
-        <CHeader :menuItems="menuItems"></CHeader>
+        <CHeader v-if="route.meta.header" :menuItems="menuItems"></CHeader>
       </section>
       <NuxtPage />
     </div>
   </div>
 </template>
 <script setup lang="ts">
+const route = useRoute();
 const router = useRouter();
 const menuItems = [
   {
@@ -35,5 +41,9 @@ $app-narrow-mobile: 364px;
   height: 100vh;
   width: 100%;
   background-color: var(--color-bg-on-secondary);
+  padding-top: 72px;
+  &--no-header {
+    padding-top: 0;
+  }
 }
 </style>

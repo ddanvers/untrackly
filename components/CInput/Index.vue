@@ -1,6 +1,6 @@
 <template>
   <div class="c-input">
-    <div class="input-label" v-if="label">{{ label }} <span v-if="valid">*</span></div>
+    <div class="input-label" v-if="label">{{ label }}</div>
     <div class="input-body">
       <div
         class="input-main"
@@ -30,7 +30,7 @@
         />
         <div tabindex="1" class="input-append">
           <div
-            v-if="showClose && modelValue && !disabled"
+            v-if="showClose && modelValue && !disabled && !readonlyProp"
             class="append-icon"
             @click.stop="clearValue"
           >
@@ -87,7 +87,7 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
   valid: false,
   type: "text",
-  errorMessage: () => useI18n().t("input.error_message"),
+  errorMessage: "Ошибка валидации данных",
   errorShow: false,
   disabled: false,
   showClose: true,
@@ -230,10 +230,14 @@ input[type="file"] {
     border-color: var(--color-primary-on-hover);
   }
   .disabled {
-    background: #00426912;
-    border-color: #00426900;
+    opacity: 0.5;
+    cursor: not-allowed;
     input {
-      color: #00203342;
+      cursor: not-allowed;
+    }
+    border-color: var(--color-neutral-on-muted);
+    input {
+      color: var(--color-neutral-on-muted);
     }
   }
   .input-main:hover:not(.disabled):not(.error) {
@@ -279,7 +283,7 @@ input[type="file"] {
         cursor: pointer;
         width: 24px;
         height: 24px;
-        // filter: var(--app-filter-grey-light);
+        filter: var(--filter-neutral-on-text);
       }
     }
   }

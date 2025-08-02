@@ -1,22 +1,18 @@
 <template>
   <div class="snake-game">
     <div class="snake-game__header">
-      <h1 class="snake-game__title">Змейка</h1>
-      <div class="snake-game__score">Счёт: {{ gameState.score }}</div>
+      <h1 class="snake-game__title">ЗМЕЙКА</h1>
+      <div class="snake-game__score">{{ gameState.score.toString().padStart(4, "0") }}</div>
     </div>
 
     <div class="snake-game__controls">
-      <p class="snake-game__instructions">Управление: WASD или стрелочки</p>
-      <button
-        class="snake-game__button snake-game__button--primary"
-        @click="startGame"
-        :disabled="gameState.isPlaying"
-      >
-        {{ gameState.isPlaying ? "Игра идёт" : "Начать игру" }}
-      </button>
-      <button class="snake-game__button snake-game__button--secondary" @click="resetGame">
-        Сброс
-      </button>
+      <p class="snake-game__instructions">Используй WASD или стрелочки для управления</p>
+      <div class="snake-game__buttons">
+        <CButton @click="startGame" :disabled="gameState.isPlaying">
+          {{ gameState.isPlaying ? "ИДЕТ ИГРА" : "НАЧАТЬ" }}
+        </CButton>
+        <CButton variant="secondary" @click="resetGame"> СБРОСИТЬ </CButton>
+      </div>
     </div>
 
     <div class="snake-game__board-container">
@@ -30,18 +26,24 @@
         tabindex="0"
         @keydown="handleKeyPress"
       >
-        <!-- Loading state with square style -->
+        <!-- Loading state -->
         <div v-if="gameState.isLoading" class="snake-game__loading">
-          <div class="snake-game__loading-square"></div>
-          <p class="snake-game__loading-text">Загрузка...</p>
+          <div class="snake-game__loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <p class="snake-game__loading-text">Loading...</p>
         </div>
 
         <!-- Game Over overlay -->
         <div v-if="gameState.isGameOver && !gameState.isLoading" class="snake-game__game-over">
-          <h2 class="snake-game__game-over-title">Игра окончена!</h2>
-          <p class="snake-game__game-over-score">Финальный счёт: {{ gameState.score }}</p>
+          <h2 class="snake-game__game-over-title">GAME OVER</h2>
+          <p class="snake-game__game-over-score">
+            Score: {{ gameState.score.toString().padStart(4, "0") }}
+          </p>
           <button class="snake-game__button snake-game__button--primary" @click="resetGame">
-            Играть снова
+            PLAY AGAIN
           </button>
         </div>
 
@@ -64,26 +66,77 @@
               'snake-game__cell--food': cell === CellType.Food,
               'snake-game__cell--empty': cell === CellType.Empty,
             }"
-          ></div>
+          >
+            <!-- Snake head eyes for visual direction indication -->
+            <div
+              v-if="cell === CellType.SnakeHead"
+              class="snake-game__snake-eyes"
+              :class="`snake-game__snake-eyes--${direction.toLowerCase()}`"
+            >
+              <span class="snake-game__eye"></span>
+              <span class="snake-game__eye"></span>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Virtual controls - Always visible, positioned below game board -->
+    <div class="snake-game__virtual-controls">
+      <div class="snake-game__dpad">
+        <button
+          class="snake-game__dpad-button snake-game__dpad-button--up"
+          @click="handleDirectionChange(Direction.Up)"
+          :disabled="!gameState.isPlaying"
+        >
+          ↑
+        </button>
+        <div class="snake-game__dpad-middle">
+          <button
+            class="snake-game__dpad-button snake-game__dpad-button--left"
+            @click="handleDirectionChange(Direction.Left)"
+            :disabled="!gameState.isPlaying"
+          >
+            ←
+          </button>
+          <div class="snake-game__dpad-center"></div>
+          <button
+            class="snake-game__dpad-button snake-game__dpad-button--right"
+            @click="handleDirectionChange(Direction.Right)"
+            :disabled="!gameState.isPlaying"
+          >
+            →
+          </button>
+        </div>
+        <button
+          class="snake-game__dpad-button snake-game__dpad-button--down"
+          @click="handleDirectionChange(Direction.Down)"
+          :disabled="!gameState.isPlaying"
+        >
+          ↓
+        </button>
       </div>
     </div>
 
     <div class="snake-game__stats">
       <div class="snake-game__stat">
-        <span class="snake-game__stat-label">Длина:</span>
-        <span class="snake-game__stat-value">{{ snake.length }}</span>
+        <span class="snake-game__stat-label">LENGTH</span>
+        <span class="snake-game__stat-value">{{ snake.length.toString().padStart(3, "0") }}</span>
       </div>
       <div class="snake-game__stat">
-        <span class="snake-game__stat-label">Лучший результат:</span>
-        <span class="snake-game__stat-value">{{ gameState.highScore }}</span>
+        <span class="snake-game__stat-label">HIGH SCORE</span>
+        <span class="snake-game__stat-value">{{
+          gameState.highScore.toString().padStart(4, "0")
+        }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// Core composition API imports - explicit and organized
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from "vue";
+
+// Type definitions following clean architecture principles
 interface Position {
   x: number;
   y: number;
@@ -111,11 +164,11 @@ interface GameState {
   highScore: number;
 }
 
-// Constants following clean code principles - meaningful names and single responsibility
+// Game constants - following clean code naming conventions
 const BOARD_SIZE = 20;
 const INITIAL_SNAKE_LENGTH = 3;
-const GAME_SPEED = 150; // milliseconds
-const LOADING_DURATION = 1500; // milliseconds
+const GAME_SPEED = 200; // milliseconds - slower for 90s feel
+const LOADING_DURATION = 1000; // milliseconds
 
 // Reactive state management - centralized and typed
 const gameState = reactive<GameState>({
@@ -129,13 +182,15 @@ const gameState = reactive<GameState>({
 const snake = ref<Position[]>([]);
 const food = ref<Position>({ x: 0, y: 0 });
 const direction = ref<Direction>(Direction.Right);
+const pendingDirection = ref<Direction>(Direction.Right); // Fix for rapid direction changes
 const gameBoard = ref<HTMLElement>();
+const gameLoopTimeoutId = ref<NodeJS.Timeout | null>(null);
 
-// Computed properties for derived state - following single responsibility principle
+// Computed properties for derived state
 const gameGrid = computed<CellType[]>(() => {
   const grid = Array(BOARD_SIZE * BOARD_SIZE).fill(CellType.Empty);
 
-  // Mark snake body cells
+  // Mark snake cells
   snake.value.forEach((segment, index) => {
     const cellIndex = segment.y * BOARD_SIZE + segment.x;
     if (cellIndex >= 0 && cellIndex < grid.length) {
@@ -152,7 +207,7 @@ const gameGrid = computed<CellType[]>(() => {
   return grid;
 });
 
-// Game logic functions - pure functions following clean code principles
+// Pure functions following functional programming principles
 const initializeSnake = (): Position[] => {
   const centerX = Math.floor(BOARD_SIZE / 2);
   const centerY = Math.floor(BOARD_SIZE / 2);
@@ -192,10 +247,10 @@ const hasCollision = (head: Position): boolean => {
   // Wall collision
   if (!isValidPosition(head)) return true;
 
-  // Self collision
-  return snake.value.some(
-    (segment) => segment.x === head.x && segment.y === head.y,
-  );
+  // Self collision - check against snake body (excluding head)
+  return snake.value
+    .slice(1)
+    .some((segment) => segment.x === head.x && segment.y === head.y);
 };
 
 const getNextPosition = (
@@ -216,16 +271,23 @@ const getNextPosition = (
   };
 };
 
-// Game state management - following command pattern
+// Game state management functions
 const resetGameState = (): void => {
   gameState.isPlaying = false;
   gameState.isGameOver = false;
   gameState.isLoading = false;
   gameState.score = 0;
 
+  // Clear any existing game loop
+  if (gameLoopTimeoutId.value) {
+    clearTimeout(gameLoopTimeoutId.value);
+    gameLoopTimeoutId.value = null;
+  }
+
   snake.value = initializeSnake();
   food.value = generateRandomFood();
   direction.value = Direction.Right;
+  pendingDirection.value = Direction.Right;
 };
 
 const startGame = async (): Promise<void> => {
@@ -234,13 +296,11 @@ const startGame = async (): Promise<void> => {
   gameState.isLoading = true;
   gameState.isGameOver = false;
 
-  // Simulate loading with square animation
   await new Promise((resolve) => setTimeout(resolve, LOADING_DURATION));
 
   gameState.isLoading = false;
   gameState.isPlaying = true;
 
-  // Focus the game board for keyboard events
   nextTick(() => {
     gameBoard.value?.focus();
   });
@@ -252,10 +312,14 @@ const endGame = (): void => {
   gameState.isPlaying = false;
   gameState.isGameOver = true;
 
-  // Update high score if needed
+  // Clear game loop
+  if (gameLoopTimeoutId.value) {
+    clearTimeout(gameLoopTimeoutId.value);
+    gameLoopTimeoutId.value = null;
+  }
+
   if (gameState.score > gameState.highScore) {
     gameState.highScore = gameState.score;
-    // Persist high score (could be localStorage in real implementation)
   }
 };
 
@@ -263,40 +327,37 @@ const resetGame = (): void => {
   resetGameState();
 };
 
-// Core game mechanics - main game loop following clean architecture
+// Core game loop with improved direction handling
 const gameLoop = (): void => {
   if (!gameState.isPlaying) return;
+
+  // Apply pending direction at the start of each game loop iteration
+  direction.value = pendingDirection.value;
 
   const currentHead = snake.value[0];
   const newHead = getNextPosition(currentHead, direction.value);
 
-  // Check for collisions
   if (hasCollision(newHead)) {
     endGame();
     return;
   }
 
-  // Move snake
   snake.value.unshift(newHead);
 
-  // Check if food was eaten
   if (newHead.x === food.value.x && newHead.y === food.value.y) {
     gameState.score += 10;
     food.value = generateRandomFood();
   } else {
-    // Remove tail if no food eaten
     snake.value.pop();
   }
 
-  // Continue game loop
-  setTimeout(gameLoop, GAME_SPEED);
+  gameLoopTimeoutId.value = setTimeout(gameLoop, GAME_SPEED);
 };
 
-// Input handling - following strategy pattern for different input methods
+// Input handling with improved direction validation
 const handleDirectionChange = (newDirection: Direction): void => {
   if (!gameState.isPlaying) return;
 
-  // Prevent reverse direction
   const oppositeDirections: Record<Direction, Direction> = {
     [Direction.Up]: Direction.Down,
     [Direction.Down]: Direction.Up,
@@ -304,21 +365,21 @@ const handleDirectionChange = (newDirection: Direction): void => {
     [Direction.Right]: Direction.Left,
   };
 
+  // Prevent opposite direction changes
   if (oppositeDirections[direction.value] === newDirection) return;
 
-  direction.value = newDirection;
+  // Store pending direction to apply on next game loop iteration
+  pendingDirection.value = newDirection;
 };
 
 const handleKeyPress = (event: KeyboardEvent): void => {
   event.preventDefault();
 
   const keyDirectionMap: Record<string, Direction> = {
-    // WASD controls
     KeyW: Direction.Up,
     KeyA: Direction.Left,
     KeyS: Direction.Down,
     KeyD: Direction.Right,
-    // Arrow keys
     ArrowUp: Direction.Up,
     ArrowLeft: Direction.Left,
     ArrowDown: Direction.Down,
@@ -331,817 +392,683 @@ const handleKeyPress = (event: KeyboardEvent): void => {
   }
 };
 
-// Lifecycle management - proper cleanup and initialization
+// Lifecycle hooks
 onMounted(() => {
   resetGameState();
-
-  // Load high score from storage (placeholder for real implementation)
   gameState.highScore = 0;
 });
 
 onUnmounted(() => {
   gameState.isPlaying = false;
+  if (gameLoopTimeoutId.value) {
+    clearTimeout(gameLoopTimeoutId.value);
+  }
 });
 
-// Component metadata for Nuxt3
+// Component metadata
 defineOptions({
-  name: "SnakeGame",
+  name: "SnakeGame90s",
+});
+
+// Export enums for template access
+defineExpose({
+  Direction,
+  CellType,
 });
 </script>
 
 <style lang="scss">
-// Design system tokens aligned with untrackly cyberpunk aesthetic
-$untrackly-primary: #ffa500; // Orange accent from design system
-$untrackly-secondary: #ff8c00; // Darker orange for hover states
-$untrackly-accent: #ffd700; // Gold for highlights
-$untrackly-danger: #ff4444; // Red for game over states
-$untrackly-bg-primary: #0a0a0f; // Deep dark background
-$untrackly-bg-secondary: #1a1a2e; // Slightly lighter dark
-$untrackly-bg-surface: #16213e; // Surface elements
-$untrackly-border: #2a2a40; // Subtle borders
-$untrackly-text-primary: #ffffff; // Primary text
-$untrackly-text-secondary: #b0b0b0; // Secondary text
-$untrackly-text-muted: #808080; // Muted text
+// CSS Custom Properties using your color palette
+:root {
+  /* dark-blue */
+  --dark-blue-source: #030026;
+  --dark-blue-10: #030026;
+  --dark-blue-9: #040042;
+  --dark-blue-8: #393956;
+  --dark-blue-7: #504f71;
+  --dark-blue-6: #68678d;
+  --dark-blue-5: #8280a8;
+  --dark-blue-4: #9c9ac2;
+  --dark-blue-3: #b7b5dd;
+  --dark-blue-2: #d3d1f6;
+  --dark-blue-1: #f0edff;
 
-// Component design tokens for architectural coherence
-$untrackly-spacing-xs: 0.25rem;
-$untrackly-spacing-sm: 0.5rem;
-$untrackly-spacing-md: 1rem;
-$untrackly-spacing-lg: 1.5rem;
-$untrackly-spacing-xl: 2rem;
-$untrackly-spacing-xxl: 3rem;
+  /* gray */
+  --gray-source: #0f0e0e;
+  --gray-10: #0f0e0e;
+  --gray-9: #191717;
+  --gray-8: #2a2a2a;
+  --gray-7: #393939;
+  --gray-6: #444444;
+  --gray-5: #848383;
+  --gray-4: #9e9e9e;
+  --gray-3: #b9b8b8;
+  --gray-2: #d5d4d4;
+  --gray-1: #f1f0f0;
 
-$untrackly-border-radius-sm: 4px;
-$untrackly-border-radius-md: 8px;
-$untrackly-border-radius-lg: 12px;
+  /* blue */
+  --blue-source: #2893c9;
+  --blue-10: #001424;
+  --blue-9: #002a48;
+  --blue-8: #004268;
+  --blue-7: #005a87;
+  --blue-6: #0073a5;
+  --blue-5: #218cc1;
+  --blue-4: #4ca6dc;
+  --blue-3: #72c1f5;
+  --blue-2: #97dcff;
+  --blue-1: #ddf1f3;
 
-$untrackly-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-$untrackly-transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-$untrackly-transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* orange */
+  --orange-source: #ffb000;
+  --orange-10: #290a00;
+  --orange-9: #431d00;
+  --orange-8: #5f3100;
+  --orange-7: #ab7706;
+  --orange-6: #c98c0a;
+  --orange-5: #e19f11;
+  --orange-4: #f1b131;
+  --orange-3: #efba4f;
+  --orange-2: #f8c765;
+  --orange-1: #ffd98d;
 
-// Typography scale following modular scale principles
-$untrackly-font-family:
-  "Inter",
-  "SF Pro Display",
-  -apple-system,
-  BlinkMacSystemFont,
-  sans-serif;
-$untrackly-font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
-$untrackly-font-size-xs: 0.75rem;
-$untrackly-font-size-sm: 0.875rem;
-$untrackly-font-size-base: 1rem;
-$untrackly-font-size-lg: 1.125rem;
-$untrackly-font-size-xl: 1.25rem;
-$untrackly-font-size-2xl: 1.5rem;
-$untrackly-font-size-3xl: 2rem;
+  // Color tokens
+  --color-primary-on-text: var(--orange-5);
+  --color-primary-on-hover: var(--orange-4);
+  --color-primary-on-active: var(--orange-3);
+  --color-primary-on-fill: var(--orange-5);
+  --color-primary-on-outline: var(--orange-5);
+  --color-primary-on-bg: var(--orange-1);
+  --color-primary-on-muted: var(--orange-1);
 
-// Main component architecture aligned with untrackly design system
+  --color-bg-on-primary: var(--dark-blue-10);
+  --color-bg-on-primary-light: var(--dark-blue-9);
+  --color-bg-on-secondary: var(--gray-10);
+  --color-bg-on-secondary-light: var(--gray-9);
+
+  --color-neutral-on-text: var(--gray-1);
+  --color-neutral-on-hover: var(--gray-7);
+  --color-neutral-on-active: var(--gray-6);
+  --color-neutral-on-fill: var(--gray-8);
+  --color-neutral-on-outline: var(--gray-4);
+  --color-neutral-on-muted: var(--gray-5);
+
+  --color-white: #000;
+  --color-black: #fff;
+}
+
+// Breakpoints
+$app-desktop: 1384px;
+$app-laptop: 960px;
+$app-mobile: 600px;
+$app-narrow-mobile: 364px;
+$app-medium-height: 750px;
+$app-small-height: 520px;
+
+// Base spacing system
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+
+// Typography
+$font-family-mono: "Courier New", "Monaco", "Lucida Console", monospace;
+$font-family-display: "Arial", "Helvetica", sans-serif;
+
+// Main component following BEM methodology
 .snake-game {
-  max-width: 800px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: $untrackly-spacing-xxl;
-  font-family: $untrackly-font-family;
-  background: linear-gradient(135deg, $untrackly-bg-primary 0%, $untrackly-bg-secondary 100%);
-  border-radius: $untrackly-border-radius-lg;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.3),
-    0 10px 10px -5px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  border: 1px solid $untrackly-border;
-  position: relative;
-  overflow: hidden;
+  padding: $spacing-xl;
+  font-family: $font-family-display;
+  background: var(--color-bg-on-primary);
+  border: 2px solid var(--color-neutral-on-outline);
+  color: var(--color-neutral-on-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, $untrackly-primary 50%, transparent 100%);
-    opacity: 0.6;
-  }
-
-  // Enhanced header with cyberpunk aesthetic
+  // Header section
   &__header {
-    text-align: center;
-    margin-bottom: $untrackly-spacing-xl;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: $untrackly-spacing-lg;
-    position: relative;
-
-    &::after {
-      content: "";
-      position: absolute;
-      bottom: -#{$untrackly-spacing-md};
-      left: 50%;
-      transform: translateX(-50%);
-      width: 60px;
-      height: 2px;
-      background: linear-gradient(90deg, transparent 0%, $untrackly-primary 50%, transparent 100%);
-    }
+    margin-bottom: $spacing-xl;
+    padding-bottom: $spacing-md;
+    border-bottom: 1px solid var(--color-neutral-on-outline);
   }
 
   &__title {
-    font-size: $untrackly-font-size-3xl;
-    color: $untrackly-text-primary;
+    font-size: 2rem;
+    font-weight: bold;
+    font-family: $font-family-mono;
+    color: var(--color-primary-on-text);
     margin: 0;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    text-shadow: 0 0 20px rgba(255, 165, 0, 0.3);
-    position: relative;
-
-    &::before {
-      content: "▸";
-      color: $untrackly-primary;
-      margin-right: $untrackly-spacing-sm;
-      font-size: $untrackly-font-size-xl;
-    }
+    letter-spacing: 2px;
   }
 
   &__score {
-    font-size: $untrackly-font-size-lg;
-    font-weight: 600;
-    color: $untrackly-text-primary;
-    background: $untrackly-bg-surface;
-    padding: $untrackly-spacing-md $untrackly-spacing-lg;
-    border-radius: $untrackly-border-radius-md;
-    border: 1px solid $untrackly-border;
-    font-family: $untrackly-font-mono;
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: $untrackly-primary;
-      opacity: 0.5;
-    }
+    font-size: 1.5rem;
+    font-family: $font-family-mono;
+    font-weight: bold;
+    color: var(--color-primary-on-text);
+    background: var(--color-bg-on-secondary);
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid var(--color-neutral-on-outline);
   }
 
-  // Controls section with enhanced cyberpunk UI patterns
+  // Controls section
   &__controls {
     text-align: center;
-    margin-bottom: $untrackly-spacing-xl;
-    padding: $untrackly-spacing-lg;
-    background: rgba($untrackly-bg-surface, 0.3);
-    border-radius: $untrackly-border-radius-md;
-    border: 1px solid $untrackly-border;
-    backdrop-filter: blur(10px);
+    margin-bottom: $spacing-xl;
   }
 
   &__instructions {
-    margin: 0 0 $untrackly-spacing-lg 0;
-    color: $untrackly-text-secondary;
-    font-size: $untrackly-font-size-sm;
-    font-family: $untrackly-font-mono;
+    margin: 0 0 $spacing-md 0;
+    color: var(--color-neutral-on-muted);
+    font-size: 0.875rem;
+    font-family: $font-family-mono;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    opacity: 0.8;
   }
 
-  // Enhanced button system following design system patterns
-  &__button {
-    padding: $untrackly-spacing-md $untrackly-spacing-xl;
-    margin: 0 $untrackly-spacing-sm;
-    border: none;
-    border-radius: $untrackly-border-radius-sm;
-    font-size: $untrackly-font-size-base;
-    font-weight: 600;
-    font-family: $untrackly-font-mono;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    transition: $untrackly-transition-base;
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.1) 50%,
-        transparent 100%
-      );
-      transition: $untrackly-transition-base;
-    }
-
-    &:hover::before {
-      left: 100%;
-    }
-
-    &--primary {
-      background: linear-gradient(135deg, $untrackly-primary 0%, $untrackly-secondary 100%);
-      color: $untrackly-bg-primary;
-      border: 1px solid $untrackly-primary;
-      box-shadow: 0 0 20px rgba($untrackly-primary, 0.3);
-
-      &:hover:not(:disabled) {
-        background: linear-gradient(135deg, $untrackly-secondary 0%, $untrackly-primary 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 0 30px rgba($untrackly-primary, 0.5);
-      }
-
-      &:disabled {
-        background: $untrackly-text-muted;
-        cursor: not-allowed;
-        opacity: 0.4;
-        box-shadow: none;
-
-        &::before {
-          display: none;
-        }
-      }
-    }
-
-    &--secondary {
-      background: transparent;
-      color: $untrackly-primary;
-      border: 1px solid $untrackly-primary;
-
-      &:hover {
-        background: rgba($untrackly-primary, 0.1);
-        transform: translateY(-2px);
-        box-shadow: 0 0 20px rgba($untrackly-primary, 0.2);
-      }
-    }
+  &__buttons {
+    display: flex;
+    gap: $spacing-md;
+    justify-content: center;
+    flex-wrap: wrap;
   }
-
-  // Enhanced game board container with glassmorphism effects
+  // Game board container
   &__board-container {
     display: flex;
     justify-content: center;
-    margin-bottom: $untrackly-spacing-xl;
-    perspective: 1000px;
+    align-items: center;
+    margin-bottom: $spacing-xl;
+    flex: 1;
   }
 
   &__board {
     position: relative;
-    width: 480px;
-    height: 480px;
-    background: rgba($untrackly-bg-surface, 0.4);
-    border: 2px solid $untrackly-border;
-    border-radius: $untrackly-border-radius-lg;
+    width: 400px;
+    height: 400px;
+    background: var(--color-bg-on-secondary);
+    border: 2px solid var(--color-neutral-on-outline);
     outline: none;
-    backdrop-filter: blur(20px);
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    transition: $untrackly-transition-base;
 
     &:focus {
-      border-color: $untrackly-primary;
-      box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.3),
-        0 0 0 2px rgba($untrackly-primary, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      border-color: var(--color-primary-on-outline);
     }
 
-    // Enhanced board state modifiers with smooth transitions
-    &--loading {
+    &--loading,
+    &--game-over {
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
-      background: rgba($untrackly-bg-surface, 0.6);
     }
 
     &--game-over {
       .snake-game__grid {
         opacity: 0.3;
-        filter: grayscale(70%) blur(1px);
-        transition: $untrackly-transition-slow;
       }
     }
   }
 
-  // Refined loading state with geometric animation
+  // Loading state - simple 90s style
   &__loading {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: $untrackly-spacing-lg;
+    gap: $spacing-lg;
   }
 
-  &__loading-square {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, $untrackly-primary 0%, $untrackly-accent 100%);
-    border-radius: $untrackly-border-radius-sm;
-    position: relative;
-    animation: untrackly-loading-morph 2s ease-in-out infinite;
+  &__loading-dots {
+    display: flex;
+    gap: $spacing-sm;
 
-    &::before {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 20px;
-      height: 20px;
-      background: $untrackly-bg-primary;
-      border-radius: 2px;
-      transform: translate(-50%, -50%);
-      animation: untrackly-loading-inner 2s ease-in-out infinite reverse;
-    }
+    span {
+      width: 8px;
+      height: 8px;
+      background: var(--color-primary-on-text);
+      border-radius: 50%;
+      animation: dot-blink 1.5s infinite;
 
-    @keyframes untrackly-loading-morph {
-      0%,
-      100% {
-        transform: scale(1) rotate(0deg);
-        border-radius: $untrackly-border-radius-sm;
+      &:nth-child(2) {
+        animation-delay: 0.5s;
       }
-      25% {
-        transform: scale(1.1) rotate(90deg);
-        border-radius: 50%;
-      }
-      50% {
-        transform: scale(0.9) rotate(180deg);
-        border-radius: $untrackly-border-radius-sm;
-      }
-      75% {
-        transform: scale(1.1) rotate(270deg);
-        border-radius: 50%;
-      }
-    }
 
-    @keyframes untrackly-loading-inner {
-      0%,
-      100% {
-        transform: translate(-50%, -50%) scale(1);
-      }
-      50% {
-        transform: translate(-50%, -50%) scale(0.5);
+      &:nth-child(3) {
+        animation-delay: 1s;
       }
     }
   }
 
   &__loading-text {
-    color: $untrackly-text-secondary;
-    font-size: $untrackly-font-size-base;
-    font-family: $untrackly-font-mono;
+    font-family: $font-family-mono;
+    font-size: 0.875rem;
+    color: var(--color-neutral-on-muted);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
     margin: 0;
-    animation: untrackly-text-pulse 2s ease-in-out infinite;
-
-    @keyframes untrackly-text-pulse {
-      0%,
-      100% {
-        opacity: 0.6;
-      }
-      50% {
-        opacity: 1;
-      }
-    }
   }
 
-  // Enhanced game over overlay with refined cyberpunk aesthetics
+  // Game over overlay
   &__game-over {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba($untrackly-bg-surface, 0.95);
-    backdrop-filter: blur(20px);
-    padding: $untrackly-spacing-xxl;
-    border-radius: $untrackly-border-radius-lg;
+    background: var(--color-bg-on-primary);
+    border: 2px solid var(--color-primary-on-outline);
+    padding: $spacing-xl;
     text-align: center;
-    box-shadow:
-      0 20px 40px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    border: 1px solid $untrackly-border;
     z-index: 10;
-    animation: untrackly-game-over-appear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-    @keyframes untrackly-game-over-appear {
-      0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8);
-      }
-      100% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-      }
-    }
   }
 
   &__game-over-title {
-    color: $untrackly-danger;
-    margin: 0 0 $untrackly-spacing-lg 0;
-    font-size: $untrackly-font-size-2xl;
-    font-weight: 700;
+    font-family: $font-family-mono;
+    font-size: 1.5rem;
+    color: var(--color-primary-on-text);
+    margin: 0 0 $spacing-md 0;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-family: $untrackly-font-mono;
-    text-shadow: 0 0 20px rgba($untrackly-danger, 0.3);
   }
 
   &__game-over-score {
-    margin: 0 0 $untrackly-spacing-xl 0;
-    font-size: $untrackly-font-size-lg;
-    color: $untrackly-text-primary;
-    font-family: $untrackly-font-mono;
-    font-weight: 600;
+    font-family: $font-family-mono;
+    font-size: 1rem;
+    color: var(--color-neutral-on-text);
+    margin: 0 0 $spacing-lg 0;
   }
 
-  // Enhanced game grid with performance-optimized CSS Grid implementation
+  // Game grid - simple 2D grid
   &__grid {
     display: grid;
     width: 100%;
     height: 100%;
     gap: 1px;
-    background: linear-gradient(135deg, $untrackly-border 0%, darken($untrackly-border, 10%) 100%);
-    padding: 3px;
-    border-radius: $untrackly-border-radius-sm;
-    will-change: transform;
+    background: var(--color-neutral-on-outline);
+    padding: 1px;
   }
 
-  // Refined cell styling with enhanced visual hierarchy
+  // Cell styling - flat 90s design
   &__cell {
-    background: $untrackly-bg-surface;
-    transition: $untrackly-transition-fast;
-    border-radius: 2px;
+    background: var(--color-bg-on-secondary);
     position: relative;
-    will-change: background-color, transform;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &--empty {
-      background: $untrackly-bg-surface;
-      opacity: 0.6;
-
-      &:hover {
-        opacity: 0.8;
-      }
+      background: var(--color-bg-on-secondary);
     }
 
     &--snake {
-      background: linear-gradient(
-        135deg,
-        $untrackly-primary 0%,
-        darken($untrackly-primary, 15%) 100%
-      );
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-      transform: scale(0.95);
-
-      &::after {
-        content: "";
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        right: 2px;
-        height: 1px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 1px;
-      }
+      background: var(--color-primary-on-text);
     }
 
     &--snake-head {
-      background: linear-gradient(135deg, $untrackly-accent 0%, $untrackly-primary 100%);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.3),
-        0 0 10px rgba($untrackly-accent, 0.4);
-      transform: scale(1);
-      border-radius: 3px;
-      position: relative;
-      animation: untrackly-snake-head-pulse 1s ease-in-out infinite;
-
-      @keyframes untrackly-snake-head-pulse {
-        0%,
-        100% {
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.3),
-            0 0 10px rgba($untrackly-accent, 0.4);
-        }
-        50% {
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.3),
-            0 0 20px rgba($untrackly-accent, 0.6);
-        }
-      }
-
-      // Enhanced snake head eyes with geometric precision
-      &::before,
-      &::after {
-        content: "";
-        position: absolute;
-        width: 3px;
-        height: 3px;
-        background: $untrackly-bg-primary;
-        border-radius: 50%;
-        top: 4px;
-        box-shadow: 0 0 2px rgba($untrackly-bg-primary, 0.8);
-      }
-
-      &::before {
-        left: 4px;
-      }
-      &::after {
-        right: 4px;
-      }
+      background: var(--color-primary-on-hover);
     }
 
     &--food {
-      background: radial-gradient(
-        circle,
-        $untrackly-danger 0%,
-        darken($untrackly-danger, 20%) 100%
-      );
-      border-radius: 50%;
-      transform: scale(0.8);
-      box-shadow:
-        0 0 15px rgba($untrackly-danger, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-      animation: untrackly-food-beacon 2s ease-in-out infinite;
-      position: relative;
-
-      &::before {
-        content: "";
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 4px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 50%;
-      }
-
-      @keyframes untrackly-food-beacon {
-        0%,
-        100% {
-          transform: scale(0.8);
-          box-shadow: 0 0 15px rgba($untrackly-danger, 0.5);
-        }
-        50% {
-          transform: scale(0.9);
-          box-shadow: 0 0 25px rgba($untrackly-danger, 0.8);
-        }
-      }
+      background: var(--blue-5);
     }
   }
 
-  // Enhanced statistics section with cyberpunk data visualization
+  // Snake eyes implementation for visual direction feedback
+  &__snake-eyes {
+    position: absolute;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+
+    &--up {
+      align-items: flex-start;
+      padding-top: 2px;
+    }
+
+    &--down {
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+
+    &--left {
+      justify-content: flex-start;
+      flex-direction: column;
+      padding-left: 2px;
+    }
+
+    &--right {
+      justify-content: flex-end;
+      flex-direction: column;
+      padding-right: 2px;
+    }
+  }
+
+  &__eye {
+    width: 3px;
+    height: 3px;
+    background: var(--color-bg-on-primary);
+    border-radius: 50%;
+    display: block;
+  }
+
+  // Virtual controls - Always visible
+  &__virtual-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: $spacing-lg;
+  }
+
+  &__dpad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-xs;
+  }
+
+  &__dpad-middle {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+  }
+
+  &__dpad-center {
+    width: 40px;
+    height: 40px;
+    background: var(--color-bg-on-secondary);
+    border: 1px solid var(--color-neutral-on-outline);
+  }
+
+  &__dpad-button {
+    width: 40px;
+    height: 40px;
+    background: var(--color-bg-on-secondary);
+    border: 2px solid var(--color-neutral-on-outline);
+    color: var(--color-neutral-on-text);
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    user-select: none;
+
+    &:hover:not(:disabled) {
+      background: var(--color-neutral-on-hover);
+      border-color: var(--color-primary-on-text);
+    }
+
+    &:active:not(:disabled) {
+      border-style: inset;
+      transform: translate(1px, 1px);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
+  // Statistics section
   &__stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: $untrackly-spacing-lg;
-    margin-top: $untrackly-spacing-xl;
+    display: flex;
+    justify-content: space-between;
+    gap: $spacing-lg;
+    margin-top: $spacing-xl;
+    padding-top: $spacing-md;
+    border-top: 1px solid var(--color-neutral-on-outline);
   }
 
   &__stat {
     text-align: center;
-    background: rgba($untrackly-bg-surface, 0.4);
-    backdrop-filter: blur(10px);
-    padding: $untrackly-spacing-lg;
-    border-radius: $untrackly-border-radius-md;
-    border: 1px solid $untrackly-border;
-    position: relative;
-    overflow: hidden;
-    transition: $untrackly-transition-base;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(
-        90deg,
-        $untrackly-primary 0%,
-        $untrackly-accent 50%,
-        $untrackly-primary 100%
-      );
-      opacity: 0.6;
-    }
-
-    &::after {
-      content: "";
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent 0%, $untrackly-primary 50%, transparent 100%);
-      opacity: 0.3;
-    }
-
-    &:hover {
-      transform: translateY(-2px);
-      border-color: $untrackly-primary;
-      box-shadow: 0 8px 25px rgba($untrackly-primary, 0.15);
-
-      &::before {
-        opacity: 1;
-      }
-    }
+    flex: 1;
   }
 
   &__stat-label {
     display: block;
-    font-size: $untrackly-font-size-xs;
-    color: $untrackly-text-secondary;
-    margin-bottom: $untrackly-spacing-sm;
-    font-family: $untrackly-font-mono;
+    font-size: 0.75rem;
+    color: var(--color-neutral-on-muted);
+    margin-bottom: $spacing-xs;
+    font-family: $font-family-mono;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-weight: 500;
   }
 
   &__stat-value {
     display: block;
-    font-size: $untrackly-font-size-2xl;
-    font-weight: 700;
-    color: $untrackly-primary;
-    font-family: $untrackly-font-mono;
-    text-shadow: 0 0 10px rgba($untrackly-primary, 0.3);
-    position: relative;
-
-    &::after {
-      content: "";
-      position: absolute;
-      bottom: -4px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 30px;
-      height: 2px;
-      background: $untrackly-primary;
-      border-radius: 1px;
-      opacity: 0.5;
-    }
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--color-primary-on-text);
+    font-family: $font-family-mono;
   }
 }
 
-// Enhanced responsive design with cyberpunk aesthetics preservation
-@media (max-width: 768px) {
+// Animations
+@keyframes dot-blink {
+  0%,
+  20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  80%,
+  100% {
+    opacity: 0;
+  }
+}
+
+// Enhanced responsive design with better mobile viewport handling
+@media (max-width: $app-mobile) {
   .snake-game {
-    padding: $untrackly-spacing-lg;
-    margin: $untrackly-spacing-md;
+    padding: $spacing-md;
+    min-height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
 
     &__board {
-      width: 360px;
-      height: 360px;
+      width: min(90vw, 350px);
+      height: min(90vw, 350px);
     }
 
     &__header {
-      flex-direction: column;
-      gap: $untrackly-spacing-md;
-      text-align: center;
-    }
-
-    &__title {
-      font-size: $untrackly-font-size-2xl;
+      margin-bottom: $spacing-lg;
     }
 
     &__controls {
-      padding: $untrackly-spacing-md;
-    }
-
-    &__button {
-      padding: $untrackly-spacing-sm $untrackly-spacing-lg;
-      font-size: $untrackly-font-size-sm;
-      margin: $untrackly-spacing-xs;
-
-      &:hover {
-        transform: none;
-      }
-    }
-
-    &__stats {
-      grid-template-columns: 1fr;
-      gap: $untrackly-spacing-md;
-    }
-
-    &__game-over {
-      padding: $untrackly-spacing-lg;
-      margin: $untrackly-spacing-md;
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  .snake-game {
-    padding: $untrackly-spacing-md;
-
-    &__board {
-      width: 280px;
-      height: 280px;
+      margin-bottom: $spacing-lg;
     }
 
     &__title {
-      font-size: $untrackly-font-size-xl;
+      font-size: 1.5rem;
     }
 
     &__score {
-      font-size: $untrackly-font-size-base;
-      padding: $untrackly-spacing-sm $untrackly-spacing-md;
+      font-size: 1.25rem;
+    }
+
+    &__buttons {
+      flex-direction: column;
+      align-items: center;
     }
 
     &__button {
-      display: block;
-      width: 100%;
-      margin: $untrackly-spacing-xs 0;
+      width: 120px;
+    }
+
+    &__stats {
+      margin-top: $spacing-lg;
+    }
+
+    &__virtual-controls {
+      margin-top: $spacing-md;
+    }
+
+    &__dpad-button,
+    &__dpad-center {
+      width: 35px;
+      height: 35px;
+      font-size: 1rem;
     }
   }
 }
 
-// Enhanced accessibility support with design system compliance
-@media (prefers-contrast: high) {
+@media (max-width: $app-narrow-mobile) {
   .snake-game {
-    &__cell {
-      &--snake {
-        border: 2px solid $untrackly-text-primary;
-      }
+    padding: $spacing-sm;
 
-      &--snake-head {
-        border: 2px solid $untrackly-accent;
-      }
-
-      &--food {
-        border: 2px solid $untrackly-danger;
-      }
+    &__board {
+      width: min(85vw, 280px);
+      height: min(85vw, 280px);
     }
 
-    &__button--primary {
-      border: 2px solid $untrackly-text-primary;
+    &__title {
+      font-size: 1.25rem;
+    }
+
+    &__score {
+      font-size: 1rem;
+      padding: $spacing-xs $spacing-sm;
+    }
+
+    &__button {
+      width: 100px;
+      padding: $spacing-sm $spacing-md;
+      font-size: 0.75rem;
+    }
+
+    &__dpad-button,
+    &__dpad-center {
+      width: 30px;
+      height: 30px;
+      font-size: 0.875rem;
+    }
+
+    &__stat-value {
+      font-size: 1rem;
+    }
+
+    &__stat-label {
+      font-size: 0.625rem;
     }
   }
 }
 
-// Refined reduced motion support maintaining cyberpunk aesthetic
+// Portrait orientation optimization for mobile devices
+@media (max-width: $app-mobile) and (orientation: portrait) and (max-height: 800px) {
+  .snake-game {
+    &__header {
+      margin-bottom: $spacing-md;
+    }
+
+    &__controls {
+      margin-bottom: $spacing-md;
+    }
+
+    &__board-container {
+      margin-bottom: $spacing-md;
+    }
+
+    &__virtual-controls {
+      margin-top: $spacing-sm;
+    }
+
+    &__stats {
+      margin-top: $spacing-md;
+      padding-top: $spacing-sm;
+    }
+  }
+}
+
+// Landscape orientation optimization for mobile devices
+@media (max-width: $app-mobile) and (orientation: landscape) and (max-height: 500px) {
+  .snake-game {
+    padding: $spacing-sm;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      "header header header"
+      "controls controls controls"
+      "board board board"
+      "stats stats stats";
+    gap: $spacing-sm;
+
+    &__header {
+      grid-area: header;
+      margin-bottom: 0;
+    }
+
+    &__controls {
+      grid-area: controls;
+      margin-bottom: 0;
+    }
+
+    &__board-container {
+      grid-area: board;
+      margin-bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    &__board {
+      width: min(70vh, 300px);
+      height: min(70vh, 300px);
+    }
+
+    &__virtual-controls {
+      position: fixed;
+      bottom: $spacing-sm;
+      right: $spacing-sm;
+      margin-top: 0;
+      z-index: 5;
+    }
+
+    &__stats {
+      grid-area: stats;
+      margin-top: 0;
+      flex-direction: row;
+      justify-content: space-around;
+    }
+
+    &__dpad {
+      transform: scale(0.8);
+    }
+  }
+}
+
+// High DPI display support
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .snake-game {
+    &__eye {
+      width: 4px;
+      height: 4px;
+    }
+  }
+}
+
+// Reduced motion support
 @media (prefers-reduced-motion: reduce) {
   .snake-game {
-    &__loading-square,
-    &__cell--food,
-    &__cell--snake-head {
+    &__loading-dots span {
       animation: none;
     }
 
     &__button,
-    &__stat,
-    &__board {
+    &__dpad-button {
       transition: none;
-
-      &:hover {
-        transform: none;
-      }
-    }
-
-    &__game-over {
-      animation: none;
     }
   }
 }
 
-// Dark mode optimization (already inherently dark, but enhanced for OLED)
+// Dark mode enhancement for better contrast
 @media (prefers-color-scheme: dark) {
   .snake-game {
-    background: linear-gradient(
-      135deg,
-      darken($untrackly-bg-primary, 5%) 0%,
-      darken($untrackly-bg-secondary, 5%) 100%
-    );
-
-    &__board {
-      background: rgba(darken($untrackly-bg-surface, 10%), 0.4);
-    }
-
-    &__cell--empty {
-      background: darken($untrackly-bg-surface, 15%);
-      opacity: 0.4;
-    }
-  }
-}
-
-// High performance mode for low-end devices
-@media (max-resolution: 150dpi) {
-  .snake-game {
-    &__board {
-      backdrop-filter: none;
-    }
-
-    &__controls,
-    &__stat,
-    &__game-over {
-      backdrop-filter: none;
-      background: $untrackly-bg-surface;
-    }
-
-    &__cell--snake-head,
-    &__cell--food {
-      animation: none;
+    &__eye {
+      background: var(--color-neutral-on-text);
     }
   }
 }
