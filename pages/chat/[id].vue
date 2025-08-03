@@ -87,13 +87,13 @@
       aria-label="Ожидание подключения собеседника"
     >
       <div class="waiting-shell">
-        <!-- левая колонка: логи консоли -->
         <div class="console-window">
           <p class="console-line" v-for="(msg, i) in consoleLogs" :key="i">&gt; {{ msg }}</p>
           <div v-if="!consoleFinished" class="console-line blink">|</div>
+          <div v-if="consoleFinished && !isConnectionEstablished" class="console-line">
+            &gt; STATUS: Waiting{{ ".".repeat(waitingDots) }}{{ " ".repeat(3 - waitingDots) }}
+          </div>
         </div>
-
-        <!-- правая колонка: само поле со змейкой -->
         <div class="snake-wrapper">
           <Snake v-show="consoleFinished" />
         </div>
@@ -135,6 +135,9 @@ definePageMeta({
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
 const consoleLogs = ref<string[]>([]);
+const waitingDots = shallowRef(0);
+let waitingInterval: number | null = null;
+let loadingStopped = false;
 const consoleFinished = ref(false);
 const LOADING_MASSAGES = [
   "BOOT: CHATTOR-OS v1.4",
@@ -218,40 +221,37 @@ async function copyInvitationLink() {
 }
 
 function goToChat() {
-  // 1. Инициализируем пир
   initPeer();
   step.value = "waiting";
-
-  // 2. Как только peer открылся — сохраняем его ID
   peer.value?.on("open", (id: string) => {
-    consoleLogs.value.push(`OPEN: peer.on("open"): id=${id}`);
+    consoleLogs.value.push(`OPEN: Peer open with id=${id}`);
   });
-
-  // 4. Собираем шаблон логов с плейсхолдерами
   const LOADING_MESSAGES = [
     "DOMAIN: untrackly.com",
     `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
-    "CONFIG: peerjs-server-gims.onrender.com (secure)",
+    "CONFIG: secure",
     !isInvited.value
       ? "LISTEN: waiting for incoming connections…"
-      : "CONNECT: dialing peer ${sessionId}…",
-    // дальше будет OPEN и STATUS и PING из событий выше
-    "LOAD: snake.exe",
-    "READY: snake.exe",
+      : `CONNECT: dialing peer ${sessionId}…`,
+    "WHILE_LOADING: snake.exe",
     "LAUNCH: game-module",
   ];
-
-  // 5. «Печатаем» всё с таймингом
   let idx = 0;
+  loadingStopped = false;
   const tick = () => {
+    if (loadingStopped) return;
     if (idx < LOADING_MESSAGES.length) {
       consoleLogs.value.push(LOADING_MESSAGES[idx++]);
       setTimeout(tick, 800);
     } else {
-      // ждем, пока все события (open, open-conn, ping) попадут в логи...
-      // и через короткую задержку запускаем змейку
       setTimeout(() => {
         consoleFinished.value = true;
+        // Start waiting dots animation только после основных логов
+        waitingDots.value = 0;
+        if (waitingInterval) clearInterval(waitingInterval);
+        waitingInterval = window.setInterval(() => {
+          waitingDots.value = (waitingDots.value + 1) % 4;
+        }, 500);
       }, 500);
     }
   };
@@ -329,17 +329,39 @@ watch(callState, (val) => {
 
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
+    // Останавливаем добавление логов и анимацию ожидания
+    loadingStopped = true;
+    if (waitingInterval) {
+      clearInterval(waitingInterval);
+      waitingInterval = null;
+    }
     consoleLogs.value.push("STATUS: connection established");
-    // простейший «ping»
+    // Countdown logic
+    let countdown = 5;
+    const countdownMessages = ["Initializing..."];
+    let countdownIdx = 0;
+    const showCountdown = () => {
+      if (countdownIdx < countdownMessages.length) {
+        consoleLogs.value.push(countdownMessages[countdownIdx++]);
+        setTimeout(showCountdown, 800);
+      } else if (countdown > 0) {
+        consoleLogs.value.push(`Countdown: ${countdown} s.`);
+        countdown--;
+        setTimeout(showCountdown, 1000);
+      } else {
+        consoleLogs.value.push("Connection established!");
+        step.value = "chat";
+      }
+    };
+    showCountdown();
     const t0 = Date.now();
     conn.value!.send({ type: "ping", t0 });
     conn.value!.on("data", (data: any) => {
-      if (data.type === "pong" && data.t0 === t0) {
+      if (data.type === "ping") {
         const latency = Date.now() - t0;
         consoleLogs.value.push(`PING: ${latency} ms`);
       }
     });
-    // step.value = "chat";
   }
 });
 
@@ -366,6 +388,7 @@ $app-narrow-mobile: 364px;
 $app-medium-height: 750px;
 $app-small-height: 520px;
 .chat-page {
+  height: 100%;
   min-height: 100vh;
   width: 100%;
   background: var(--app-pink-gradient-bg);
@@ -570,10 +593,8 @@ $app-small-height: 520px;
   }
 
   .chat-window {
-    width: 960px;
-    max-width: 100%;
+    width: 100%;
     height: calc(100% - 48px);
-    border-radius: 24px;
     overflow: hidden;
     @media screen and (max-width: $app-laptop) {
       height: 100vh;

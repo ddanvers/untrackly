@@ -235,7 +235,7 @@ $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat {
-  background-color: var(--app-dirty-blue-100);
+  background-color: var(--color-bg-on-secondary);
   height: 100%;
   width: 100%;
   display: flex;
@@ -250,12 +250,12 @@ $app-narrow-mobile: 364px;
     display: flex;
     gap: 8px;
     img {
-      filter: var(--app-filter-pink-500);
+      // filter: var(--app-filter-pink-500);
     }
   }
   &__title {
     font-size: 32px;
-    color: var(--app-text-primary);
+    color: var(--color-primary-on-text);
     @media screen and (max-width: $app-mobile) {
       font-size: 24px;
     }
@@ -264,7 +264,7 @@ $app-narrow-mobile: 364px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background-color: var(--app-dirty-blue-50);
+    background-color: var(--color-bg-on-primary);
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
@@ -288,7 +288,7 @@ $app-narrow-mobile: 364px;
     background-color: transparent;
   }
   50% {
-    background-color: var(--app-dirty-blue-100);
+    background-color: var(--color-primary-on-fill);
   }
   100% {
     background-color: transparent;
