@@ -86,8 +86,18 @@
       class="chat-waiting"
       aria-label="Ожидание подключения собеседника"
     >
-      <h2 class="chat-waiting__title">Ожидается подключение собеседника</h2>
-      <Snake></Snake>
+      <div class="waiting-shell">
+        <!-- левая колонка: логи консоли -->
+        <div class="console-window">
+          <p class="console-line" v-for="(msg, i) in consoleLogs" :key="i">&gt; {{ msg }}</p>
+          <div v-if="!consoleFinished" class="console-line blink">|</div>
+        </div>
+
+        <!-- правая колонка: само поле со змейкой -->
+        <div class="snake-wrapper">
+          <Snake v-show="consoleFinished" />
+        </div>
+      </div>
     </section>
 
     <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
@@ -124,6 +134,17 @@ definePageMeta({
 });
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
+const consoleLogs = ref<string[]>([]);
+const consoleFinished = ref(false);
+const LOADING_MASSAGES = [
+  "BOOT: CHATTOR-OS v1.4",
+  "LOADING MODULE proxy-server.dll… OK",
+  "PING peer.network… TIME=000ms",
+  "AWAITING HANDSHAKE FROM REMOTE NODE",
+  "LOADING snake.exe…",
+  "snake.exe INITIALIZED",
+  "LAUNCHING GAME-MODULE…",
+];
 const copying = shallowRef(false);
 const sessionId = route.params.id as string;
 const isInvited = shallowRef(route.query.invited);
@@ -139,6 +160,7 @@ const {
   sendAllFiles,
   readMessage,
   peer,
+  conn,
   isConnectionEstablished,
   callState,
   localStream,
@@ -196,8 +218,44 @@ async function copyInvitationLink() {
 }
 
 function goToChat() {
+  // 1. Инициализируем пир
   initPeer();
   step.value = "waiting";
+
+  // 2. Как только peer открылся — сохраняем его ID
+  peer.value?.on("open", (id: string) => {
+    consoleLogs.value.push(`OPEN: peer.on("open"): id=${id}`);
+  });
+
+  // 4. Собираем шаблон логов с плейсхолдерами
+  const LOADING_MESSAGES = [
+    "DOMAIN: untrackly.com",
+    `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
+    "CONFIG: peerjs-server-gims.onrender.com (secure)",
+    !isInvited.value
+      ? "LISTEN: waiting for incoming connections…"
+      : "CONNECT: dialing peer ${sessionId}…",
+    // дальше будет OPEN и STATUS и PING из событий выше
+    "LOAD: snake.exe",
+    "READY: snake.exe",
+    "LAUNCH: game-module",
+  ];
+
+  // 5. «Печатаем» всё с таймингом
+  let idx = 0;
+  const tick = () => {
+    if (idx < LOADING_MESSAGES.length) {
+      consoleLogs.value.push(LOADING_MESSAGES[idx++]);
+      setTimeout(tick, 800);
+    } else {
+      // ждем, пока все события (open, open-conn, ping) попадут в логи...
+      // и через короткую задержку запускаем змейку
+      setTimeout(() => {
+        consoleFinished.value = true;
+      }, 500);
+    }
+  };
+  tick();
 }
 function rejectInvite() {
   navigateTo("/");
@@ -271,7 +329,17 @@ watch(callState, (val) => {
 
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
-    step.value = "chat";
+    consoleLogs.value.push("STATUS: connection established");
+    // простейший «ping»
+    const t0 = Date.now();
+    conn.value!.send({ type: "ping", t0 });
+    conn.value!.on("data", (data: any) => {
+      if (data.type === "pong" && data.t0 === t0) {
+        const latency = Date.now() - t0;
+        consoleLogs.value.push(`PING: ${latency} ms`);
+      }
+    });
+    // step.value = "chat";
   }
 });
 
@@ -449,14 +517,55 @@ $app-small-height: 520px;
     left: 50%;
     transform: translate(-50%, -50%);
     color: var(--app-text-primary);
-    font-size: 18px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    &__title {
-      font-size: 18px;
-      font-weight: 400;
+    max-width: 100%;
+    @media screen and (max-width: $app-mobile) {
+      position: static;
+      transform: translate(0, 0);
+    }
+    .waiting-shell {
+      display: flex;
+      gap: 72px;
+      max-width: 100%;
+      align-items: center;
+      justify-content: center;
+      @media screen and (max-width: $app-mobile) {
+        flex-direction: column;
+      }
+      .console-window {
+        width: 400px;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        padding: 16px;
+        background: var(--color-bg-on-secondary);
+        border: 1px solid var(--color-neutral-on-outline);
+        height: 400px;
+        overflow-y: auto;
+      }
+      .console-line {
+        font-family: "Courier New", monospace;
+        color: var(--color-primary-on-text);
+        margin: 0;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      .blink {
+        animation: blink 1s steps(1) infinite;
+      }
+
+      .snake-wrapper {
+        position: relative;
+        max-width: 100%;
+      }
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
     }
   }
 

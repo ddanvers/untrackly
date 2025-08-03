@@ -604,6 +604,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   return {
     messages,
     peer,
+    conn,
     isConnectionEstablished,
     initPeer,
     sendMessage,

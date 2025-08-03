@@ -1,133 +1,139 @@
 <template>
   <div class="snake-game">
-    <div class="snake-game__header">
-      <h1 class="snake-game__title">ЗМЕЙКА</h1>
-      <div class="snake-game__score">{{ gameState.score.toString().padStart(4, "0") }}</div>
-    </div>
-
-    <div class="snake-game__controls">
-      <p class="snake-game__instructions">Используй WASD или стрелочки для управления</p>
-      <div class="snake-game__buttons">
-        <CButton @click="startGame" :disabled="gameState.isPlaying">
-          {{ gameState.isPlaying ? "ИДЕТ ИГРА" : "НАЧАТЬ" }}
-        </CButton>
-        <CButton variant="secondary" @click="resetGame"> СБРОСИТЬ </CButton>
+    <div class="snake-game__container">
+      <div class="snake-game__header">
+        <h1 class="snake-game__title">ЗМЕЙКА</h1>
+        <div class="snake-game__score">{{ gameState.score.toString().padStart(4, "0") }}</div>
       </div>
-    </div>
 
-    <div class="snake-game__board-container">
-      <div
-        ref="gameBoard"
-        class="snake-game__board"
-        :class="{
-          'snake-game__board--loading': gameState.isLoading,
-          'snake-game__board--game-over': gameState.isGameOver,
-        }"
-        tabindex="0"
-        @keydown="handleKeyPress"
-      >
-        <!-- Loading state -->
-        <div v-if="gameState.isLoading" class="snake-game__loading">
-          <div class="snake-game__loading-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <p class="snake-game__loading-text">Loading...</p>
+      <div class="snake-game__controls">
+        <p class="snake-game__instructions">Используй WASD или стрелочки для управления</p>
+        <div class="snake-game__buttons">
+          <CButton @click="startGame" :disabled="gameState.isPlaying">
+            {{ gameState.isPlaying ? "ИДЕТ ИГРА" : "НАЧАТЬ" }}
+          </CButton>
+          <CButton variant="secondary" @click="resetGame"> СБРОСИТЬ </CButton>
         </div>
-
-        <!-- Game Over overlay -->
-        <div v-if="gameState.isGameOver && !gameState.isLoading" class="snake-game__game-over">
-          <h2 class="snake-game__game-over-title">GAME OVER</h2>
-          <p class="snake-game__game-over-score">
-            Score: {{ gameState.score.toString().padStart(4, "0") }}
-          </p>
-          <button class="snake-game__button snake-game__button--primary" @click="resetGame">
-            PLAY AGAIN
-          </button>
-        </div>
-
-        <!-- Game grid -->
-        <div
-          v-if="!gameState.isLoading"
-          class="snake-game__grid"
-          :style="{
-            gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`,
-            gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)`,
-          }"
-        >
+      </div>
+      <div class="snake-game__board-stats-controls-wrapper">
+        <div class="snake-game__board-container">
           <div
-            v-for="(cell, index) in gameGrid"
-            :key="index"
-            class="snake-game__cell"
+            ref="gameBoard"
+            class="snake-game__board"
             :class="{
-              'snake-game__cell--snake': cell === CellType.Snake,
-              'snake-game__cell--snake-head': cell === CellType.SnakeHead,
-              'snake-game__cell--food': cell === CellType.Food,
-              'snake-game__cell--empty': cell === CellType.Empty,
+              'snake-game__board--loading': gameState.isLoading,
+              'snake-game__board--game-over': gameState.isGameOver,
             }"
+            tabindex="0"
+            @keydown="handleKeyPress"
           >
-            <!-- Snake head eyes for visual direction indication -->
+            <!-- Loading state -->
+            <div v-if="gameState.isLoading" class="snake-game__loading">
+              <div class="snake-game__loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <p class="snake-game__loading-text">Loading...</p>
+            </div>
+
+            <!-- Game Over overlay -->
+            <div v-if="gameState.isGameOver && !gameState.isLoading" class="snake-game__game-over">
+              <h2 class="snake-game__game-over-title">GAME OVER</h2>
+              <p class="snake-game__game-over-score">
+                Score: {{ gameState.score.toString().padStart(4, "0") }}
+              </p>
+              <button class="snake-game__button snake-game__button--primary" @click="resetGame">
+                PLAY AGAIN
+              </button>
+            </div>
+
+            <!-- Game grid -->
             <div
-              v-if="cell === CellType.SnakeHead"
-              class="snake-game__snake-eyes"
-              :class="`snake-game__snake-eyes--${direction.toLowerCase()}`"
+              v-if="!gameState.isLoading"
+              class="snake-game__grid"
+              :style="{
+                gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`,
+                gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)`,
+              }"
             >
-              <span class="snake-game__eye"></span>
-              <span class="snake-game__eye"></span>
+              <div
+                v-for="(cell, index) in gameGrid"
+                :key="index"
+                class="snake-game__cell"
+                :class="{
+                  'snake-game__cell--snake': cell === CellType.Snake,
+                  'snake-game__cell--snake-head': cell === CellType.SnakeHead,
+                  'snake-game__cell--food': cell === CellType.Food,
+                  'snake-game__cell--empty': cell === CellType.Empty,
+                }"
+              >
+                <!-- Snake head eyes for visual direction indication -->
+                <div
+                  v-if="cell === CellType.SnakeHead"
+                  class="snake-game__snake-eyes"
+                  :class="`snake-game__snake-eyes--${direction.toLowerCase()}`"
+                >
+                  <span class="snake-game__eye"></span>
+                  <span class="snake-game__eye"></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+        <div>
+          <!-- Virtual controls - Always visible, positioned below game board -->
+          <div class="snake-game__virtual-controls">
+            <div class="snake-game__dpad">
+              <button
+                class="snake-game__dpad-button snake-game__dpad-button--up"
+                @click="handleDirectionChange(Direction.Up)"
+                :disabled="!gameState.isPlaying"
+              >
+                ↑
+              </button>
+              <div class="snake-game__dpad-middle">
+                <button
+                  class="snake-game__dpad-button snake-game__dpad-button--left"
+                  @click="handleDirectionChange(Direction.Left)"
+                  :disabled="!gameState.isPlaying"
+                >
+                  ←
+                </button>
+                <div class="snake-game__dpad-center"></div>
+                <button
+                  class="snake-game__dpad-button snake-game__dpad-button--right"
+                  @click="handleDirectionChange(Direction.Right)"
+                  :disabled="!gameState.isPlaying"
+                >
+                  →
+                </button>
+              </div>
+              <button
+                class="snake-game__dpad-button snake-game__dpad-button--down"
+                @click="handleDirectionChange(Direction.Down)"
+                :disabled="!gameState.isPlaying"
+              >
+                ↓
+              </button>
+            </div>
+          </div>
 
-    <!-- Virtual controls - Always visible, positioned below game board -->
-    <div class="snake-game__virtual-controls">
-      <div class="snake-game__dpad">
-        <button
-          class="snake-game__dpad-button snake-game__dpad-button--up"
-          @click="handleDirectionChange(Direction.Up)"
-          :disabled="!gameState.isPlaying"
-        >
-          ↑
-        </button>
-        <div class="snake-game__dpad-middle">
-          <button
-            class="snake-game__dpad-button snake-game__dpad-button--left"
-            @click="handleDirectionChange(Direction.Left)"
-            :disabled="!gameState.isPlaying"
-          >
-            ←
-          </button>
-          <div class="snake-game__dpad-center"></div>
-          <button
-            class="snake-game__dpad-button snake-game__dpad-button--right"
-            @click="handleDirectionChange(Direction.Right)"
-            :disabled="!gameState.isPlaying"
-          >
-            →
-          </button>
+          <div class="snake-game__stats">
+            <div class="snake-game__stat">
+              <span class="snake-game__stat-label">LENGTH</span>
+              <span class="snake-game__stat-value">{{
+                snake.length.toString().padStart(3, "0")
+              }}</span>
+            </div>
+            <div class="snake-game__stat">
+              <span class="snake-game__stat-label">HIGH SCORE</span>
+              <span class="snake-game__stat-value">{{
+                gameState.highScore.toString().padStart(4, "0")
+              }}</span>
+            </div>
+          </div>
         </div>
-        <button
-          class="snake-game__dpad-button snake-game__dpad-button--down"
-          @click="handleDirectionChange(Direction.Down)"
-          :disabled="!gameState.isPlaying"
-        >
-          ↓
-        </button>
-      </div>
-    </div>
-
-    <div class="snake-game__stats">
-      <div class="snake-game__stat">
-        <span class="snake-game__stat-label">LENGTH</span>
-        <span class="snake-game__stat-value">{{ snake.length.toString().padStart(3, "0") }}</span>
-      </div>
-      <div class="snake-game__stat">
-        <span class="snake-game__stat-label">HIGH SCORE</span>
-        <span class="snake-game__stat-value">{{
-          gameState.highScore.toString().padStart(4, "0")
-        }}</span>
       </div>
     </div>
   </div>
@@ -418,86 +424,6 @@ defineExpose({
 </script>
 
 <style lang="scss">
-// CSS Custom Properties using your color palette
-:root {
-  /* dark-blue */
-  --dark-blue-source: #030026;
-  --dark-blue-10: #030026;
-  --dark-blue-9: #040042;
-  --dark-blue-8: #393956;
-  --dark-blue-7: #504f71;
-  --dark-blue-6: #68678d;
-  --dark-blue-5: #8280a8;
-  --dark-blue-4: #9c9ac2;
-  --dark-blue-3: #b7b5dd;
-  --dark-blue-2: #d3d1f6;
-  --dark-blue-1: #f0edff;
-
-  /* gray */
-  --gray-source: #0f0e0e;
-  --gray-10: #0f0e0e;
-  --gray-9: #191717;
-  --gray-8: #2a2a2a;
-  --gray-7: #393939;
-  --gray-6: #444444;
-  --gray-5: #848383;
-  --gray-4: #9e9e9e;
-  --gray-3: #b9b8b8;
-  --gray-2: #d5d4d4;
-  --gray-1: #f1f0f0;
-
-  /* blue */
-  --blue-source: #2893c9;
-  --blue-10: #001424;
-  --blue-9: #002a48;
-  --blue-8: #004268;
-  --blue-7: #005a87;
-  --blue-6: #0073a5;
-  --blue-5: #218cc1;
-  --blue-4: #4ca6dc;
-  --blue-3: #72c1f5;
-  --blue-2: #97dcff;
-  --blue-1: #ddf1f3;
-
-  /* orange */
-  --orange-source: #ffb000;
-  --orange-10: #290a00;
-  --orange-9: #431d00;
-  --orange-8: #5f3100;
-  --orange-7: #ab7706;
-  --orange-6: #c98c0a;
-  --orange-5: #e19f11;
-  --orange-4: #f1b131;
-  --orange-3: #efba4f;
-  --orange-2: #f8c765;
-  --orange-1: #ffd98d;
-
-  // Color tokens
-  --color-primary-on-text: var(--orange-5);
-  --color-primary-on-hover: var(--orange-4);
-  --color-primary-on-active: var(--orange-3);
-  --color-primary-on-fill: var(--orange-5);
-  --color-primary-on-outline: var(--orange-5);
-  --color-primary-on-bg: var(--orange-1);
-  --color-primary-on-muted: var(--orange-1);
-
-  --color-bg-on-primary: var(--dark-blue-10);
-  --color-bg-on-primary-light: var(--dark-blue-9);
-  --color-bg-on-secondary: var(--gray-10);
-  --color-bg-on-secondary-light: var(--gray-9);
-
-  --color-neutral-on-text: var(--gray-1);
-  --color-neutral-on-hover: var(--gray-7);
-  --color-neutral-on-active: var(--gray-6);
-  --color-neutral-on-fill: var(--gray-8);
-  --color-neutral-on-outline: var(--gray-4);
-  --color-neutral-on-muted: var(--gray-5);
-
-  --color-white: #000;
-  --color-black: #fff;
-}
-
-// Breakpoints
 $app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
@@ -505,7 +431,6 @@ $app-narrow-mobile: 364px;
 $app-medium-height: 750px;
 $app-small-height: 520px;
 
-// Base spacing system
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 16px;
@@ -513,25 +438,24 @@ $spacing-lg: 24px;
 $spacing-xl: 32px;
 $spacing-xxl: 48px;
 
-// Typography
 $font-family-mono: "Courier New", "Monaco", "Lucida Console", monospace;
 $font-family-display: "Arial", "Helvetica", sans-serif;
 
-// Main component following BEM methodology
 .snake-game {
-  max-width: 600px;
-  margin: 0 auto;
   padding: $spacing-xl;
   font-family: $font-family-display;
   background: var(--color-bg-on-primary);
   border: 2px solid var(--color-neutral-on-outline);
   color: var(--color-neutral-on-text);
-  min-height: 100vh;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: space-between;
-
+  gap: 64px;
+  max-width: 100%;
   // Header section
+  &__container {
+    max-width: 100%;
+  }
   &__header {
     display: flex;
     justify-content: space-between;
@@ -579,6 +503,15 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     gap: $spacing-md;
     justify-content: center;
     flex-wrap: wrap;
+  }
+  &__board-stats-controls-wrapper {
+    display: flex;
+    flex-direction: column;
+    @media screen and (max-height: 932px) and (min-width: $app-desktop) {
+      flex-direction: row;
+      align-items: center;
+      gap: 64px;
+    }
   }
   // Game board container
   &__board-container {
@@ -833,6 +766,7 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     margin-bottom: $spacing-xs;
     font-family: $font-family-mono;
     text-transform: uppercase;
+    min-width: max-content;
   }
 
   &__stat-value {
@@ -863,9 +797,6 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
 @media (max-width: $app-mobile) {
   .snake-game {
     padding: $spacing-md;
-    min-height: 100vh;
-    max-height: 100vh;
-    overflow: hidden;
 
     &__board {
       width: min(90vw, 350px);
@@ -889,8 +820,6 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     }
 
     &__buttons {
-      flex-direction: column;
-      align-items: center;
     }
 
     &__button {
