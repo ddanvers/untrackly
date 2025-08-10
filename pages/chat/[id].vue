@@ -101,6 +101,69 @@
     </section>
 
     <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
+      <div class="room-data">
+        <header class="room-data__header"><h2 class="room-data__title">Данные комнаты</h2></header>
+        <section class="room-data__body">
+          <div class="room-data__block">
+            <h3 class="room-data__block-title">О комнате</h3>
+            <div class="room-data__block-info">
+              <ul class="room-data__block-list">
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">ID</div>
+                  <div class="room-data__block-value">{{ peer?.id }}</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Дата создания</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Дата изменения</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="room-data__block">
+            <h3 class="room-data__block-title">Участники</h3>
+            <div class="room-data__block-info">
+              <ul class="room-data__block-list">
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Вы</div>
+                  <div class="room-data__block-value">Онлайн</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Собеседник</div>
+                  <div class="room-data__block-value">разрыв соеднинеия</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="room-data__block">
+            <h3 class="room-data__block-title">Сеть</h3>
+            <div class="room-data__block-info">
+              <ul class="room-data__block-list">
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Подключение</div>
+                  <div class="room-data__block-value">стабильное</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Отправлено</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Получено</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <footer class="room-data__footer">
+          <CButton variant="quaternary" textColor="var(--color-negative-on-text)"
+            >Завершить сеанс</CButton
+          >
+        </footer>
+      </div>
       <CChatWindow
         title="Собеседник"
         :messages="messages"
@@ -399,10 +462,6 @@ $app-small-height: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  @media screen and (max-width: $app-laptop) {
-    padding: 12px;
-  }
   .chat-invitation {
     display: flex;
     flex-direction: column;
@@ -593,13 +652,69 @@ $app-small-height: 520px;
   }
 
   .chat-window {
+    display: flex;
     width: 100%;
-    height: calc(100% - 48px);
+    height: 100%;
     overflow: hidden;
     @media screen and (max-width: $app-laptop) {
       height: 100vh;
       width: 100vw;
       border-radius: 0;
+    }
+    .room-data {
+      width: 582px;
+      border-right: 1px solid var(--color-neutral-on-outline);
+      &__header {
+        background-color: var(--color-bg-on-primary);
+        padding: 24px;
+        .room-data__title {
+          color: var(--color-primary-on-text);
+          font-size: 32px;
+        }
+      }
+      &__body {
+        display: flex;
+        gap: 8px;
+        flex-direction: column;
+        padding: 12px;
+        .room-data__block {
+          display: flex;
+          gap: 12px;
+          flex-direction: column;
+          .room-data__block-title {
+            padding: 12px;
+            color: var(--color-primary-on-text);
+            font-size: 18px;
+            border-bottom: 1px solid var(--color-neutral-on-outline);
+          }
+          .room-data__block-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            .room-data__block-item {
+              display: flex;
+              gap: 24px;
+              .room-data__block-label {
+                font-size: 16px;
+                width: 160px;
+                padding: 12px;
+                color: var(--color-neutral-on-text);
+              }
+              .room-data__block-value {
+                font-size: 14px;
+                padding: 12px;
+                color: var(--color-neutral-on-muted);
+              }
+            }
+          }
+        }
+      }
+      .room-data__footer {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 48px;
+      }
     }
   }
 }

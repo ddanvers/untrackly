@@ -31,18 +31,21 @@
       ref="bodyRef"
       @scroll="onScroll"
     >
-      <CChatMessage
-        class="chat__message"
-        v-for="msg in messages"
-        :id="msg.id"
-        :key="msg.id"
-        :message="msg"
-        :isMe="msg.sender === meId"
-        :meId="meId"
-        @read="onRead(msg.id)"
-        @reply="onReply"
-        @scroll-to-message="scrollToMessage"
-      />
+      <div v-if="messages.length">
+        <CChatMessage
+          class="chat__message"
+          v-for="msg in messages"
+          :id="msg.id"
+          :key="msg.id"
+          :message="msg"
+          :isMe="msg.sender === meId"
+          :meId="meId"
+          @read="onRead(msg.id)"
+          @reply="onReply"
+          @scroll-to-message="scrollToMessage"
+        />
+      </div>
+      <div v-else class="chat__body--empty">Чат пуст. Всё готово к обмену сообщениями</div>
     </section>
     <CChatMessageForm
       @send="sendMessage"
@@ -245,6 +248,7 @@ $app-narrow-mobile: 364px;
     justify-content: space-between;
     align-items: center;
     padding: 16px;
+    background-color: var(--color-bg-on-primary);
   }
   &__actions {
     display: flex;
@@ -264,7 +268,7 @@ $app-narrow-mobile: 364px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background-color: var(--color-bg-on-primary);
+    background-color: var(--color-bg-on-secondary);
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
@@ -279,6 +283,14 @@ $app-narrow-mobile: 364px;
       &--highlight {
         animation: pulse-highlight 2s ease both;
       }
+    }
+    &--empty {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      color: var(--color-neutral-on-text);
     }
   }
 }

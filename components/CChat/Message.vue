@@ -252,7 +252,7 @@ $app-narrow-mobile: 364px;
     align-items: center;
     gap: 48px;
     font-size: 14px;
-    color: var(--app-text-secondary);
+    color: var(--color-neutral-on-text);
     margin-bottom: 8px;
     position: relative;
     .chat-message__time-read-container {
@@ -272,7 +272,7 @@ $app-narrow-mobile: 364px;
       .chat-message__menu-btn {
         cursor: pointer;
         img {
-          filter: var(--app-filter-text-secondary);
+          filter: var(--filter-neutral-on-outline);
         }
       }
       .chat-message__menu {
@@ -347,10 +347,9 @@ $app-narrow-mobile: 364px;
     }
   }
   &__bubble {
-    background: var(--app-blue-100);
-    color: var(--app-text-primary);
+    background: var(--color-bg-on-secondary-light);
+    color: var(--color-neutral-on-text);
     padding: 16px;
-    border-radius: 8px;
     overflow-wrap: anywhere;
     .image-preview {
       position: relative;
@@ -416,7 +415,7 @@ $app-narrow-mobile: 364px;
     height: 72px;
     flex: 1 1 calc(50% - 8px);
     position: relative;
-    background: var(--app-blue-200);
+    background: var(--color-neutral-on-fill);
     padding: 6px 36px 6px 8px;
     margin: 2px 0;
     &__img-wrapper {
@@ -453,7 +452,6 @@ $app-narrow-mobile: 364px;
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: var(--app-pink-500);
   border-radius: 6px;
   padding: 2px;
   display: flex;
@@ -463,7 +461,7 @@ $app-narrow-mobile: 364px;
   z-index: 2;
   transition: background 0.3s;
   img {
-    filter: var(--app-filter-grey-50);
+    filter: var(--filter-primary-on-text);
   }
 }
 .download-icon:hover {

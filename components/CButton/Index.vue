@@ -329,18 +329,18 @@ const handleClick = (event: Event): void => {
   border: none;
 
   .c-button__label {
-    color: var(--app-pink-500);
+    color: var(--color-primary-on-text);
   }
 
   &:hover {
     .c-button__label {
-      color: var(--app-pink-500);
+      color: var(--color-primary-on-hover);
     }
   }
 
   &:active {
     .c-button__label {
-      color: var(--app-pink-600);
+      color: var(--color-primary-on-active);
     }
   }
 
@@ -358,28 +358,13 @@ const handleClick = (event: Event): void => {
 }
 
 .icon-default {
-  background-color: var(--app-grey-50);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
   transition: opacity 0.3s ease;
-
-  &::after {
-    content: "";
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background: rgb(0, 0, 0, 0.1);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-  }
-
+  filter: var(--filter-primary-on-text);
   &.i-small {
     height: 32px;
     width: 56px;

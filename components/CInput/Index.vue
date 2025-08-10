@@ -6,6 +6,7 @@
         class="input-main"
         :class="{
           'main-focus': isFocus,
+          'input-main--textarea': type === 'textarea',
           disabled: disabled,
           error: showMessage,
         }"
@@ -16,7 +17,9 @@
           <slot name="prepend"></slot>
         </div>
         <input
+          v-if="type !== 'textarea'"
           ref="input_ref"
+          class="main-input"
           :type="inputType"
           :value="modelValue"
           @input="handleChange"
@@ -24,6 +27,22 @@
           @blur="blurInput"
           :disabled="disabled"
           :placeholder="placeholder"
+          :data-maska="dataMaska"
+          :readonly="readonlyProp"
+          v-maska
+        />
+        <textarea
+          v-else
+          ref="input_ref"
+          :type="inputType"
+          class="main-input main-textarea"
+          :value="modelValue"
+          @input="handleChange"
+          @focus="focusInput"
+          @blur="blurInput"
+          :disabled="disabled"
+          :placeholder="placeholder"
+          :rows="rows"
           :data-maska="dataMaska"
           :readonly="readonlyProp"
           v-maska
@@ -83,6 +102,7 @@ type Props = {
   maskaValue?: string;
   small?: boolean;
   noBlurSelectors?: string[];
+  rows?: number;
 };
 const props = withDefaults(defineProps<Props>(), {
   valid: false,
@@ -210,7 +230,11 @@ input[type="file"] {
     align-items: center;
     justify-content: space-between;
     transition: border-color 0.3s ease;
-    input {
+    &--textarea {
+      height: auto;
+      padding: 10px;
+    }
+    .main-input {
       background: transparent;
       border: none;
       outline: none;
@@ -222,7 +246,15 @@ input[type="file"] {
       line-height: 150%;
       color: var(--color-primary-on-text);
     }
-    input::placeholder {
+    .main-textarea {
+      outline: none;
+      resize: none;
+      &::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+    }
+    .main-input::placeholder {
       color: var(--color-neutral-on-muted);
     }
   }
@@ -232,11 +264,11 @@ input[type="file"] {
   .disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    input {
+    .main-input {
       cursor: not-allowed;
     }
     border-color: var(--color-neutral-on-muted);
-    input {
+    .main-input {
       color: var(--color-neutral-on-muted);
     }
   }

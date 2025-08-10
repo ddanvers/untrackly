@@ -50,6 +50,8 @@
   --orange-3: #efba4f;
   --orange-2: #f8c765;
   --orange-1: #ffd98d;
+
+  --red-700: #c31b1b;
 }
 
 .dark {
@@ -73,8 +75,14 @@
   --color-neutral-on-outline: var(--gray-4);
   --color-neutral-on-muted: var(--gray-5);
 
+  --color-negative-on-text: var(--red-700);
+
   --color-white: #000;
   --color-black: #fff;
   --filter-neutral-on-text: invert(99%) sepia(9%) saturate(68%) hue-rotate(61deg) brightness(111%)
     contrast(89%);
+  --filter-primary-on-text: brightness(0) saturate(100%) invert(65%) sepia(100%) saturate(1072%)
+    hue-rotate(357deg) brightness(93%) contrast(90%);
+  --filter-neutral-on-outline: brightness(0) saturate(100%) invert(68%) sepia(0%) saturate(17%)
+    hue-rotate(151deg) brightness(93%) contrast(91%);
 }
