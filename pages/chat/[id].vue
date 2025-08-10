@@ -6,7 +6,9 @@
       aria-labelledby="chat-invitation-title"
     >
       <header class="chat-invitation__header">
-        <h1 id="chat-invitation-title" class="chat-invitation__title">Приглашение в чат</h1>
+        <h1 id="chat-invitation-title" class="chat-invitation__title">
+          Приглашение в закрытый чат
+        </h1>
       </header>
       <section v-if="!isInvited" class="chat-invitation__content" aria-label="Поделиться ссылкой">
         <h2 class="visually-hidden">Поделиться ссылкой</h2>
@@ -84,8 +86,18 @@
       class="chat-waiting"
       aria-label="Ожидание подключения собеседника"
     >
-      <h2 class="chat-waiting__title">Ожидается подключение собеседника</h2>
-      <span class="chat-waiting__loader loader" aria-hidden="true"></span>
+      <div class="waiting-shell">
+        <div class="console-window">
+          <p class="console-line" v-for="(msg, i) in consoleLogs" :key="i">&gt; {{ msg }}</p>
+          <div v-if="!consoleFinished" class="console-line blink">|</div>
+          <div v-if="consoleFinished && !isConnectionEstablished" class="console-line">
+            &gt; STATUS: Waiting{{ ".".repeat(waitingDots) }}{{ " ".repeat(3 - waitingDots) }}
+          </div>
+        </div>
+        <div class="snake-wrapper">
+          <Snake v-show="consoleFinished" />
+        </div>
+      </div>
     </section>
 
     <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
@@ -117,9 +129,25 @@
 
 <script setup lang="ts">
 const route = useRoute();
-
+definePageMeta({
+  header: false,
+});
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
+const consoleLogs = ref<string[]>([]);
+const waitingDots = shallowRef(0);
+let waitingInterval: number | null = null;
+let loadingStopped = false;
+const consoleFinished = ref(false);
+const LOADING_MASSAGES = [
+  "BOOT: CHATTOR-OS v1.4",
+  "LOADING MODULE proxy-server.dll… OK",
+  "PING peer.network… TIME=000ms",
+  "AWAITING HANDSHAKE FROM REMOTE NODE",
+  "LOADING snake.exe…",
+  "snake.exe INITIALIZED",
+  "LAUNCHING GAME-MODULE…",
+];
 const copying = shallowRef(false);
 const sessionId = route.params.id as string;
 const isInvited = shallowRef(route.query.invited);
@@ -135,6 +163,7 @@ const {
   sendAllFiles,
   readMessage,
   peer,
+  conn,
   isConnectionEstablished,
   callState,
   localStream,
@@ -194,6 +223,39 @@ async function copyInvitationLink() {
 function goToChat() {
   initPeer();
   step.value = "waiting";
+  peer.value?.on("open", (id: string) => {
+    consoleLogs.value.push(`OPEN: Peer open with id=${id}`);
+  });
+  const LOADING_MESSAGES = [
+    "DOMAIN: untrackly.com",
+    `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
+    "CONFIG: secure",
+    !isInvited.value
+      ? "LISTEN: waiting for incoming connections…"
+      : `CONNECT: dialing peer ${sessionId}…`,
+    "WHILE_LOADING: snake.exe",
+    "LAUNCH: game-module",
+  ];
+  let idx = 0;
+  loadingStopped = false;
+  const tick = () => {
+    if (loadingStopped) return;
+    if (idx < LOADING_MESSAGES.length) {
+      consoleLogs.value.push(LOADING_MESSAGES[idx++]);
+      setTimeout(tick, 800);
+    } else {
+      setTimeout(() => {
+        consoleFinished.value = true;
+        // Start waiting dots animation только после основных логов
+        waitingDots.value = 0;
+        if (waitingInterval) clearInterval(waitingInterval);
+        waitingInterval = window.setInterval(() => {
+          waitingDots.value = (waitingDots.value + 1) % 4;
+        }, 500);
+      }, 500);
+    }
+  };
+  tick();
 }
 function rejectInvite() {
   navigateTo("/");
@@ -267,7 +329,39 @@ watch(callState, (val) => {
 
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
-    step.value = "chat";
+    // Останавливаем добавление логов и анимацию ожидания
+    loadingStopped = true;
+    if (waitingInterval) {
+      clearInterval(waitingInterval);
+      waitingInterval = null;
+    }
+    consoleLogs.value.push("STATUS: connection established");
+    // Countdown logic
+    let countdown = 5;
+    const countdownMessages = ["Initializing..."];
+    let countdownIdx = 0;
+    const showCountdown = () => {
+      if (countdownIdx < countdownMessages.length) {
+        consoleLogs.value.push(countdownMessages[countdownIdx++]);
+        setTimeout(showCountdown, 800);
+      } else if (countdown > 0) {
+        consoleLogs.value.push(`Countdown: ${countdown} s.`);
+        countdown--;
+        setTimeout(showCountdown, 1000);
+      } else {
+        consoleLogs.value.push("Connection established!");
+        step.value = "chat";
+      }
+    };
+    showCountdown();
+    const t0 = Date.now();
+    conn.value!.send({ type: "ping", t0 });
+    conn.value!.on("data", (data: any) => {
+      if (data.type === "ping") {
+        const latency = Date.now() - t0;
+        consoleLogs.value.push(`PING: ${latency} ms`);
+      }
+    });
   }
 });
 
@@ -287,22 +381,27 @@ watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
 </script>
 
 <style scoped lang="scss">
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
+$app-medium-height: 750px;
+$app-small-height: 520px;
 .chat-page {
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  min-height: 100vh;
+  width: 100%;
   background: var(--app-pink-gradient-bg);
   position: relative;
   display: flex;
+  flex: 1 1 auto;
+  background-color: var(--color-bg-on-secondary);
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
   @media screen and (max-width: $app-laptop) {
-    padding: 0;
+    padding: 12px;
   }
   .chat-invitation {
     display: flex;
@@ -310,7 +409,6 @@ $app-narrow-mobile: 364px;
     align-items: center;
     gap: 24px;
     width: 100%;
-
     &__header {
       margin-bottom: 8px;
       text-align: center;
@@ -319,7 +417,7 @@ $app-narrow-mobile: 364px;
     &__title {
       font-size: 2rem;
       font-weight: 700;
-      color: var(--app-text-primary);
+      color: var(--color-primary-on-text);
       margin: 0;
     }
 
@@ -345,7 +443,7 @@ $app-narrow-mobile: 364px;
       font-size: 24px;
       text-wrap: balance;
       text-align: center;
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       max-width: 560px;
       @media screen and (max-width: $app-mobile) {
         font-size: 20px;
@@ -372,12 +470,11 @@ $app-narrow-mobile: 364px;
       max-width: 100%;
       justify-content: center;
       padding: 24px 32px;
-      border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.15);
       width: 320px;
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(4px);
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       font-size: 18px;
       font-weight: 500;
       text-align: center;
@@ -443,22 +540,61 @@ $app-narrow-mobile: 364px;
     left: 50%;
     transform: translate(-50%, -50%);
     color: var(--app-text-primary);
-    font-size: 18px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    &__title {
-      font-size: 18px;
-      font-weight: 400;
+    max-width: 100%;
+    @media screen and (max-width: $app-mobile) {
+      position: static;
+      transform: translate(0, 0);
+    }
+    .waiting-shell {
+      display: flex;
+      gap: 72px;
+      max-width: 100%;
+      align-items: center;
+      justify-content: center;
+      @media screen and (max-width: $app-mobile) {
+        flex-direction: column;
+      }
+      .console-window {
+        width: 400px;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        padding: 16px;
+        background: var(--color-bg-on-secondary);
+        border: 1px solid var(--color-neutral-on-outline);
+        height: 400px;
+        overflow-y: auto;
+      }
+      .console-line {
+        font-family: "Courier New", monospace;
+        color: var(--color-primary-on-text);
+        margin: 0;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      .blink {
+        animation: blink 1s steps(1) infinite;
+      }
+
+      .snake-wrapper {
+        position: relative;
+        max-width: 100%;
+      }
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
     }
   }
 
   .chat-window {
-    width: 960px;
-    max-width: 100%;
+    width: 100%;
     height: calc(100% - 48px);
-    border-radius: 24px;
     overflow: hidden;
     @media screen and (max-width: $app-laptop) {
       height: 100vh;

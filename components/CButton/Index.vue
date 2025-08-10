@@ -124,9 +124,7 @@ const handleClick = (event: Event): void => {
   background: transparent;
   cursor: pointer;
   width: fit-content;
-  border-radius: 8px;
-  transition: 0.5s;
-
+  min-width: max-content;
   &__content {
     position: relative;
     display: flex;
@@ -148,7 +146,7 @@ const handleClick = (event: Event): void => {
     }
 
     .c-button__label {
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 400;
     }
   }
@@ -191,7 +189,7 @@ const handleClick = (event: Event): void => {
 
 .default {
   padding: 0 20px;
-  height: 44px;
+  height: 40px;
 }
 
 .small {
@@ -206,14 +204,12 @@ const handleClick = (event: Event): void => {
 }
 
 .primary {
-  background: var(--app-pink-500);
+  background: var(--color-primary-on-fill);
   transition: background 0.3s ease;
-  position: relative;
-  z-index: 3;
   overflow: hidden;
 
   .c-button__label {
-    color: var(--app-white);
+    color: var(--color-permanent-black);
   }
 
   .c-button__content {
@@ -226,15 +222,16 @@ const handleClick = (event: Event): void => {
   }
 
   &:hover {
-    background: var(--app-pink-600);
+    background: var(--color-primary-on-hover);
   }
 
   &:active {
-    background: var(--app-pink-700);
+    background: var(--color-primary-on-active);
   }
 
   &:disabled {
-    background: var(--app-grey-200);
+    opacity: 0.4;
+    background: var(--color-primary-on-muted);
   }
 
   &.loading {
@@ -248,7 +245,7 @@ const handleClick = (event: Event): void => {
 }
 
 .secondary {
-  background: var(--app-pink-50);
+  background: var(--color-neutral-on-fill);
   position: relative;
   overflow: hidden;
   transition:
@@ -256,23 +253,19 @@ const handleClick = (event: Event): void => {
     color 0.3s ease;
 
   .c-button__label {
-    color: var(--app-text-primary);
+    color: var(--color-primary-on-text);
   }
 
   &:hover {
-    background: var(--app-pink-100);
+    background: var(--color-neutral-on-hover);
   }
 
   &:active {
-    background: var(--app-pink-200);
+    background: var(--color-neutral-on-active);
   }
 
   &:disabled {
-    background: var(--app-grey-200);
-
-    .c-button__label {
-      color: var(--app-grey-050);
-    }
+    opacity: 0.5;
   }
 
   &.loading {

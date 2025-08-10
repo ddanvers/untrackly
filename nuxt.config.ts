@@ -10,8 +10,8 @@ export default defineNuxtConfig({
     "@/assets/styles/colors.scss",
   ],
   colorMode: {
-    preference: "system",
-    fallback: "light",
+    preference: "dark",
+    fallback: "dark",
     hid: "nuxt-color-mode-script",
     globalName: "__NUXT_COLOR_MODE__",
     componentName: "ColorScheme",

@@ -68,8 +68,7 @@ function toggleTheme() {
     transform 0.2s ease,
     background 0.3s ease,
     box-shadow 0.3s ease;
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: var(--color-bg-on-secondary);
 }
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
@@ -110,8 +109,7 @@ function toggleTheme() {
 }
 .dark {
   .theme-toggle {
-    background: rgba(0, 0, 0, 0.6);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    background: var(--color-bg-on-secondary);
   }
 
   .theme-toggle .icon__shape--sun {
@@ -142,6 +140,6 @@ function toggleTheme() {
 }
 
 .theme-toggle {
-  color: var(--app-pink-500);
+  color: var(--color-primary-on-active);
 }
 </style>

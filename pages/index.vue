@@ -1,127 +1,269 @@
 <template>
   <main class="page-hero">
-    <section class="page-hero__logo-container">
-      <NuxtImg src="/icons/logo.svg" class="page-hero__logo" />
-      <p class="page-hero__slogan">You launch. You chat.</p>
-    </section>
-    <div class="page-hero__action-container">
-      <button class="page-hero__launch-btn" @click="launchChat">
-        <NuxtImg src="/icons/play_circle.svg" class="page-hero__launch-icon" />
-        <span>Запустить чат</span>
-      </button>
+    <div></div>
+    <div class="page-hero__content">
+      <div class="logo-container">
+        <NuxtImg src="/icons/logo.svg"></NuxtImg>
+        <div class="logo-container__text">
+          <h1 class="logo-container__brand-name">untrackly</h1>
+          <p class="logo-container__slogan">Your words are only yours</p>
+        </div>
+      </div>
+      <div class="chat-connection">
+        <h2 class="chat-connection__title">Подключиться к чату</h2>
+        <p class="chat-connection__description">
+          Введите код комнаты, чтобы присоединиться к существующему чату, или сгенерируйте, чтобы
+          создать свой
+        </p>
+        <div class="chat-connection__form">
+          <CInput
+            v-model="chatRoomId"
+            label="Код комнаты"
+            placeholder="xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+            :readonlyProp="isChatRoomIdGenerated"
+            valid
+          ></CInput>
+          <CButton variant="secondary" @click="toggleChatRoomIdGeneration">
+            {{ isChatRoomIdGenerated ? "Удалить код" : "Сгенерировать" }}
+          </CButton>
+        </div>
+        <CButton fill :disabled="!isChatRoomIdValid" @click="launchChat"
+          >Инициировать подключение</CButton
+        >
+      </div>
+    </div>
+    <div class="page-hero__footer">
+      <div class="attractive-info-card" v-for="card in infoCards">
+        <div class="attractive-info-card__icon">
+          <NuxtImg :src="card.icon"></NuxtImg>
+        </div>
+        <h3 class="attractive-info-card__title">{{ card.title }}</h3>
+        <p class="attractive-info-card__description">{{ card.description }}</p>
+      </div>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  header: true,
+});
+const chatRoomId = ref("");
+const isChatRoomIdGenerated = ref(false);
+const isChatRoomIdValid = computed(() => {
+  const uuidV4Regex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidV4Regex.test(chatRoomId.value);
+});
 function launchChat() {
-  navigateTo(`/chat/${crypto.randomUUID()}`);
+  navigateTo(`/chat/${chatRoomId.value}`);
 }
+function toggleChatRoomIdGeneration() {
+  if (isChatRoomIdGenerated.value) {
+    chatRoomId.value = "";
+    isChatRoomIdGenerated.value = false;
+    return;
+  }
+  chatRoomId.value = crypto.randomUUID();
+  isChatRoomIdGenerated.value = true;
+}
+const infoCards = [
+  {
+    title: "безопасно",
+    description: "Передача данных защищена сквозным шифрованием",
+    icon: "/icons/main/cards/lock.svg",
+  },
+  {
+    title: "анонимно",
+    description: "Нет регистрации и хранения персональных данных",
+    icon: "/icons/main/cards/anon.svg",
+  },
+  {
+    title: "peer-to-peer",
+    description: "Прямое подключение через протокол WebRTC",
+    icon: "/icons/main/cards/web.svg",
+  },
+];
 </script>
 
 <style lang="scss" scoped>
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
+$app-medium-height: 750px;
+$app-small-height: 520px;
 .page-hero {
-  height: 100vh;
-  width: 100vw;
-  background: var(--app-pink-gradient-bg);
+  height: calc(100vh - 72px);
+  width: 100%;
+  background: var(--color-bg-on-secondary);
   position: relative;
-  padding: 24px;
-  &__logo-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  .page-hero__content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    padding: 0px 5vw;
+    gap: 64px;
+    @media screen and (max-width: $app-desktop) {
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 0px 64px;
+    }
+    @media screen and (max-width: $app-laptop) {
+      min-height: calc(100vh - 72px);
+      width: max-content;
+      flex-direction: column;
+      justify-content: center;
+      gap: 48px;
+      padding: 24px;
+    }
+    @media screen and (max-width: $app-narrow-mobile) {
+      padding: 8px;
+    }
+    @media screen and (max-height: $app-small-height) {
+      justify-content: flex-start;
+    }
+  }
+  &__footer {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 290px;
+    gap: 32px;
+    padding: 32px;
+    padding: 24px 5vw;
+    background:
+      linear-gradient(rgba(4, 0, 66, 0.25), rgba(4, 0, 66, 0.25)), var(--color-bg-on-secondary);
+    @media screen and (max-width: $app-desktop) {
+      padding: 24px 64px;
+      height: 260px;
+    }
+    @media screen and (max-width: $app-laptop) {
+      flex-direction: column;
+      height: max-content;
+      padding: 24px;
+    }
+  }
+}
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  img {
+    width: 148px;
+  }
+  &__text {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     justify-content: center;
-    gap: 24px;
-    position: absolute;
-    top: 30%;
-    left: 10%;
-    @media screen and (max-width: $app-laptop) and (min-height: 420px) {
-      left: 50%;
-      top: 10%;
-      transform: translateX(-50%);
+    gap: 6px;
+    padding: 12px;
+  }
+  &__brand-name {
+    font-weight: 400;
+    font-size: 72px;
+    color: var(--color-primary-on-text);
+  }
+  &__slogan {
+    font-weight: 400;
+    font-size: 18px;
+    color: var(--color-black);
+  }
+  @media screen and (max-width: $app-desktop) {
+    img {
+      display: none;
     }
-    @media screen and (max-height: 420px) {
-      left: 5%;
-      top: 50%;
-      transform: translateY(-50%);
+    &__brand-name {
+      font-size: 56px;
     }
-    .page-hero__logo {
-      width: 400px;
-      max-width: calc(100vw - 48px);
-      @media screen and (max-width: $app-mobile) {
-        width: 300px;
-      }
-      @media screen and (max-height: 420px) {
-        width: 300px;
-      }
+  }
+  @media screen and (max-width: $app-laptop) {
+    &__brand-name {
+      font-size: 48px;
     }
-    .page-hero__slogan {
-      font-size: 24px;
-      color: var(--app-text-primary);
-      @media screen and (max-width: $app-mobile) {
-        font-size: 20px;
-      }
-      @media screen and (max-height: 420px) {
-        font-size: 20px;
+    &__slogan {
+      font-size: 16px;
+    }
+  }
+  @media screen and (max-width: $app-mobile) {
+    display: none;
+  }
+}
+.chat-connection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 32px;
+  width: 640px;
+  max-width: 100%;
+  background-color: var(--color-bg-on-secondary-light);
+  &__title {
+    color: var(--color-primary-on-text);
+    font-size: 22px;
+    font-weight: 400;
+  }
+  &__description {
+    color: var(--color-neutral-on-text);
+    font-size: 16px;
+  }
+  &__form {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    align-items: flex-end;
+    @media screen and (max-width: $app-mobile) {
+      flex-direction: column;
+      button {
+        width: 100%;
       }
     }
   }
-  &__action-container {
-    position: absolute;
-    top: 50%;
-    right: 10%;
-    height: max-content;
-    transform: translateY(-50%);
-    @media screen and (max-width: $app-laptop) and (min-height: 420px) {
-      left: 50%;
-      transform: translate(-50%, -50%);
-      right: unset;
+  @media screen and (max-width: $app-narrow-mobile) {
+    padding: 12px;
+  }
+}
+.attractive-info-card {
+  width: 380px;
+  max-width: 100%;
+  height: 100%;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.1);
+  border: 2px solid var(--color-neutral-on-outline);
+  img {
+    height: 72px;
+  }
+  &__title {
+    color: var(--color-primary-on-text);
+    font-size: 40px;
+    font-weight: 400;
+  }
+  &__description {
+    color: var(--color-black);
+    font-size: 16px;
+    text-align: center;
+  }
+  @media screen and (max-width: $app-desktop) {
+    padding: 16px;
+    img {
+      height: 56px;
     }
-    @media screen and (max-height: 750px) and (max-width: $app-laptop) {
-      bottom: 10%;
-      top: unset;
-      transform: translateX(-50%);
-    }
-    @media screen and (max-height: 420px) {
-      right: 5%;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    .page-hero__launch-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 24px;
-      cursor: pointer;
-      &:hover .page-hero__launch-icon {
-        transform: scale(1.05);
-      }
-      .page-hero__launch-icon {
-        pointer-events: none;
-        transition: transform 0.2s ease;
-        will-change: transform;
-        filter: var(--app-filter-text-light-permanent);
-        width: 180px;
-        @media screen and (max-width: $app-mobile) {
-          width: 140px;
-        }
-        @media screen and (max-height: 420px) {
-          width: 140px;
-        }
-      }
-      span {
-        font-size: 24px;
-        color: var(--app-text-light-permanent);
-        @media screen and (max-width: $app-mobile) {
-          font-size: 20px;
-        }
-        @media screen and (max-height: 420px) {
-          font-size: 20px;
-        }
-      }
+    &__title {
+      font-size: 32px;
     }
   }
 }
