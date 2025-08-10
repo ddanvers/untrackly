@@ -40,7 +40,13 @@
           ></template>
           <ul class="chat-message__menu">
             <li class="chat-message__menu-item" @click="replyToMessage(message)">
-              Ответить <NuxtImg src="/icons/chat/reply.svg" width="24px"></NuxtImg>
+              <NuxtImg src="/icons/chat/reply.svg" width="16px"></NuxtImg>Ответить
+            </li>
+            <li class="chat-message__menu-item" @click="replyToMessage(message)">
+              <NuxtImg src="/icons/chat/pen.svg" width="16px"></NuxtImg>Редактировать
+            </li>
+            <li class="chat-message__menu-item" @click="replyToMessage(message)">
+              <NuxtImg src="/icons/chat/delete.svg" width="16px"></NuxtImg>Удалить
             </li>
           </ul>
         </CButtonDropdown>
@@ -266,7 +272,7 @@ $app-narrow-mobile: 364px;
         width: 20px;
         height: 20px;
         img {
-          filter: var(--app-filter-pink-500);
+          filter: var(--filter-primary-on-text);
         }
       }
       .chat-message__menu-btn {
@@ -276,48 +282,43 @@ $app-narrow-mobile: 364px;
         }
       }
       .chat-message__menu {
-        background: var(--app-blue-100);
-        border-radius: 6px;
-        padding: 6px;
+        background: var(--color-neutral-on-fill);
+        border: 1px solid var(--color-neutral-on-outline);
         display: flex;
-        gap: 4px;
-
+        flex-direction: column;
         .chat-message__menu-item {
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 4px 8px;
-          border-radius: 4px;
-          color: var(--app-text-primary);
+          padding: 8px;
+          color: var(--color-neutral-on-text);
           transition: background 0.3s ease;
           img {
-            filter: var(--app-filter-text-secondary);
+            filter: var(--filter-neutral-on-text);
           }
           &:hover {
-            background: var(--app-blue-200);
+            background: var(--color-neutral-on-hover);
           }
           &:active {
-            background: var(--app-blue-300);
+            ackground: var(--color-neutral-on-active);
           }
         }
       }
     }
   }
   .chat-message__reply-preview {
-    margin: 12px 0px 12px 12px;
+    margin: 12px 0px 12px 0px;
   }
 
   .message-form__reply {
     display: flex;
     align-items: center;
-    background: var(--app-blue-50);
-    border-left: 4px solid var(--app-pink-500);
-    border-radius: 8px;
+    border-left: 4px solid var(--color-primary-on-outline);
     padding: 8px 16px;
     cursor: pointer;
     transition: background 0.3s ease;
-
+    color: var(--color-neutral-on-text);
     &:hover {
       background: var(--app-blue-100);
     }
@@ -333,7 +334,7 @@ $app-narrow-mobile: 364px;
     }
 
     &-author {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 14px;
       color: var(--app-text-secondary);
     }
@@ -368,12 +369,11 @@ $app-narrow-mobile: 364px;
     margin-left: auto;
     margin-right: 0;
     .chat-message__bubble {
-      background: var(--app-blue-500);
-      color: var(--app-text-primary-white);
+      color: var(--color-neutral-on-text);
       position: relative;
     }
     .chat-message__group-text {
-      color: var(--app-text-primary-white);
+      color: var(--color-neutral-on-text);
     }
   }
   &__hint-read-status-list {

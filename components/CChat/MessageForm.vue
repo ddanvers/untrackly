@@ -7,7 +7,7 @@
   >
     <section v-if="props.replyingTo" class="message-form__reply" @click="goToReply">
       <div class="message-form__reply-content">
-        <span class="message-form__reply-author"> В ответ на </span>
+        <span class="message-form__reply-author"> В ответ на сообщение</span>
         <p class="message-form__reply-text">
           {{ props.replyingTo.text || "Файл" }}
         </p>
@@ -229,11 +229,9 @@ function detachFile(idx: number) {
   &__reply {
     display: flex;
     align-items: center;
-    background: var(--app-blue-50);
-    border-left: 4px solid var(--app-pink-500);
+    border-left: 4px solid var(--color-primary-on-outline);
     padding: 8px 16px;
-    border-radius: 8px;
-    margin: 0px 16px 12px;
+    margin: 0px 104px 12px;
     position: relative;
     transition: background 0.3s ease;
     cursor: pointer;
@@ -251,14 +249,14 @@ function detachFile(idx: number) {
     }
 
     &-author {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 14px;
-      color: var(--app-text-secondary);
+      color: var(--color-neutral-on-text);
     }
 
     &-text {
       font-size: 14px;
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       max-height: 40px;
       overflow: hidden;
       text-overflow: ellipsis;
