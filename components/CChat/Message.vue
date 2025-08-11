@@ -245,7 +245,6 @@ $app-narrow-mobile: 364px;
 .chat-message {
   max-width: 50%;
   padding: 12px;
-  border-radius: 12px;
   width: max-content;
   margin-right: auto;
   overflow: visible;
@@ -394,7 +393,6 @@ $app-narrow-mobile: 364px;
 }
 .chat-message__image {
   max-width: 100%;
-  border-radius: 8px;
   margin: 8px 0;
   display: block;
 }
@@ -403,7 +401,6 @@ $app-narrow-mobile: 364px;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  border-radius: 8px;
   padding: 8px 8px 4px 8px;
   margin-top: 8px;
   margin-bottom: 4px;
@@ -411,7 +408,6 @@ $app-narrow-mobile: 364px;
     display: flex;
     align-items: center;
     gap: 6px;
-    border-radius: 6px;
     height: 72px;
     flex: 1 1 calc(50% - 8px);
     position: relative;
@@ -423,7 +419,6 @@ $app-narrow-mobile: 364px;
       width: 100%;
       .file-attachment__img {
         height: calc(72px - 6px * 2);
-        border-radius: 4px;
         display: block;
         object-fit: cover;
         width: calc(100% - 8px);
@@ -452,7 +447,6 @@ $app-narrow-mobile: 364px;
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  border-radius: 6px;
   padding: 2px;
   display: flex;
   align-items: center;

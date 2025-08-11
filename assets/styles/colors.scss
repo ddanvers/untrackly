@@ -51,6 +51,7 @@
   --orange-2: #f8c765;
   --orange-1: #ffd98d;
 
+  --green-600: #13ce2f;
   --red-700: #c31b1b;
 }
 
@@ -76,6 +77,10 @@
   --color-neutral-on-muted: var(--gray-5);
 
   --color-negative-on-text: var(--red-700);
+  --color-negative-on-fill: var(--red-700);
+
+  --color-positive-on-text: var(--green-600);
+  --color-positive-on-fill: var(--green-600);
 
   --color-white: #000;
   --color-black: #fff;

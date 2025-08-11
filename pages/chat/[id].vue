@@ -101,10 +101,22 @@
     </section>
 
     <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
-      <div class="room-data">
-        <header class="room-data__header"><h2 class="room-data__title">Данные комнаты</h2></header>
+      <div class="room-data" ref="roomData" :class="{ 'room-data--compact': !roomDataExpanded }">
+        <header class="room-data__header">
+          <NuxtImg
+            class="room-data__compact-img"
+            src="/icons/chat/room/info.svg"
+            width="32px"
+          ></NuxtImg>
+          <h2 class="room-data__title">Данные комнаты</h2>
+        </header>
         <section class="room-data__body">
           <div class="room-data__block">
+            <NuxtImg
+              class="room-data__compact-img"
+              src="/icons/chat/room/door.svg"
+              width="32px"
+            ></NuxtImg>
             <h3 class="room-data__block-title">О комнате</h3>
             <div class="room-data__block-info">
               <ul class="room-data__block-list">
@@ -124,27 +136,64 @@
             </div>
           </div>
           <div class="room-data__block">
+            <NuxtImg
+              class="room-data__compact-img"
+              src="/icons/chat/room/people.svg"
+              width="32px"
+            ></NuxtImg>
             <h3 class="room-data__block-title">Участники</h3>
             <div class="room-data__block-info">
               <ul class="room-data__block-list">
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Вы</div>
-                  <div class="room-data__block-value">Онлайн</div>
+                  <div class="room-data__block-value">
+                    <div
+                      class="circle-state"
+                      :class="{
+                        'circle-state--active': true,
+                        'circle-state--error': false,
+                      }"
+                    ></div>
+                    в сети
+                  </div>
                 </li>
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Собеседник</div>
-                  <div class="room-data__block-value">разрыв соеднинеия</div>
+                  <div class="room-data__block-value">
+                    <div
+                      class="circle-state"
+                      :class="{
+                        'circle-state--active': true,
+                        'circle-state--error': false,
+                      }"
+                    ></div>
+                    разрыв соеднинеия
+                  </div>
                 </li>
               </ul>
             </div>
           </div>
           <div class="room-data__block">
+            <NuxtImg
+              class="room-data__compact-img"
+              src="/icons/chat/room/network.svg"
+              width="32px"
+            ></NuxtImg>
             <h3 class="room-data__block-title">Сеть</h3>
             <div class="room-data__block-info">
               <ul class="room-data__block-list">
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Подключение</div>
-                  <div class="room-data__block-value">стабильное</div>
+                  <div class="room-data__block-value">
+                    <div
+                      class="circle-state"
+                      :class="{
+                        'circle-state--active': true,
+                        'circle-state--error': false,
+                      }"
+                    ></div>
+                    стабильное
+                  </div>
                 </li>
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Отправлено</div>
@@ -159,21 +208,25 @@
           </div>
         </section>
         <footer class="room-data__footer">
-          <CButton variant="quaternary" textColor="var(--color-negative-on-text)"
+          <NuxtImg
+            class="room-data__footer-end-session room-data__compact-img"
+            src="/icons/chat/room/power_off.svg"
+            width="32px"
+          ></NuxtImg>
+          <CButton
+            class="room-data__footer-button"
+            variant="quaternary"
+            textColor="var(--color-negative-on-text)"
             >Завершить сеанс</CButton
           >
+          <NuxtImg
+            @click="roomDataExpanded = !roomDataExpanded"
+            class="room-data__footer-expand"
+            src="/icons/chat/room/arrow_expand_right.svg"
+            width="32px"
+          ></NuxtImg>
         </footer>
       </div>
-      <CChatWindow
-        title="Собеседник"
-        :messages="messages"
-        @sendMessage="sendMessage"
-        @sendAllFiles="sendFileHandler"
-        @readMessage="readMessage"
-        :meId="peer?.id || ''"
-        @call="onCall"
-        :isVideoCallMinimized="isVideoCallMinimized"
-      />
       <CChatVideoCall
         :visible="showCall"
         :incoming="callState === 'incoming'"
@@ -186,6 +239,16 @@
         @toggleMic="onToggleMic"
         @toggleCam="onToggleCam"
       />
+      <CChatWindow
+        title="Собеседник"
+        :messages="messages"
+        @sendMessage="sendMessage"
+        @sendAllFiles="sendFileHandler"
+        @readMessage="readMessage"
+        :meId="peer?.id || ''"
+        @call="onCall"
+        :isVideoCallMinimized="isVideoCallMinimized"
+      />
     </section>
   </main>
 </template>
@@ -197,7 +260,9 @@ definePageMeta({
 });
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
+const roomDataBlock = useTemplateRef("roomData");
 const consoleLogs = ref<string[]>([]);
+const roomDataExpanded = shallowRef(true);
 const waitingDots = shallowRef(0);
 let waitingInterval: number | null = null;
 let loadingStopped = false;
@@ -427,7 +492,14 @@ watch(isConnectionEstablished, () => {
     });
   }
 });
-
+watch(
+  () => showCall.value,
+  (val) => {
+    if (val) {
+      roomDataExpanded.value = false;
+    }
+  },
+);
 watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
   if (!show) return;
   const videoComp = document.querySelector(".video-call");
@@ -662,8 +734,42 @@ $app-small-height: 520px;
       border-radius: 0;
     }
     .room-data {
+      display: flex;
+      flex-direction: column;
       width: 582px;
       border-right: 1px solid var(--color-neutral-on-outline);
+      will-change: width;
+      transition: width 0.3s ease;
+      padding-bottom: 24px;
+      .room-data__compact-img {
+        display: none;
+      }
+      &--compact {
+        width: 92px;
+        .room-data__block-info,
+        .room-data__block-title,
+        .room-data__footer-button,
+        .room-data__title {
+          display: none;
+        }
+        .room-data__compact-img {
+          display: block;
+        }
+        .room-data__body,
+        .room-data__header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 24px;
+        }
+        .room-data__footer-expand {
+          transform: rotate(-180deg);
+        }
+        .room-data__footer-end-session,
+        .room-data__footer-expand {
+          cursor: pointer;
+        }
+      }
       &__header {
         background-color: var(--color-bg-on-primary);
         padding: 24px;
@@ -701,6 +807,9 @@ $app-small-height: 520px;
                 color: var(--color-neutral-on-text);
               }
               .room-data__block-value {
+                display: flex;
+                gap: 8px;
+                align-items: center;
                 font-size: 14px;
                 padding: 12px;
                 color: var(--color-neutral-on-muted);
@@ -711,87 +820,31 @@ $app-small-height: 520px;
       }
       .room-data__footer {
         display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
         justify-content: center;
         align-items: center;
         margin-top: 48px;
       }
+      &__footer-expand {
+        margin-top: auto;
+        margin-left: 24px;
+        margin-right: auto;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
     }
   }
-}
-.loader {
-  box-sizing: border-box;
-  display: inline-block;
-  width: 50px;
-  height: 80px;
-  border-top: 5px solid var(--app-text-primary);
-  border-bottom: 5px solid var(--app-text-primary);
-  position: relative;
-  background: linear-gradient(var(--app-pink-500) 30px, transparent 0) no-repeat;
-  background-size: 2px 40px;
-  background-position: 50% 0px;
-  animation: spinx 5s linear infinite;
-}
-.loader:before,
-.loader:after {
-  content: "";
-  width: 40px;
-  left: 50%;
-  height: 35px;
-  position: absolute;
-  top: 0;
-  transform: translatex(-50%);
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 0 0 20px 20px;
-  background-size: 100% auto;
-  background-repeat: no-repeat;
-  background-position: 0 0px;
-  animation: lqt 5s linear infinite;
-}
-.loader:after {
-  top: auto;
-  bottom: 0;
-  border-radius: 20px 20px 0 0;
-  animation: lqb 5s linear infinite;
-}
-@keyframes lqt {
-  0%,
-  100% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0% 0px;
-  }
-  50% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0% 40px;
-  }
-  50.1% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0% -40px;
-  }
-}
-@keyframes lqb {
-  0% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0 40px;
-  }
-  100% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0 -40px;
-  }
-}
-@keyframes spinx {
-  0%,
-  49% {
-    transform: rotate(0deg);
-    background-position: 50% 36px;
-  }
-  51%,
-  98% {
-    transform: rotate(180deg);
-    background-position: 50% 4px;
-  }
-  100% {
-    transform: rotate(360deg);
-    background-position: 50% 36px;
+  .circle-state {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    &--active {
+      background-color: var(--color-positive-on-fill);
+    }
+    &--error {
+      background-color: var(--color-negative-on-fill);
+    }
   }
 }
 .visually-hidden {
