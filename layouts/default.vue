@@ -45,5 +45,9 @@ $app-narrow-mobile: 364px;
   &--no-header {
     padding-top: 0;
   }
+  .page-content {
+    height: 100%;
+    width: 100%;
+  }
 }
 </style>

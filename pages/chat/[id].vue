@@ -232,6 +232,8 @@
         :incoming="callState === 'incoming'"
         :accepted="callState === 'active'"
         :callStatusText="callStatusText"
+        :local-stream="localStream"
+        :remote-stream="remoteStream"
         @minimize="onMinimizeVideoCall"
         @accept="onAcceptCall"
         @decline="onDeclineCall"
@@ -465,7 +467,7 @@ watch(isConnectionEstablished, () => {
     }
     consoleLogs.value.push("STATUS: connection established");
     // Countdown logic
-    let countdown = 5;
+    let countdown = 1;
     const countdownMessages = ["Initializing..."];
     let countdownIdx = 0;
     const showCountdown = () => {
@@ -737,6 +739,9 @@ $app-small-height: 520px;
       display: flex;
       flex-direction: column;
       width: 582px;
+      flex-shrink: 0;
+      overflow: hidden;
+      white-space: nowrap;
       border-right: 1px solid var(--color-neutral-on-outline);
       will-change: width;
       transition: width 0.3s ease;
