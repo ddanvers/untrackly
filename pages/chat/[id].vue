@@ -100,7 +100,15 @@
       </div>
     </section>
 
-    <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
+    <section
+      v-else-if="step === 'chat'"
+      class="chat-window"
+      aria-label="Окно чата"
+      :class="{
+        'chat-window--call-show': showCall,
+        'chat-window--chat-show': showChat,
+      }"
+    >
       <div class="room-data" ref="roomData" :class="{ 'room-data--compact': !roomDataExpanded }">
         <header class="room-data__header">
           <NuxtImg
@@ -227,30 +235,61 @@
           ></NuxtImg>
         </footer>
       </div>
-      <CChatVideoCall
-        :visible="showCall"
-        :incoming="callState === 'incoming'"
-        :accepted="callState === 'active'"
-        :callStatusText="callStatusText"
-        :local-stream="localStream"
-        :remote-stream="remoteStream"
-        @minimize="onMinimizeVideoCall"
-        @accept="onAcceptCall"
-        @decline="onDeclineCall"
-        @end="onEndCall"
-        @toggleMic="onToggleMic"
-        @toggleCam="onToggleCam"
-      />
-      <CChatWindow
-        title="Собеседник"
-        :messages="messages"
-        @sendMessage="sendMessage"
-        @sendAllFiles="sendFileHandler"
-        @readMessage="readMessage"
-        :meId="peer?.id || ''"
-        @call="onCall"
-        :isVideoCallMinimized="isVideoCallMinimized"
-      />
+      <div v-show="showCall" class="call-wrapper">
+        <CChatVideoCall
+          :visible="showCall"
+          :incoming="callState === 'incoming'"
+          :accepted="callState === 'active'"
+          :callStatusText="callStatusText"
+          :local-stream="localStream"
+          :remote-stream="remoteStream"
+          @minimize="onMinimizeVideoCall"
+          @accept="onAcceptCall"
+          @decline="onDeclineCall"
+          @end="onEndCall"
+          @toggleMic="onToggleMic"
+          @toggleCam="onToggleCam"
+        >
+          <template #headerButtons>
+            <CButton
+              @click="swapToChat"
+              bgColor="transparent"
+              variant="icon-default"
+              class="form__send"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg
+            ></CButton>
+          </template>
+        </CChatVideoCall>
+      </div>
+      <div v-show="showChat" class="chat-wrapper">
+        <CChatWindow
+          title="Собеседник"
+          :messages="messages"
+          @sendMessage="sendMessage"
+          :hide-header="false"
+          @sendAllFiles="sendFileHandler"
+          @readMessage="readMessage"
+          :meId="peer?.id || ''"
+          @call="onCall"
+          :isVideoCallMinimized="isVideoCallMinimized"
+        >
+          <template #headerButtons>
+            <div v-if="callState === 'active'" class="chat-header-buttons-wrapper">
+              <CButton
+                @click="swapToCall"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg
+              ></CButton>
+            </div>
+          </template>
+        </CChatWindow>
+      </div>
     </section>
   </main>
 </template>
@@ -285,6 +324,7 @@ const fixedHeight = shallowRef<number | null>(null);
 const animating = shallowRef(false);
 const displayText = shallowRef(getInviteLink());
 const showCall = ref(false);
+const showChat = ref(true);
 const isVideoCallMinimized = ref(false);
 const {
   messages,
@@ -319,7 +359,14 @@ function getInviteLink() {
   if (!window) return "Генерируем ссылку...";
   return `${window.location.href}?invited=true`;
 }
-
+function swapToCall() {
+  showChat.value = false;
+  showCall.value = true;
+}
+function swapToChat() {
+  showChat.value = true;
+  showCall.value = false;
+}
 async function copyInvitationLink() {
   if (copying.value) return;
   copying.value = true;
@@ -358,13 +405,13 @@ function goToChat() {
   });
   const LOADING_MESSAGES = [
     "DOMAIN: untrackly.com",
-    `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
-    "CONFIG: secure",
-    !isInvited.value
-      ? "LISTEN: waiting for incoming connections…"
-      : `CONNECT: dialing peer ${sessionId}…`,
-    "WHILE_LOADING: snake.exe",
-    "LAUNCH: game-module",
+    // `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
+    // "CONFIG: secure",
+    // !isInvited.value
+    //   ? "LISTEN: waiting for incoming connections…"
+    //   : `CONNECT: dialing peer ${sessionId}…`,
+    // "WHILE_LOADING: snake.exe",
+    // "LAUNCH: game-module",
   ];
   let idx = 0;
   loadingStopped = false;
@@ -525,7 +572,6 @@ $app-narrow-mobile: 364px;
 $app-medium-height: 750px;
 $app-small-height: 520px;
 .chat-page {
-  height: 100%;
   min-height: 100vh;
   width: 100%;
   background: var(--app-pink-gradient-bg);
@@ -727,13 +773,27 @@ $app-small-height: 520px;
 
   .chat-window {
     display: flex;
-    width: 100%;
-    height: 100%;
+    height: 100vh;
+    width: 100vw;
     overflow: hidden;
-    @media screen and (max-width: $app-laptop) {
-      height: 100vh;
-      width: 100vw;
-      border-radius: 0;
+    .chat-wrapper,
+    .call-wrapper {
+      width: 100%;
+      height: 100%;
+      .chat-header-buttons-wrapper {
+        display: none;
+      }
+      @media screen and (max-width: $app-desktop) {
+        height: 100vh;
+        flex-shrink: 0;
+        .chat-header-buttons-wrapper {
+          display: block;
+        }
+      }
+    }
+    @media screen and (max-width: $app-desktop) {
+      height: max-content;
+      flex-direction: column;
     }
     .room-data {
       display: flex;
@@ -746,33 +806,43 @@ $app-small-height: 520px;
       will-change: width;
       transition: width 0.3s ease;
       padding-bottom: 24px;
+      @media screen and (max-width: $app-desktop) {
+        order: 3;
+        width: 100%;
+        height: 100vh;
+        &__footer-expand {
+          display: none;
+        }
+      }
       .room-data__compact-img {
         display: none;
       }
-      &--compact {
-        width: 92px;
-        .room-data__block-info,
-        .room-data__block-title,
-        .room-data__footer-button,
-        .room-data__title {
-          display: none;
-        }
-        .room-data__compact-img {
-          display: block;
-        }
-        .room-data__body,
-        .room-data__header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 24px;
-        }
-        .room-data__footer-expand {
-          transform: rotate(-180deg);
-        }
-        .room-data__footer-end-session,
-        .room-data__footer-expand {
-          cursor: pointer;
+      @media screen and (min-width: $app-desktop) {
+        &--compact {
+          width: 92px;
+          .room-data__block-info,
+          .room-data__block-title,
+          .room-data__footer-button,
+          .room-data__title {
+            display: none;
+          }
+          .room-data__compact-img {
+            display: block;
+          }
+          .room-data__body,
+          .room-data__header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+          }
+          .room-data__footer-expand {
+            transform: rotate(-180deg);
+          }
+          .room-data__footer-end-session,
+          .room-data__footer-expand {
+            cursor: pointer;
+          }
         }
       }
       &__header {
@@ -837,6 +907,13 @@ $app-small-height: 520px;
         margin-right: auto;
         cursor: pointer;
         transition: transform 0.3s ease;
+      }
+    }
+    @media screen and (max-width: $app-desktop) {
+      &--call-show {
+        .chat-wrapper {
+          display: none;
+        }
       }
     }
   }

@@ -1,13 +1,18 @@
 <template>
   <section
     class="video-call"
-    v-if="visible"
+    v-show="visible"
     :class="{
       'video-call--minimized': isMinimized,
     }"
     :style="movedWindowPosition"
     ref="videoCallEl"
   >
+    <CChatHeader class="video-call__header" title="Собеседник">
+      <template #buttons>
+        <slot name="headerButtons"> </slot>
+      </template>
+    </CChatHeader>
     <div class="video-call__content">
       <header class="video-call__header">
         <!-- <CButton
@@ -303,15 +308,17 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .video-call {
-  width: 200%;
+  width: 100%;
+  height: 100%;
   max-height: 100%;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
@@ -321,6 +328,12 @@ $app-narrow-mobile: 364px;
     border-radius: 0;
     top: 0;
     bottom: 0;
+  }
+  &__header {
+    display: none;
+    @media screen and (max-width: $app-desktop) {
+      display: flex;
+    }
   }
   &__content {
     position: relative;

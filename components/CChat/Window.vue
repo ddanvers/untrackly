@@ -1,28 +1,29 @@
 <template>
   <section class="chat">
-    <header class="chat__header">
-      <span class="chat__title">{{ title }}</span>
-      <nav class="chat__actions">
-        <CButton
-          @click="onVideoCall"
-          bgColor="transparent"
-          variant="icon-default"
-          class="form__send"
-          size="large"
-          icon-size="i-large"
-          ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg
-        ></CButton>
-        <CButton
-          @click="onAudioCall"
-          bgColor="transparent"
-          variant="icon-default"
-          class="form__send"
-          size="large"
-          icon-size="i-large"
-          ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg
-        ></CButton>
-      </nav>
-    </header>
+    <CChatHeader title="Собеседник">
+      <template #buttons>
+        <slot name="headerButtons">
+          <CButton
+            @click="onVideoCall"
+            bgColor="transparent"
+            variant="icon-default"
+            class="form__send"
+            size="large"
+            icon-size="i-large"
+            ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg
+          ></CButton>
+          <CButton
+            @click="onAudioCall"
+            bgColor="transparent"
+            variant="icon-default"
+            class="form__send"
+            size="large"
+            icon-size="i-large"
+            ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg
+          ></CButton>
+        </slot>
+      </template>
+    </CChatHeader>
     <section
       class="chat__body"
       :class="{
@@ -233,7 +234,7 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
@@ -243,27 +244,6 @@ $app-narrow-mobile: 364px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  &__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px;
-    background-color: var(--color-bg-on-primary);
-  }
-  &__actions {
-    display: flex;
-    gap: 8px;
-    img {
-      // filter: var(--app-filter-pink-500);
-    }
-  }
-  &__title {
-    font-size: 32px;
-    color: var(--color-primary-on-text);
-    @media screen and (max-width: $app-mobile) {
-      font-size: 24px;
-    }
-  }
   &__body {
     display: flex;
     flex-direction: column;
