@@ -1,28 +1,29 @@
 <template>
   <section class="chat">
-    <header class="chat__header">
-      <span class="chat__title">{{ title }}</span>
-      <nav class="chat__actions">
-        <CButton
-          @click="onVideoCall"
-          bgColor="transparent"
-          variant="icon-default"
-          class="form__send"
-          size="large"
-          icon-size="i-large"
-          ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg
-        ></CButton>
-        <CButton
-          @click="onAudioCall"
-          bgColor="transparent"
-          variant="icon-default"
-          class="form__send"
-          size="large"
-          icon-size="i-large"
-          ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg
-        ></CButton>
-      </nav>
-    </header>
+    <CChatHeader title="Собеседник">
+      <template #buttons>
+        <slot name="headerButtons">
+          <CButton
+            @click="onVideoCall"
+            bgColor="transparent"
+            variant="icon-default"
+            class="form__send"
+            size="large"
+            icon-size="i-large"
+            ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg
+          ></CButton>
+          <CButton
+            @click="onAudioCall"
+            bgColor="transparent"
+            variant="icon-default"
+            class="form__send"
+            size="large"
+            icon-size="i-large"
+            ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg
+          ></CButton>
+        </slot>
+      </template>
+    </CChatHeader>
     <section
       class="chat__body"
       :class="{
@@ -31,18 +32,21 @@
       ref="bodyRef"
       @scroll="onScroll"
     >
-      <CChatMessage
-        class="chat__message"
-        v-for="msg in messages"
-        :id="msg.id"
-        :key="msg.id"
-        :message="msg"
-        :isMe="msg.sender === meId"
-        :meId="meId"
-        @read="onRead(msg.id)"
-        @reply="onReply"
-        @scroll-to-message="scrollToMessage"
-      />
+      <div v-if="messages.length">
+        <CChatMessage
+          class="chat__message"
+          v-for="msg in messages"
+          :id="msg.id"
+          :key="msg.id"
+          :message="msg"
+          :isMe="msg.sender === meId"
+          :meId="meId"
+          @read="onRead(msg.id)"
+          @reply="onReply"
+          @scroll-to-message="scrollToMessage"
+        />
+      </div>
+      <div v-else class="chat__body--empty">Чат пуст. Всё готово к обмену сообщениями</div>
     </section>
     <CChatMessageForm
       @send="sendMessage"
@@ -230,7 +234,7 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
@@ -240,31 +244,11 @@ $app-narrow-mobile: 364px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  &__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px;
-  }
-  &__actions {
-    display: flex;
-    gap: 8px;
-    img {
-      // filter: var(--app-filter-pink-500);
-    }
-  }
-  &__title {
-    font-size: 32px;
-    color: var(--color-primary-on-text);
-    @media screen and (max-width: $app-mobile) {
-      font-size: 24px;
-    }
-  }
   &__body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background-color: var(--color-bg-on-primary);
+    background-color: var(--color-bg-on-secondary);
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
@@ -279,6 +263,14 @@ $app-narrow-mobile: 364px;
       &--highlight {
         animation: pulse-highlight 2s ease both;
       }
+    }
+    &--empty {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      color: var(--color-neutral-on-text);
     }
   }
 }

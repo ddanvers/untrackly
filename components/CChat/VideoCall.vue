@@ -1,88 +1,96 @@
 <template>
-  <Teleport to="body">
-    <section
-      class="video-call"
-      v-if="visible"
-      :class="{
-        'video-call--minimized': isMinimized,
-      }"
-      :style="movedWindowPosition"
-      ref="videoCallEl"
-    >
-      <div class="video-call__content">
-        <header class="video-call__header">
-          <CButton
-            class="video-call__drag-btn"
-            @dragstart.prevent
-            @mousedown.prevent="startDrag"
-            @touchstart.prevent="startDrag"
-            :class="{
-              'video-call__drag-btn--hidden': !isMinimized,
-            }"
-            variant="icon-default"
-            iconSize="i-large"
-          >
-            <NuxtImg src="/icons/cursor_move.svg" width="32px"></NuxtImg>
-          </CButton>
-          <h2 class="video-call__title" v-show="!isMinimized">{{ callStatusText }}</h2>
-          <CButton
-            variant="icon-default"
-            iconSize="i-large"
-            class="video-call__minimize-btn"
-            @click="toggleWindowMinimize"
-          >
-            <NuxtImg
-              :src="isMinimized ? '/icons/maximize_window.svg' : '/icons/minimize_window.svg'"
-              width="32px"
-            ></NuxtImg>
-          </CButton>
-        </header>
-        <div class="video-call__videos">
-          <video ref="myVideo" class="video-call__my-video" autoplay playsinline muted></video>
-          <video ref="remoteVideo" class="video-call__remote-video" autoplay playsinline></video>
-        </div>
-        <nav class="video-call__controls">
-          <CButton
-            variant="icon-default"
-            iconSize="i-large"
-            @click="toggleMic"
-            :class="{ active: micState }"
-          >
-            <NuxtImg
-              :src="micState ? '/icons/chat/microphone.svg' : '/icons/chat/microphone-off.svg'"
-              width="32px"
-            ></NuxtImg>
-          </CButton>
-          <CButton
-            variant="icon-default"
-            iconSize="i-large"
-            @click="toggleCam"
-            :class="{ active: camState }"
-          >
-            <NuxtImg
-              :src="camState ? '/icons/chat/camera.svg' : '/icons/chat/camera-off.svg'"
-              width="32px"
-            ></NuxtImg>
-          </CButton>
-          <CButton
-            class="video-call__end-btn"
-            bgColor="var(--app-color-negavite)"
-            variant="icon-default"
-            iconSize="i-large"
-            @click="onEndCall"
-            ><NuxtImg src="/icons/chat/call_end.svg" width="32px"></NuxtImg
-          ></CButton>
-        </nav>
+  <section
+    class="video-call"
+    v-show="visible"
+    :class="{
+      'video-call--minimized': isMinimized,
+    }"
+    :style="movedWindowPosition"
+    ref="videoCallEl"
+  >
+    <CChatHeader class="video-call__header" title="Собеседник">
+      <template #buttons>
+        <slot name="headerButtons"> </slot>
+      </template>
+    </CChatHeader>
+    <div class="video-call__content">
+      <header class="video-call__header">
+        <!-- <CButton
+          class="video-call__drag-btn"
+          @dragstart.prevent
+          @mousedown.prevent="startDrag"
+          @touchstart.prevent="startDrag"
+          :class="{
+            'video-call__drag-btn--hidden': !isMinimized,
+          }"
+          variant="icon-default"
+          iconSize="i-large"
+        >
+          <NuxtImg src="/icons/cursor_move.svg" width="32px"></NuxtImg>
+        </CButton> -->
+        <h2 class="video-call__title" v-show="!isMinimized">{{ callStatusText }}</h2>
+        <!-- <CButton
+          variant="icon-default"
+          iconSize="i-large"
+          class="video-call__minimize-btn"
+          @click="toggleWindowMinimize"
+        >
+          <NuxtImg
+            :src="isMinimized ? '/icons/maximize_window.svg' : '/icons/minimize_window.svg'"
+            width="32px"
+          ></NuxtImg>
+        </CButton> -->
+      </header>
+      <div class="video-call__videos">
+        <video ref="myVideo" class="video-call__my-video" autoplay playsinline muted></video>
+        <video ref="remoteVideo" class="video-call__remote-video" autoplay playsinline></video>
       </div>
-      <section v-if="incoming && !accepted" class="video-call__incoming">
-        <h3 class="video-call__incoming-title">Входящий звонок...</h3>
-        <nav class="video-call__incoming-actions">
-          <CButton variant="primary" @click="onAcceptCall">Принять</CButton>
-          <CButton variant="quaternary" @click="onDeclineCall">Отклонить</CButton>
-        </nav>
-      </section>
+      <nav class="video-call__controls">
+        <CButton
+          variant="icon-default"
+          iconSize="i-large"
+          @click="toggleMic"
+          :class="{ active: micState }"
+        >
+          <NuxtImg
+            :src="micState ? '/icons/chat/microphone.svg' : '/icons/chat/microphone-off.svg'"
+            width="32px"
+          ></NuxtImg>
+        </CButton>
+        <CButton
+          variant="icon-default"
+          iconSize="i-large"
+          @click="toggleCam"
+          :class="{ active: camState }"
+        >
+          <NuxtImg
+            :src="camState ? '/icons/chat/camera.svg' : '/icons/chat/camera-off.svg'"
+            width="32px"
+          ></NuxtImg>
+        </CButton>
+        <CButton
+          class="video-call__end-btn"
+          bgColor="var(--app-color-negavite)"
+          variant="icon-default"
+          iconSize="i-large"
+          @click="onEndCall"
+          ><NuxtImg src="/icons/chat/call_end.svg" width="32px"></NuxtImg
+        ></CButton>
+      </nav>
+    </div>
+    <section v-if="incoming && !accepted" class="video-call__incoming">
+      <h3 class="video-call__incoming-title">Входящий звонок...</h3>
+      <nav class="video-call__incoming-actions">
+        <CButton variant="primary" @click="onAcceptCall">Принять</CButton>
+        <CButton
+          variant="quaternary"
+          @click="onDeclineCall"
+          textColor="var(--color-negative-on-text)"
+          >Отклонить</CButton
+        >
+      </nav>
     </section>
-  </Teleport>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -300,23 +308,20 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .video-call {
-  position: fixed;
-  z-index: 10000;
-  width: 960px;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 24px;
-  bottom: 24px;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
   @media screen and (max-width: $app-laptop) {
     height: 100vh;
     width: 100vw;
@@ -324,29 +329,32 @@ $app-narrow-mobile: 364px;
     top: 0;
     bottom: 0;
   }
+  &__header {
+    display: none;
+    @media screen and (max-width: $app-desktop) {
+      display: flex;
+    }
+  }
   &__content {
     position: relative;
-    width: 90vw;
-    max-width: 900px;
-    height: 80vh;
-    background: var(--app-blue-50);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px #0008;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    background: var(--color-bg-on-secondary);
+    border: 1px solid var(--color-neutral-on-outline);
+    border-bottom: none;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 16px;
-    @media screen and (max-height: 750px) {
-      height: 90vh;
-    }
     .video-call__header {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
       width: 100%;
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       font-size: 22px;
-      margin: 12px 0px 24px 0px;
+      margin: 24px 0px;
       .video-call__title {
         font-size: 24px;
         font-weight: 400;
@@ -379,31 +387,27 @@ $app-narrow-mobile: 364px;
       display: flex;
       align-items: flex-start;
       justify-content: center;
+      padding: 16px;
     }
     .video-call__my-video {
       position: absolute;
       right: 32px;
-      bottom: 32px;
-      width: 180px;
-      height: 120px;
+      top: 32px;
+      width: 212px;
       transition:
         width 0.2s ease,
         height 0.2s ease;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px #000a;
-      background: var(--app-text-secondary);
+      background: var(--color-bg-on-secondary);
       object-fit: contain;
       z-index: 2;
     }
     .video-call__remote-video {
-      width: 70vw;
-      max-width: 700px;
-      height: 60vh;
-      border-radius: 18px;
+      max-width: 100%;
+      height: 100%;
       transition:
         width 0.2s ease,
         height 0.2s ease;
-      background: var(--app-text-secondary);
+      background: var(--color-bg-on-secondary);
       object-fit: contain;
       z-index: 1;
     }
@@ -412,7 +416,9 @@ $app-narrow-mobile: 364px;
       justify-content: center;
       align-items: center;
       gap: 32px;
-      margin: 24px 0 16px 0;
+      padding: 32px;
+      width: 100%;
+      border-top: 1px solid var(--color-neutral-on-outline);
       img {
         filter: var(--app-filter-black);
       }
@@ -428,10 +434,9 @@ $app-narrow-mobile: 364px;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    background: var(--app-blue-200);
-    border-radius: 16px;
+    background: var(--color-bg-on-secondary-light);
     padding: 32px 48px;
-    color: var(--app-text-primary);
+    color: var(--color-neutral-on-text);
     display: flex;
     flex-direction: column;
     align-items: center;

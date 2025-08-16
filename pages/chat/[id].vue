@@ -100,29 +100,196 @@
       </div>
     </section>
 
-    <section v-else-if="step === 'chat'" class="chat-window" aria-label="Окно чата">
-      <CChatWindow
-        title="Собеседник"
-        :messages="messages"
-        @sendMessage="sendMessage"
-        @sendAllFiles="sendFileHandler"
-        @readMessage="readMessage"
-        :meId="peer?.id || ''"
-        @call="onCall"
-        :isVideoCallMinimized="isVideoCallMinimized"
-      />
-      <CChatVideoCall
-        :visible="showCall"
-        :incoming="callState === 'incoming'"
-        :accepted="callState === 'active'"
-        :callStatusText="callStatusText"
-        @minimize="onMinimizeVideoCall"
-        @accept="onAcceptCall"
-        @decline="onDeclineCall"
-        @end="onEndCall"
-        @toggleMic="onToggleMic"
-        @toggleCam="onToggleCam"
-      />
+    <section
+      v-else-if="step === 'chat'"
+      class="chat-window"
+      aria-label="Окно чата"
+      :class="{
+        'chat-window--call-show': showCall,
+        'chat-window--chat-show': showChat,
+      }"
+    >
+      <div class="room-data" ref="roomData" :class="{ 'room-data--compact': !roomDataExpanded }">
+        <header class="room-data__header">
+          <NuxtImg
+            class="room-data__compact-img"
+            src="/icons/chat/room/info.svg"
+            width="32px"
+          ></NuxtImg>
+          <h2 class="room-data__title">Данные комнаты</h2>
+        </header>
+        <section class="room-data__body">
+          <div class="room-data__block">
+            <NuxtImg
+              class="room-data__compact-img"
+              src="/icons/chat/room/door.svg"
+              width="32px"
+            ></NuxtImg>
+            <h3 class="room-data__block-title">О комнате</h3>
+            <div class="room-data__block-info">
+              <ul class="room-data__block-list">
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">ID</div>
+                  <div class="room-data__block-value">{{ peer?.id }}</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Дата создания</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Дата изменения</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="room-data__block">
+            <NuxtImg
+              class="room-data__compact-img"
+              src="/icons/chat/room/people.svg"
+              width="32px"
+            ></NuxtImg>
+            <h3 class="room-data__block-title">Участники</h3>
+            <div class="room-data__block-info">
+              <ul class="room-data__block-list">
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Вы</div>
+                  <div class="room-data__block-value">
+                    <div
+                      class="circle-state"
+                      :class="{
+                        'circle-state--active': true,
+                        'circle-state--error': false,
+                      }"
+                    ></div>
+                    в сети
+                  </div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Собеседник</div>
+                  <div class="room-data__block-value">
+                    <div
+                      class="circle-state"
+                      :class="{
+                        'circle-state--active': true,
+                        'circle-state--error': false,
+                      }"
+                    ></div>
+                    разрыв соеднинеия
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="room-data__block">
+            <NuxtImg
+              class="room-data__compact-img"
+              src="/icons/chat/room/network.svg"
+              width="32px"
+            ></NuxtImg>
+            <h3 class="room-data__block-title">Сеть</h3>
+            <div class="room-data__block-info">
+              <ul class="room-data__block-list">
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Подключение</div>
+                  <div class="room-data__block-value">
+                    <div
+                      class="circle-state"
+                      :class="{
+                        'circle-state--active': true,
+                        'circle-state--error': false,
+                      }"
+                    ></div>
+                    стабильное
+                  </div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Отправлено</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+                <li class="room-data__block-item">
+                  <div class="room-data__block-label">Получено</div>
+                  <div class="room-data__block-value">-</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <footer class="room-data__footer">
+          <NuxtImg
+            class="room-data__footer-end-session room-data__compact-img"
+            src="/icons/chat/room/power_off.svg"
+            width="32px"
+          ></NuxtImg>
+          <CButton
+            class="room-data__footer-button"
+            variant="quaternary"
+            textColor="var(--color-negative-on-text)"
+            >Завершить сеанс</CButton
+          >
+          <NuxtImg
+            @click="roomDataExpanded = !roomDataExpanded"
+            class="room-data__footer-expand"
+            src="/icons/chat/room/arrow_expand_right.svg"
+            width="32px"
+          ></NuxtImg>
+        </footer>
+      </div>
+      <div v-show="showCall" class="call-wrapper">
+        <CChatVideoCall
+          :visible="showCall"
+          :incoming="callState === 'incoming'"
+          :accepted="callState === 'active'"
+          :callStatusText="callStatusText"
+          :local-stream="localStream"
+          :remote-stream="remoteStream"
+          @minimize="onMinimizeVideoCall"
+          @accept="onAcceptCall"
+          @decline="onDeclineCall"
+          @end="onEndCall"
+          @toggleMic="onToggleMic"
+          @toggleCam="onToggleCam"
+        >
+          <template #headerButtons>
+            <CButton
+              @click="swapToChat"
+              bgColor="transparent"
+              variant="icon-default"
+              class="form__send"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg
+            ></CButton>
+          </template>
+        </CChatVideoCall>
+      </div>
+      <div v-show="showChat" class="chat-wrapper">
+        <CChatWindow
+          title="Собеседник"
+          :messages="messages"
+          @sendMessage="sendMessage"
+          :hide-header="false"
+          @sendAllFiles="sendFileHandler"
+          @readMessage="readMessage"
+          :meId="peer?.id || ''"
+          @call="onCall"
+          :isVideoCallMinimized="isVideoCallMinimized"
+        >
+          <template #headerButtons>
+            <div v-if="callState === 'active'" class="chat-header-buttons-wrapper">
+              <CButton
+                @click="swapToCall"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg
+              ></CButton>
+            </div>
+          </template>
+        </CChatWindow>
+      </div>
     </section>
   </main>
 </template>
@@ -134,7 +301,9 @@ definePageMeta({
 });
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
+const roomDataBlock = useTemplateRef("roomData");
 const consoleLogs = ref<string[]>([]);
+const roomDataExpanded = shallowRef(true);
 const waitingDots = shallowRef(0);
 let waitingInterval: number | null = null;
 let loadingStopped = false;
@@ -155,6 +324,7 @@ const fixedHeight = shallowRef<number | null>(null);
 const animating = shallowRef(false);
 const displayText = shallowRef(getInviteLink());
 const showCall = ref(false);
+const showChat = ref(true);
 const isVideoCallMinimized = ref(false);
 const {
   messages,
@@ -189,7 +359,14 @@ function getInviteLink() {
   if (!window) return "Генерируем ссылку...";
   return `${window.location.href}?invited=true`;
 }
-
+function swapToCall() {
+  showChat.value = false;
+  showCall.value = true;
+}
+function swapToChat() {
+  showChat.value = true;
+  showCall.value = false;
+}
 async function copyInvitationLink() {
   if (copying.value) return;
   copying.value = true;
@@ -228,13 +405,13 @@ function goToChat() {
   });
   const LOADING_MESSAGES = [
     "DOMAIN: untrackly.com",
-    `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
-    "CONFIG: secure",
-    !isInvited.value
-      ? "LISTEN: waiting for incoming connections…"
-      : `CONNECT: dialing peer ${sessionId}…`,
-    "WHILE_LOADING: snake.exe",
-    "LAUNCH: game-module",
+    // `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
+    // "CONFIG: secure",
+    // !isInvited.value
+    //   ? "LISTEN: waiting for incoming connections…"
+    //   : `CONNECT: dialing peer ${sessionId}…`,
+    // "WHILE_LOADING: snake.exe",
+    // "LAUNCH: game-module",
   ];
   let idx = 0;
   loadingStopped = false;
@@ -337,7 +514,7 @@ watch(isConnectionEstablished, () => {
     }
     consoleLogs.value.push("STATUS: connection established");
     // Countdown logic
-    let countdown = 5;
+    let countdown = 1;
     const countdownMessages = ["Initializing..."];
     let countdownIdx = 0;
     const showCountdown = () => {
@@ -364,7 +541,14 @@ watch(isConnectionEstablished, () => {
     });
   }
 });
-
+watch(
+  () => showCall.value,
+  (val) => {
+    if (val) {
+      roomDataExpanded.value = false;
+    }
+  },
+);
 watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
   if (!show) return;
   const videoComp = document.querySelector(".video-call");
@@ -388,7 +572,6 @@ $app-narrow-mobile: 364px;
 $app-medium-height: 750px;
 $app-small-height: 520px;
 .chat-page {
-  height: 100%;
   min-height: 100vh;
   width: 100%;
   background: var(--app-pink-gradient-bg);
@@ -399,10 +582,6 @@ $app-small-height: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  @media screen and (max-width: $app-laptop) {
-    padding: 12px;
-  }
   .chat-invitation {
     display: flex;
     flex-direction: column;
@@ -593,90 +772,161 @@ $app-small-height: 520px;
   }
 
   .chat-window {
-    width: 100%;
-    height: calc(100% - 48px);
+    display: flex;
+    height: 100vh;
+    width: 100vw;
     overflow: hidden;
-    @media screen and (max-width: $app-laptop) {
-      height: 100vh;
-      width: 100vw;
-      border-radius: 0;
+    .chat-wrapper,
+    .call-wrapper {
+      width: 100%;
+      height: 100%;
+      .chat-header-buttons-wrapper {
+        display: none;
+      }
+      @media screen and (max-width: $app-desktop) {
+        height: 100vh;
+        flex-shrink: 0;
+        .chat-header-buttons-wrapper {
+          display: block;
+        }
+      }
+    }
+    @media screen and (max-width: $app-desktop) {
+      height: max-content;
+      flex-direction: column;
+    }
+    .room-data {
+      display: flex;
+      flex-direction: column;
+      width: 582px;
+      flex-shrink: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      border-right: 1px solid var(--color-neutral-on-outline);
+      will-change: width;
+      transition: width 0.3s ease;
+      padding-bottom: 24px;
+      @media screen and (max-width: $app-desktop) {
+        order: 3;
+        width: 100%;
+        height: 100vh;
+        &__footer-expand {
+          display: none;
+        }
+      }
+      .room-data__compact-img {
+        display: none;
+      }
+      @media screen and (min-width: $app-desktop) {
+        &--compact {
+          width: 92px;
+          .room-data__block-info,
+          .room-data__block-title,
+          .room-data__footer-button,
+          .room-data__title {
+            display: none;
+          }
+          .room-data__compact-img {
+            display: block;
+          }
+          .room-data__body,
+          .room-data__header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+          }
+          .room-data__footer-expand {
+            transform: rotate(-180deg);
+          }
+          .room-data__footer-end-session,
+          .room-data__footer-expand {
+            cursor: pointer;
+          }
+        }
+      }
+      &__header {
+        background-color: var(--color-bg-on-primary);
+        padding: 24px;
+        .room-data__title {
+          color: var(--color-primary-on-text);
+          font-size: 32px;
+        }
+      }
+      &__body {
+        display: flex;
+        gap: 8px;
+        flex-direction: column;
+        padding: 12px;
+        .room-data__block {
+          display: flex;
+          gap: 12px;
+          flex-direction: column;
+          .room-data__block-title {
+            padding: 12px;
+            color: var(--color-primary-on-text);
+            font-size: 18px;
+            border-bottom: 1px solid var(--color-neutral-on-outline);
+          }
+          .room-data__block-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            .room-data__block-item {
+              display: flex;
+              gap: 24px;
+              .room-data__block-label {
+                font-size: 16px;
+                width: 160px;
+                padding: 12px;
+                color: var(--color-neutral-on-text);
+              }
+              .room-data__block-value {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                font-size: 14px;
+                padding: 12px;
+                color: var(--color-neutral-on-muted);
+              }
+            }
+          }
+        }
+      }
+      .room-data__footer {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        justify-content: center;
+        align-items: center;
+        margin-top: 48px;
+      }
+      &__footer-expand {
+        margin-top: auto;
+        margin-left: 24px;
+        margin-right: auto;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+    }
+    @media screen and (max-width: $app-desktop) {
+      &--call-show {
+        .chat-wrapper {
+          display: none;
+        }
+      }
     }
   }
-}
-.loader {
-  box-sizing: border-box;
-  display: inline-block;
-  width: 50px;
-  height: 80px;
-  border-top: 5px solid var(--app-text-primary);
-  border-bottom: 5px solid var(--app-text-primary);
-  position: relative;
-  background: linear-gradient(var(--app-pink-500) 30px, transparent 0) no-repeat;
-  background-size: 2px 40px;
-  background-position: 50% 0px;
-  animation: spinx 5s linear infinite;
-}
-.loader:before,
-.loader:after {
-  content: "";
-  width: 40px;
-  left: 50%;
-  height: 35px;
-  position: absolute;
-  top: 0;
-  transform: translatex(-50%);
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 0 0 20px 20px;
-  background-size: 100% auto;
-  background-repeat: no-repeat;
-  background-position: 0 0px;
-  animation: lqt 5s linear infinite;
-}
-.loader:after {
-  top: auto;
-  bottom: 0;
-  border-radius: 20px 20px 0 0;
-  animation: lqb 5s linear infinite;
-}
-@keyframes lqt {
-  0%,
-  100% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0% 0px;
-  }
-  50% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0% 40px;
-  }
-  50.1% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0% -40px;
-  }
-}
-@keyframes lqb {
-  0% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0 40px;
-  }
-  100% {
-    background-image: linear-gradient(var(--app-pink-500) 40px, transparent 0);
-    background-position: 0 -40px;
-  }
-}
-@keyframes spinx {
-  0%,
-  49% {
-    transform: rotate(0deg);
-    background-position: 50% 36px;
-  }
-  51%,
-  98% {
-    transform: rotate(180deg);
-    background-position: 50% 4px;
-  }
-  100% {
-    transform: rotate(360deg);
-    background-position: 50% 36px;
+  .circle-state {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    &--active {
+      background-color: var(--color-positive-on-fill);
+    }
+    &--error {
+      background-color: var(--color-negative-on-fill);
+    }
   }
 }
 .visually-hidden {

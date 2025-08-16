@@ -115,6 +115,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           (data.type === "call-request" ||
             data.type === "call-decline" ||
             data.type === "call-end" ||
+            data.type === "ping" ||
             data.type === "video-on" ||
             data.type === "video-off" ||
             data.type === "restart-call-with-video")) ||

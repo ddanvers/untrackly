@@ -48,10 +48,9 @@ onMounted(() => {
   left: calc(50% + v-bind("props.leftOffset"));
   top: calc(100% + 16px + v-bind("props.topOffset"));
   transform: translateX(-50%);
-  border-radius: 6px;
-  background: var(--app-text-secondary);
+  background: var(--color-neutral-on-fill);
   box-shadow: 0px 3px 8px 0px rgba(0, 0, 0, 0.2);
-  color: var(--app-text-primary);
+  color: var(--color-neutral-on-text);
   width: max-content;
   z-index: 10;
   transition: opacity 0.3s ease;

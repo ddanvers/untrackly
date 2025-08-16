@@ -7,7 +7,7 @@
   >
     <section v-if="props.replyingTo" class="message-form__reply" @click="goToReply">
       <div class="message-form__reply-content">
-        <span class="message-form__reply-author"> В ответ на </span>
+        <span class="message-form__reply-author"> В ответ на сообщение</span>
         <p class="message-form__reply-text">
           {{ props.replyingTo.text || "Файл" }}
         </p>
@@ -55,15 +55,18 @@
         ><NuxtImg src="/icons/chat/attach_file.svg" width="32px"></NuxtImg
       ></CButton>
       <input ref="fileInput" type="file" multiple style="display: none" @change="onFileChange" />
-      <textarea
-        v-model="text"
-        class="message-form__input"
-        type="text"
-        placeholder="Напишите ваше сообщение"
-        @keyup.enter="sendMessage"
-        @paste="onPaste"
-        rows="3"
-      />
+      <div class="message-form__input-wrapper">
+        <CInput
+          v-model="text"
+          class="message-form__input"
+          placeholder="Напишите ваше сообщение"
+          @keyup.enter="sendMessage"
+          @paste="onPaste"
+          type="textarea"
+          :rows="2"
+        />
+      </div>
+
       <CButton
         bgColor="transparent"
         variant="icon-default"
@@ -222,15 +225,13 @@ function detachFile(idx: number) {
   flex-direction: column;
   gap: 8px;
   padding-top: 16px;
-  background-color: var(--app-dirty-blue-100);
+  border-top: 1px solid var(--color-neutral-on-outline);
   &__reply {
     display: flex;
     align-items: center;
-    background: var(--app-blue-50);
-    border-left: 4px solid var(--app-pink-500);
+    border-left: 4px solid var(--color-primary-on-outline);
     padding: 8px 16px;
-    border-radius: 8px;
-    margin: 0px 16px 12px;
+    margin: 0px 104px 12px;
     position: relative;
     transition: background 0.3s ease;
     cursor: pointer;
@@ -248,14 +249,14 @@ function detachFile(idx: number) {
     }
 
     &-author {
-      font-weight: 600;
+      font-weight: 500;
       font-size: 14px;
-      color: var(--app-text-secondary);
+      color: var(--color-neutral-on-text);
     }
 
     &-text {
       font-size: 14px;
-      color: var(--app-text-primary);
+      color: var(--color-neutral-on-text);
       max-height: 40px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -290,22 +291,22 @@ function detachFile(idx: number) {
     overflow: auto;
   }
   .form-file-attachment {
-    display: flex;
-    align-items: center;
-    background: var(--app-blue-200);
-    border-radius: 8px;
-    padding: 4px 8px;
-    gap: 8px;
+    padding: 8px;
+    background-color: var(--color-neutral-on-fill);
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 92px;
+    gap: 8px;
     &__img {
-      max-width: 48px;
-      max-height: 48px;
-      border-radius: 4px;
+      width: 72px;
     }
     &__file {
-      color: var(--app-text-primary);
-      font-size: 14px;
-      max-width: 120px;
+      color: var(--color-neutral-on-text);
+      font-size: 12px;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -323,20 +324,10 @@ function detachFile(idx: number) {
         filter: var(--app-filter-pink-500);
       }
     }
-    .message-form__input {
-      flex: 1;
-      padding: 12px;
-      border-radius: 12px;
-      border: none;
-      outline: none;
-      resize: none;
-      background: var(--app-blue-50);
-      color: var(--app-text-primary);
-      font-size: 14px;
-      &::placeholder {
-        color: var(--app-text-secondary);
-      }
-    }
+  }
+  &__input-wrapper {
+    display: flex;
+    flex: 1;
   }
   position: relative;
 
@@ -369,16 +360,20 @@ function detachFile(idx: number) {
   }
 }
 .close-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
   background: none;
   border: none;
   font-size: 16px;
   cursor: pointer;
   margin-left: 4px;
+  background-color: var(--color-neutral-on-fill);
   width: 24px;
   height: 24px;
   user-select: none;
   img {
-    filter: var(--app-filter-pink-500);
+    filter: var(--filter-neutral-on-text);
   }
   &:hover {
     color: var(--app-pink-600);

@@ -31,7 +31,7 @@ function goBack() {
 }
 </script>
 <style scoped lang="scss">
-$app-desktop: 1294px;
+$app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
@@ -44,6 +44,10 @@ $app-narrow-mobile: 364px;
   padding-top: 72px;
   &--no-header {
     padding-top: 0;
+  }
+  .page-content {
+    height: 100%;
+    width: 100%;
   }
 }
 </style>
