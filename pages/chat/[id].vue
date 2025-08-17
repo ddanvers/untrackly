@@ -7,13 +7,13 @@
     >
       <header class="chat-invitation__header">
         <h1 id="chat-invitation-title" class="chat-invitation__title">
-          Приглашение в закрытый чат
+          Приглашение в&nbsp;закрытый чат
         </h1>
       </header>
       <section v-if="!isInvited" class="chat-invitation__content" aria-label="Поделиться ссылкой">
         <h2 class="visually-hidden">Поделиться ссылкой</h2>
         <p class="chat-invitation__hint">
-          Поделитесь пригласительной ссылкой с участником чата любым удобным для вас способом
+          Поделитесь пригласительной ссылкой с&nbsp;участником чата любым удобным для вас способом
         </p>
         <div class="chat-invitation__link-container">
           <div
@@ -46,7 +46,7 @@
       </section>
       <nav class="chat-invitation__button-container" aria-label="Действия приглашения">
         <ul class="chat-invitation__actions">
-          <li v-if="!isInvited">
+          <li class="chat-invitation__action" v-if="!isInvited">
             <CButton
               @click="goToChat"
               class="chat-invitation__button"
@@ -56,22 +56,24 @@
               <span>Перейти в чат</span>
             </CButton>
           </li>
-          <li v-if="isInvited">
+          <li class="chat-invitation__action" v-if="isInvited">
             <CButton
               @click="goToChat"
               class="chat-invitation__button"
               size="extra-large"
               :aria-label="'Принять приглашение'"
+              fill
             >
               <span>Принять</span>
             </CButton>
           </li>
-          <li v-if="isInvited">
+          <li class="chat-invitation__action" v-if="isInvited">
             <CButton
               @click="rejectInvite"
               class="chat-invitation__button chat-invitation__button--secondary"
               size="extra-large"
               variant="secondary"
+              fill
               :aria-label="'Отклонить приглашение'"
             >
               <span>Отклонить</span>
@@ -87,11 +89,13 @@
       aria-label="Ожидание подключения собеседника"
     >
       <div class="waiting-shell">
-        <div class="console-window">
-          <p class="console-line" v-for="(msg, i) in consoleLogs" :key="i">&gt; {{ msg }}</p>
-          <div v-if="!consoleFinished" class="console-line blink">|</div>
-          <div v-if="consoleFinished && !isConnectionEstablished" class="console-line">
-            &gt; STATUS: Waiting{{ ".".repeat(waitingDots) }}{{ " ".repeat(3 - waitingDots) }}
+        <div class="console-window-wrapper">
+          <div class="console-window">
+            <p class="console-line" v-for="(msg, i) in consoleLogs" :key="i">&gt; {{ msg }}</p>
+            <div v-if="!consoleFinished" class="console-line blink">|</div>
+            <div v-if="consoleFinished && !isConnectionEstablished" class="console-line">
+              &gt; STATUS: Waiting{{ ".".repeat(waitingDots) }}{{ " ".repeat(3 - waitingDots) }}
+            </div>
           </div>
         </div>
         <div class="snake-wrapper">
@@ -301,22 +305,12 @@ definePageMeta({
 });
 const step = shallowRef<"invite" | "waiting" | "chat">("invite");
 const linkBlock = ref<HTMLElement | null>(null);
-const roomDataBlock = useTemplateRef("roomData");
 const consoleLogs = ref<string[]>([]);
 const roomDataExpanded = shallowRef(true);
 const waitingDots = shallowRef(0);
 let waitingInterval: number | null = null;
 let loadingStopped = false;
 const consoleFinished = ref(false);
-const LOADING_MASSAGES = [
-  "BOOT: CHATTOR-OS v1.4",
-  "LOADING MODULE proxy-server.dll… OK",
-  "PING peer.network… TIME=000ms",
-  "AWAITING HANDSHAKE FROM REMOTE NODE",
-  "LOADING snake.exe…",
-  "snake.exe INITIALIZED",
-  "LAUNCHING GAME-MODULE…",
-];
 const copying = shallowRef(false);
 const sessionId = route.params.id as string;
 const isInvited = shallowRef(route.query.invited);
@@ -401,17 +395,17 @@ function goToChat() {
   initPeer();
   step.value = "waiting";
   peer.value?.on("open", (id: string) => {
-    consoleLogs.value.push(`OPEN: Peer open with id=${id}`);
+    consoleLogs.value.push(`OPEN: Peer open with id ${id}`);
   });
   const LOADING_MESSAGES = [
-    "DOMAIN: untrackly.com",
-    // `INIT: sessionId="${sessionId}", ${isInvited.value ? "invited" : "initiator"}`,
-    // "CONFIG: secure",
-    // !isInvited.value
-    //   ? "LISTEN: waiting for incoming connections…"
-    //   : `CONNECT: dialing peer ${sessionId}…`,
-    // "WHILE_LOADING: snake.exe",
-    // "LAUNCH: game-module",
+    `DOMAIN: ${window.location.host}`,
+    `INIT: sessionId ${sessionId}, ${isInvited.value ? "invited" : "initiator"}`,
+    "CONFIG: secure",
+    !isInvited.value
+      ? "LISTEN: waiting for incoming connections…"
+      : `CONNECT: dialing peer ${sessionId}…`,
+    "WHILE_LOADING: snake.exe",
+    "LAUNCH: game-module",
   ];
   let idx = 0;
   loadingStopped = false;
@@ -423,7 +417,6 @@ function goToChat() {
     } else {
       setTimeout(() => {
         consoleFinished.value = true;
-        // Start waiting dots animation только после основных логов
         waitingDots.value = 0;
         if (waitingInterval) clearInterval(waitingInterval);
         waitingInterval = window.setInterval(() => {
@@ -506,15 +499,13 @@ watch(callState, (val) => {
 
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
-    // Останавливаем добавление логов и анимацию ожидания
     loadingStopped = true;
     if (waitingInterval) {
       clearInterval(waitingInterval);
       waitingInterval = null;
     }
     consoleLogs.value.push("STATUS: connection established");
-    // Countdown logic
-    let countdown = 1;
+    let countdown = 3;
     const countdownMessages = ["Initializing..."];
     let countdownIdx = 0;
     const showCountdown = () => {
@@ -586,8 +577,10 @@ $app-small-height: 520px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
-    width: 100%;
+    gap: 32px;
+    width: max-content;
+    max-width: 100%;
+    padding: 24px;
     &__header {
       margin-bottom: 8px;
       text-align: center;
@@ -598,6 +591,7 @@ $app-small-height: 520px;
       font-weight: 700;
       color: var(--color-primary-on-text);
       margin: 0;
+      text-wrap: balance;
     }
 
     &__content {
@@ -605,7 +599,7 @@ $app-small-height: 520px;
       align-items: center;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 128px;
+      gap: 64px;
       max-width: 100%;
       @media screen and (max-height: 750px) and (max-width: $app-desktop) {
         gap: 64px;
@@ -687,7 +681,7 @@ $app-small-height: 520px;
       display: flex;
       gap: 40px;
       justify-content: center;
-      margin-top: 10vh;
+      margin-top: 32px;
       @media screen and (max-width: $app-mobile) {
         margin-top: 5vh;
       }
@@ -697,7 +691,6 @@ $app-small-height: 520px;
         align-items: center;
       }
       .chat-invitation__button {
-        width: fit-content;
         span {
           font-size: 20px;
         }
@@ -706,36 +699,49 @@ $app-small-height: 520px;
 
     &__actions {
       display: flex;
-      gap: 40px;
+      flex-wrap: wrap;
+      width: 100%;
+      gap: 32px;
       list-style: none;
       padding: 0;
       margin: 0;
     }
+    &__action {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
   .chat-waiting {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     color: var(--app-text-primary);
     font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     max-width: 100%;
+    padding: 24px;
     @media screen and (max-width: $app-mobile) {
       position: static;
       transform: translate(0, 0);
     }
     .waiting-shell {
       display: flex;
+      flex-wrap: wrap;
       gap: 72px;
+      width: max-content;
       max-width: 100%;
       align-items: center;
       justify-content: center;
       @media screen and (max-width: $app-mobile) {
         flex-direction: column;
+      }
+      .console-window-wrapper {
+        display: flex;
+        align-items: center;
+        max-width: 100%;
+        height: calc(100vh - 48px);
       }
       .console-window {
         width: 400px;
@@ -761,6 +767,7 @@ $app-small-height: 520px;
       .snake-wrapper {
         position: relative;
         max-width: 100%;
+        height: calc(100vh - 48px);
       }
     }
   }

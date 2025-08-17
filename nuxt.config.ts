@@ -8,6 +8,7 @@ export default defineNuxtConfig({
     "@/assets/styles/fonts.scss",
     "@/assets/styles/typography.scss",
     "@/assets/styles/colors.scss",
+    "@/assets/styles/spacing.scss",
   ],
   colorMode: {
     preference: "dark",

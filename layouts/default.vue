@@ -24,6 +24,7 @@ const menuItems = [
   {
     label: "О проекте",
     link: "/about",
+    disabled: true,
   },
 ];
 function goBack() {

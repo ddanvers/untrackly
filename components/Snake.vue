@@ -1,5 +1,10 @@
 <template>
-  <div class="snake-game">
+  <div
+    class="snake-game"
+    :class="{
+      'snake-game--in-game': isInGame,
+    }"
+  >
     <div class="snake-game__container">
       <div class="snake-game__header">
         <h1 class="snake-game__title">ЗМЕЙКА</h1>
@@ -12,7 +17,7 @@
           <CButton @click="startGame" :disabled="gameState.isPlaying">
             {{ gameState.isPlaying ? "ИДЕТ ИГРА" : "НАЧАТЬ" }}
           </CButton>
-          <CButton variant="secondary" @click="resetGame"> СБРОСИТЬ </CButton>
+          <!-- <CButton variant="secondary" @click="resetGame"> СБРОСИТЬ </CButton> -->
         </div>
       </div>
       <div class="snake-game__board-stats-controls-wrapper">
@@ -34,18 +39,18 @@
                 <span></span>
                 <span></span>
               </div>
-              <p class="snake-game__loading-text">Loading...</p>
+              <p class="snake-game__loading-text">Загрузка...</p>
             </div>
 
             <!-- Game Over overlay -->
             <div v-if="gameState.isGameOver && !gameState.isLoading" class="snake-game__game-over">
-              <h2 class="snake-game__game-over-title">GAME OVER</h2>
+              <h2 class="snake-game__game-over-title">Игра окончена</h2>
               <p class="snake-game__game-over-score">
-                Score: {{ gameState.score.toString().padStart(4, "0") }}
+                Результат: {{ gameState.score.toString().padStart(4, "0") }}
               </p>
-              <button class="snake-game__button snake-game__button--primary" @click="resetGame">
-                PLAY AGAIN
-              </button>
+              <CButton class="snake-game__button snake-game__button--primary" @click="resetGame">
+                НАЧАТЬ СНАЧАЛА
+              </CButton>
             </div>
 
             <!-- Game grid -->
@@ -121,13 +126,13 @@
 
           <div class="snake-game__stats">
             <div class="snake-game__stat">
-              <span class="snake-game__stat-label">LENGTH</span>
+              <span class="snake-game__stat-label">Длина</span>
               <span class="snake-game__stat-value">{{
                 snake.length.toString().padStart(3, "0")
               }}</span>
             </div>
             <div class="snake-game__stat">
-              <span class="snake-game__stat-label">HIGH SCORE</span>
+              <span class="snake-game__stat-label">Макс. результат</span>
               <span class="snake-game__stat-value">{{
                 gameState.highScore.toString().padStart(4, "0")
               }}</span>
@@ -184,7 +189,9 @@ const gameState = reactive<GameState>({
   score: 0,
   highScore: 0,
 });
-
+const isInGame = computed(
+  () => gameState.isPlaying || gameState.isGameOver || gameState.isLoading,
+);
 const snake = ref<Position[]>([]);
 const food = ref<Position>({ x: 0, y: 0 });
 const direction = ref<Direction>(Direction.Right);
@@ -298,7 +305,7 @@ const resetGameState = (): void => {
 
 const startGame = async (): Promise<void> => {
   if (gameState.isPlaying) return;
-
+  resetGame();
   gameState.isLoading = true;
   gameState.isGameOver = false;
 
@@ -452,9 +459,31 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
   justify-content: space-between;
   gap: 64px;
   max-width: 100%;
-  // Header section
+  height: 100%;
+  @media screen and (max-height: $app-medium-height) {
+    .snake-game__board-container,
+    .snake-game__virtual-controls {
+      display: none;
+    }
+  }
+  &--in-game {
+    @media screen and (max-height: $app-medium-height) {
+      .snake-game__controls,
+      .snake-game__stats {
+        display: none;
+      }
+      .snake-game__board-container,
+      .snake-game__virtual-controls {
+        display: flex;
+      }
+    }
+  }
   &__container {
     max-width: 100%;
+    height: 100%;
+    justify-content: space-between;
+    display: flex;
+    flex-direction: column;
   }
   &__header {
     display: flex;
