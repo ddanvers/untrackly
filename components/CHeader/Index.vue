@@ -1,7 +1,7 @@
 <template>
   <header class="layout-header">
     <div class="layout-header__logo-container">
-      <NuxtImg src="/icons/logo.svg" width="56px" alt="Untrackly Logo"></NuxtImg>
+      <NuxtImg src="/icons/logo.svg" width="56px" alt="Web eye logo"></NuxtImg>
       <div class="logo-container">
         <div class="logo-container__text">
           <h1 class="logo-container__brand-name">untrackly</h1>
@@ -14,16 +14,18 @@
         <ul class="nav-menu__list">
           <li v-for="item in menuItems" :key="item.link" class="nav-menu__item">
             <NuxtLink
-              :to="item.link"
+              :to="item.disabled ? '' : item.link"
               class="nav-menu__link"
-              :class="{ 'nav-menu__link--active': isActiveRoute(item.link) }"
+              :class="{
+                'nav-menu__link--active': isActiveRoute(item.link),
+                'nav-menu__link--disabled': item.disabled,
+              }"
             >
               {{ item.label }}
             </NuxtLink>
           </li>
         </ul>
       </nav>
-      <!-- <CThemeToggle></CThemeToggle> -->
     </div>
     <button
       v-if="isMobile"
@@ -55,19 +57,19 @@
         <ul class="mobile-menu__list">
           <li v-for="item in menuItems" :key="item.link" class="mobile-menu__item">
             <NuxtLink
-              :to="item.link"
+              :to="item.disabled ? '' : item.link"
               class="mobile-menu__link"
-              :class="{ 'mobile-menu__link--active': isActiveRoute(item.link) }"
-              @click="closeMobileMenu"
+              :class="{
+                'mobile-menu__link--active': isActiveRoute(item.link),
+                'mobile-menu__link--disabled': item.disabled,
+              }"
+              @click="item.disabled ? null : closeMobileMenu()"
             >
               {{ item.label }}
             </NuxtLink>
           </li>
         </ul>
       </nav>
-      <!-- <div class="mobile-menu__footer">
-        <CThemeToggle class="mobile-menu__theme-toggle"></CThemeToggle>
-      </div> -->
     </aside>
   </header>
 </template>
@@ -77,6 +79,7 @@ const router = useRouter();
 interface MenuItemProps {
   label: string;
   link: string;
+  disabled?: boolean;
 }
 interface Props {
   menuItems: MenuItemProps[];
@@ -115,13 +118,6 @@ const closeMobileMenu = (): void => {
   if (isMenuOpen.value) {
     isMenuOpen.value = false;
     enableBodyScroll();
-  }
-};
-
-const openMobileMenu = (): void => {
-  if (!isMenuOpen.value) {
-    isMenuOpen.value = true;
-    disableBodyScroll();
   }
 };
 
@@ -299,7 +295,15 @@ $burger-size: 40px;
     &--active {
       color: var(--color-primary-on-text);
     }
-
+    &--disabled {
+      cursor: not-allowed;
+      opacity: 0.3;
+      color: var(--color-black);
+      &:hover,
+      &:active {
+        color: var(--color-black);
+      }
+    }
     &:focus-visible {
       outline: 2px solid var(--color-primary-on-text);
       outline-offset: 2px;
@@ -485,6 +489,10 @@ $burger-size: 40px;
         width: 4px;
         background-color: var(--color-primary-on-text);
       }
+    }
+    &--disabled {
+      pointer-events: none;
+      opacity: 0.3;
     }
 
     &:focus-visible {

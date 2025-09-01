@@ -1,6 +1,5 @@
 <template>
   <main class="page-hero">
-    <div></div>
     <div class="page-hero__content">
       <div class="logo-container">
         <NuxtImg src="/icons/logo.svg"></NuxtImg>
@@ -20,6 +19,7 @@
             v-model="chatRoomId"
             label="Код комнаты"
             placeholder="xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+            dataMaska="********-****-****-****-************"
             :readonlyProp="isChatRoomIdGenerated"
             valid
           ></CInput>
@@ -48,8 +48,8 @@
 definePageMeta({
   header: true,
 });
-const chatRoomId = ref("");
-const isChatRoomIdGenerated = ref(false);
+const chatRoomId = shallowRef("");
+const isChatRoomIdGenerated = shallowRef(false);
 const isChatRoomIdValid = computed(() => {
   const uuidV4Regex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -110,6 +110,7 @@ $app-small-height: 520px;
     max-width: 100%;
     padding: 0px 5vw;
     gap: 64px;
+    margin: auto 0;
     @media screen and (max-width: $app-desktop) {
       justify-content: space-between;
       align-items: flex-start;
