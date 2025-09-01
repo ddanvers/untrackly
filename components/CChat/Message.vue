@@ -178,6 +178,7 @@ const props = defineProps<{
   message: Message;
   isMe: boolean;
   meId: string;
+  parentContainer: HTMLElement;
 }>();
 const emit = defineEmits<{
   (e: "reply", message: Message): void;
@@ -222,11 +223,12 @@ onMounted(() => {
       observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
+            console.log("Message is in view");
             emit("read", props.message.id);
             observer?.disconnect();
           }
         },
-        { root: elRef.value.parentElement, threshold: 0.5 },
+        { root: props.parentContainer, threshold: 0.5 },
       );
       observer.observe(elRef.value);
     }

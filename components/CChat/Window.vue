@@ -35,6 +35,7 @@
       <div v-if="messages.length">
         <CChatMessage
           class="chat__message"
+          :parentContainer="bodyRef"
           v-for="msg in messages"
           :id="msg.id"
           :key="msg.id"
@@ -247,6 +248,7 @@ $app-narrow-mobile: 364px;
   &__body {
     display: flex;
     flex-direction: column;
+    overscroll-behavior: contain;
     gap: 12px;
     background-color: var(--color-bg-on-secondary);
     height: 100%;

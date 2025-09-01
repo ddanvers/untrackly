@@ -113,7 +113,7 @@
         'chat-window--chat-show': showChat,
       }"
     >
-      <div class="room-data" ref="roomData" :class="{ 'room-data--compact': !roomDataExpanded }">
+      <div class="room-data" :class="{ 'room-data--compact': !roomDataExpanded }">
         <header class="room-data__header">
           <NuxtImg
             class="room-data__compact-img"
@@ -134,15 +134,19 @@
               <ul class="room-data__block-list">
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">ID</div>
-                  <div class="room-data__block-value">{{ peer?.id }}</div>
+                  <div class="room-data__block-value">{{ roomData.room?.id }}</div>
                 </li>
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Дата создания</div>
-                  <div class="room-data__block-value">-</div>
+                  <div class="room-data__block-value">
+                    {{ formatUTCDateIntl(roomData.room?.dateCreated) }}
+                  </div>
                 </li>
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Дата изменения</div>
-                  <div class="room-data__block-value">-</div>
+                  <div class="room-data__block-value">
+                    {{ formatUTCDateIntl(roomData.room?.dateUpdated) }}
+                  </div>
                 </li>
               </ul>
             </div>
@@ -166,7 +170,7 @@
                         'circle-state--error': false,
                       }"
                     ></div>
-                    в сети
+                    {{ roomData.members?.yourStatus }}
                   </div>
                 </li>
                 <li class="room-data__block-item">
@@ -179,7 +183,7 @@
                         'circle-state--error': false,
                       }"
                     ></div>
-                    разрыв соеднинеия
+                    {{ roomData.members?.companionStatus }}
                   </div>
                 </li>
               </ul>
@@ -204,33 +208,39 @@
                         'circle-state--error': false,
                       }"
                     ></div>
-                    стабильное
+                    {{ roomData.network?.connectionStatus }}
                   </div>
                 </li>
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Отправлено</div>
-                  <div class="room-data__block-value">-</div>
+                  <div class="room-data__block-value">
+                    {{ formatBytesToMB(roomData.network?.sentBytes) }} MB
+                  </div>
                 </li>
                 <li class="room-data__block-item">
                   <div class="room-data__block-label">Получено</div>
-                  <div class="room-data__block-value">-</div>
+                  <div class="room-data__block-value">
+                    {{ formatBytesToMB(roomData.network?.receivedBytes) }} MB
+                  </div>
                 </li>
               </ul>
             </div>
           </div>
         </section>
         <footer class="room-data__footer">
-          <NuxtImg
-            class="room-data__footer-end-session room-data__compact-img"
-            src="/icons/chat/room/power_off.svg"
-            width="32px"
-          ></NuxtImg>
-          <CButton
-            class="room-data__footer-button"
-            variant="quaternary"
-            textColor="var(--color-negative-on-text)"
-            >Завершить сеанс</CButton
-          >
+          <div @click="endSession">
+            <NuxtImg
+              class="room-data__footer-end-session room-data__compact-img"
+              src="/icons/chat/room/power_off.svg"
+              width="32px"
+            ></NuxtImg>
+            <CButton
+              class="room-data__footer-button"
+              variant="quaternary"
+              textColor="var(--color-negative-on-text)"
+              >Завершить сеанс</CButton
+            >
+          </div>
           <NuxtImg
             @click="roomDataExpanded = !roomDataExpanded"
             class="room-data__footer-expand"
@@ -328,6 +338,7 @@ const {
   readMessage,
   peer,
   conn,
+  roomData,
   isConnectionEstablished,
   callState,
   localStream,
@@ -340,7 +351,6 @@ const {
   toggleCamera,
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
-
 const callStatusText = computed(() => {
   if (callState.value === "calling") return "Звоним собеседнику...";
   if (callState.value === "incoming") return "Входящий звонок";
@@ -361,6 +371,16 @@ function swapToChat() {
   showChat.value = true;
   showCall.value = false;
 }
+const formatUTCDateIntl = (date: string) => {
+  return new Intl.DateTimeFormat("ru-RU", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  }).format(new Date(date));
+};
 async function copyInvitationLink() {
   if (copying.value) return;
   copying.value = true;
@@ -438,6 +458,7 @@ function sendFileHandler(payload: any) {
 }
 
 function onCall(type: "audio" | "video") {
+  console.log("кал блять");
   showCall.value = true;
   startCall(type === "video");
   callType.value = type;
@@ -496,7 +517,18 @@ watch(callState, (val) => {
   }
   if (["calling", "incoming", "active"].includes(val)) showCall.value = true;
 });
-
+const formatBytesToMB = (bytes: number) => {
+  return (bytes / 1024 / 1024).toFixed(2);
+};
+const endSession = () => {
+  if (conn.value) {
+    conn.value.close();
+  }
+  if (peer.value) {
+    peer.value.destroy();
+  }
+  navigateTo("/");
+};
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
     loadingStopped = true;
@@ -781,7 +813,7 @@ $app-small-height: 520px;
   .chat-window {
     display: flex;
     height: 100vh;
-    width: 100vw;
+    width: 100%;
     overflow: hidden;
     .chat-wrapper,
     .call-wrapper {
@@ -864,7 +896,6 @@ $app-small-height: 520px;
         display: flex;
         gap: 8px;
         flex-direction: column;
-        padding: 12px;
         .room-data__block {
           display: flex;
           gap: 12px;
