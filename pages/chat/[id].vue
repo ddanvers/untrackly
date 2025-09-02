@@ -520,6 +520,14 @@ watch(callState, (val) => {
 const formatBytesToMB = (bytes: number) => {
   return (bytes / 1024 / 1024).toFixed(2);
 };
+function checkCallChatVisibilitySwap() {
+  if (window.innerWidth > 1384) {
+    if (["calling", "incoming", "active"].includes(callState.value)) {
+      showCall.value = true;
+    }
+    showChat.value = true;
+  }
+}
 const endSession = () => {
   if (conn.value) {
     conn.value.close();
@@ -584,6 +592,9 @@ watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
   ) as HTMLVideoElement;
   if (myVideo && my) myVideo.srcObject = my;
   if (remoteVideo && remote) remoteVideo.srcObject = remote;
+});
+onMounted(() => {
+  window.addEventListener("resize", checkCallChatVisibilitySwap);
 });
 </script>
 
