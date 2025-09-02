@@ -257,6 +257,8 @@
           :callStatusText="callStatusText"
           :local-stream="localStream"
           :remote-stream="remoteStream"
+          :cam-enabled="isCameraEnabled"
+          :mic-enabled="isMicEnabled"
           @minimize="onMinimizeVideoCall"
           @accept="onAcceptCall"
           @decline="onDeclineCall"
@@ -358,7 +360,14 @@ const callStatusText = computed(() => {
   if (callState.value === "ended") return "Звонок завершён";
   return "";
 });
-
+const isCameraEnabled = computed(() => {
+  if (!localStream.value) return false;
+  return localStream.value.getVideoTracks().some((t) => t.enabled);
+});
+const isMicEnabled = computed(() => {
+  if (!localStream.value) return false;
+  return localStream.value.getAudioTracks().some((t) => t.enabled);
+});
 function getInviteLink() {
   if (!window) return "Генерируем ссылку...";
   return `${window.location.href}?invited=true`;
@@ -458,7 +467,6 @@ function sendFileHandler(payload: any) {
 }
 
 function onCall(type: "audio" | "video") {
-  console.log("кал блять");
   showCall.value = true;
   startCall(type === "video");
   callType.value = type;
