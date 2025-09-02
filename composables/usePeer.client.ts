@@ -865,16 +865,16 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       callState: callState.value,
       mediaConn,
     });
-    isCameraEnabled.value = !!opts?.cam;
+    isCameraEnabled.value = false;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
     stream.getVideoTracks().forEach((t) => {
-      t.enabled = !!opts?.cam;
+      t.enabled = false;
     });
     stream.getAudioTracks().forEach((t) => {
-      t.enabled = !!opts?.mic;
+      t.enabled = false;
     });
     localStream.value = stream;
     console.log("[usePeer] acceptCall: got localStream", stream);
