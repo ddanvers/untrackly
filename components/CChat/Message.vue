@@ -73,13 +73,12 @@
       <template v-if="isMessageHasOnlyImage(message) && message.files?.length">
         <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
         <div class="image-preview">
-          <a :href="message.files[0].fileUrl" target="_blank">
-            <img
-              :src="message.files[0].fileUrl"
-              :alt="message.files[0].name"
-              class="chat-message__image"
-            />
-          </a>
+          <img
+            :src="message.files[0].fileUrl"
+            :alt="message.files[0].name"
+            class="chat-message__image"
+            @click="handleImgClick([message.files[0]], message.files[0].fileUrl)"
+          />
           <a
             :href="message.files[0].fileUrl"
             :download="message.files[0].name"
@@ -103,13 +102,26 @@
           >
             <template v-if="file.type && file.type.startsWith('image/')">
               <div class="file-attachment__img-wrapper">
-                <a :href="file.fileUrl" target="_blank">
-                  <img :src="file.fileUrl" class="file-attachment__img" />
-                </a>
+                <img
+                  @click="handleImgClick(message.files, file.fileUrl)"
+                  :src="file.fileUrl"
+                  class="file-attachment__img"
+                />
                 <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
                   <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
                 ></a>
               </div>
+            </template>
+            <template v-else-if="file.type && file.type.startsWith('video/')">
+              <img
+                :src="getIconByType(file.name.split('.').pop())"
+                class="file-attachment__type-icon"
+                width="32px"
+              />
+              <span @click="handleVideoClick(file.fileUrl)"> {{ file.name }}</span>
+              <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
+                <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
+              ></a>
             </template>
             <template v-else>
               <img
@@ -186,6 +198,8 @@ const emit = defineEmits<{
   (e: "scroll-to-message", id: string): void; // <— новое событие
 }>();
 
+const { openDialog, setImages } = useDialogImages();
+const { openDialog: openVideoDialog, setVideo } = useDialogVideo();
 const elRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 const menuOpened = ref(false);
@@ -205,6 +219,21 @@ const getIconByType = (type?: string) => {
       : DEFAULT_FILE_ICON
   }`;
 };
+
+function handleImgClick(images: FileAttachment[], clickedUrl: string) {
+  const imageUrls = images
+    .filter((image) => image.type?.startsWith("image/"))
+    .map((image) => image.fileUrl);
+  setImages([
+    imageUrls.find((url) => url === clickedUrl)!,
+    ...imageUrls.filter((url) => url !== clickedUrl),
+  ]);
+  openDialog();
+}
+function handleVideoClick(videoUrl: string) {
+  setVideo(videoUrl);
+  openVideoDialog();
+}
 function replyToMessage(message: Message) {
   emit("reply", message);
   menuOpened.value = false;

@@ -84,6 +84,9 @@
 
   --color-white: #000;
   --color-black: #fff;
+
+  --swiper-navigation-color: var(--color-black);
+
   --filter-neutral-on-text: invert(99%) sepia(9%) saturate(68%) hue-rotate(61deg) brightness(111%)
     contrast(89%);
   --filter-primary-on-text: brightness(0) saturate(100%) invert(65%) sepia(100%) saturate(1072%)
