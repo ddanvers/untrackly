@@ -328,10 +328,28 @@ const sessionId = route.params.id as string;
 const isInvited = shallowRef(route.query.invited);
 const fixedHeight = shallowRef<number | null>(null);
 const animating = shallowRef(false);
-const displayText = shallowRef(getInviteLink());
+const displayText = shallowRef("Генерируем ссылку...");
 const showCall = ref(false);
 const showChat = ref(true);
 const isVideoCallMinimized = ref(false);
+
+const callingAudio = process.client ? new Audio("/sounds/calling.mp3") : null;
+if (callingAudio) {
+  callingAudio.loop = true;
+  callingAudio.preload = "auto";
+}
+const establishedAudio = process.client
+  ? new Audio("/sounds/call_established.mp3")
+  : null;
+if (establishedAudio) {
+  establishedAudio.preload = "auto";
+}
+const endedAudio = process.client ? new Audio("/sounds/call_ended.mp3") : null;
+if (endedAudio) {
+  endedAudio.preload = "auto";
+}
+let isCallingPlaying = false;
+
 const {
   messages,
   initPeer,
@@ -353,13 +371,7 @@ const {
   toggleCamera,
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
-const callStatusText = computed(() => {
-  if (callState.value === "calling") return "Звоним собеседнику...";
-  if (callState.value === "incoming") return "Входящий звонок";
-  if (callState.value === "active") return "Идёт звонок";
-  if (callState.value === "ended") return "Звонок завершён";
-  return "";
-});
+const callStatusText = ref("");
 const isCameraEnabled = computed(() => {
   if (!localStream.value) return false;
   return localStream.value.getVideoTracks().some((t) => t.enabled);
@@ -369,8 +381,7 @@ const isMicEnabled = computed(() => {
   return localStream.value.getAudioTracks().some((t) => t.enabled);
 });
 function getInviteLink() {
-  if (!window) return "Генерируем ссылку...";
-  return `${window.location.href}?invited=true`;
+  return `${window?.location.href}?invited=true`;
 }
 function swapToCall() {
   showChat.value = false;
@@ -588,6 +599,81 @@ watch(
     }
   },
 );
+function stopCallingLoop() {
+  if (isCallingPlaying) {
+    if (callingAudio) {
+      callingAudio.pause();
+      callingAudio.currentTime = 0;
+    }
+
+    isCallingPlaying = false;
+  }
+}
+
+function stopAll() {
+  stopCallingLoop();
+  if (establishedAudio) {
+    establishedAudio.pause();
+    establishedAudio.currentTime = 0;
+  }
+  if (endedAudio) {
+    endedAudio.pause();
+    endedAudio.currentTime = 0;
+  }
+}
+
+async function safePlay(audio: HTMLAudioElement | null) {
+  if (!audio) return;
+  try {
+    await audio.play();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+watch(
+  () => callState.value,
+  (newVal) => {
+    if (newVal === "calling") {
+      callStatusText.value = "Звоним собеседнику...";
+      if (!isCallingPlaying) {
+        stopAll();
+        isCallingPlaying = true;
+        safePlay(callingAudio);
+      }
+      return;
+    }
+    if (newVal === "incoming") {
+      callStatusText.value = "Входящий звонок";
+      if (!isCallingPlaying) {
+        stopAll();
+        isCallingPlaying = true;
+        safePlay(callingAudio);
+      }
+      return;
+    }
+    if (newVal === "active") {
+      callStatusText.value = "Идёт звонок";
+      stopCallingLoop();
+      if (establishedAudio) {
+        establishedAudio.currentTime = 0;
+      }
+      safePlay(establishedAudio);
+      return;
+    }
+    if (newVal === "ended") {
+      callStatusText.value = "Звонок завершён";
+      stopCallingLoop();
+      if (endedAudio) {
+        endedAudio.currentTime = 0;
+      }
+      safePlay(endedAudio);
+      return;
+    }
+    stopAll();
+  },
+  { immediate: true },
+);
 watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
   if (!show) return;
   const videoComp = document.querySelector(".video-call");
@@ -602,7 +688,11 @@ watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
   if (remoteVideo && remote) remoteVideo.srcObject = remote;
 });
 onMounted(() => {
+  displayText.value = getInviteLink();
   window.addEventListener("resize", checkCallChatVisibilitySwap);
+});
+onBeforeUnmount(() => {
+  stopAll();
 });
 </script>
 
