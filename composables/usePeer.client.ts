@@ -176,6 +176,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     startPingMonitoring();
     startSessionDurationTracking();
   }
+
   const pingPongCompanionDiscottectionTimeout = ref<NodeJS.Timeout | null>(
     null,
   );
@@ -395,10 +396,38 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     metricsState.bytesTracker.lastReceivedBytes = newReceivedBytes;
   }
 
+  // session helpers — SSR-safe, положи рядом с getStoredPeerId / setStoredPeerId
+  function getStoredConnectionId(sessionId: string): string | null {
+    if (typeof window === "undefined" || !("sessionStorage" in window))
+      return null;
+    try {
+      return sessionStorage.getItem(`chat:conn:${sessionId}`);
+    } catch {
+      return null;
+    }
+  }
+  function setStoredConnectionId(
+    sessionId: string,
+    connectionPeerId: string,
+  ): void {
+    if (typeof window === "undefined" || !("sessionStorage" in window)) return;
+    try {
+      sessionStorage.setItem(`chat:conn:${sessionId}`, connectionPeerId);
+    } catch {}
+  }
+  function clearStoredConnectionId(sessionId: string): void {
+    if (typeof window === "undefined" || !("sessionStorage" in window)) return;
+    try {
+      sessionStorage.removeItem(`chat:conn:${sessionId}`);
+    } catch {}
+  }
+
   /**
    * Enhanced connection setup with metrics tracking
    */
-  function initPeer() {
+  function initPeer(opts?: { reconnect?: boolean }) {
+    const reconnect = !!opts?.reconnect;
+    const storedPeerId = reconnect ? getStoredConnectionId(sessionId) : null;
     const options = {
       host: "peerjs-server-gims.onrender.com",
       path: "/",
@@ -406,19 +435,41 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     };
     console.log("[usePeer] initPeer", {
       sessionId,
-      isInitiator: isInitiator,
-      options,
+      isInitiator,
+      reconnect,
+      storedPeerId,
     });
     // Для инициатора — используем свой sessionId, для клиента — PeerJS сгенерирует ID
-    peer.value = isInitiator
-      ? new Peer(sessionId, options)
-      : new Peer(undefined, options);
+    // Для инициатора — если reconnect, НЕ используем sessionId как peerId
+    if (isInitiator) {
+      peer.value = new Peer(reconnect ? undefined : sessionId, options);
+      peer.value.connect(sessionId, { reliable: true });
+    } else {
+      peer.value = new Peer(undefined, options);
+    }
 
-    peer.value.on("open", (id) => {
-      console.log("[usePeer] Peer open", id);
+    peer.value.on("open", (id: string) => {
+      console.log("[usePeer] Peer open", id, { storedPeerId, reconnect });
+
+      // Сохраняем id в sessionStorage чтобы при reload в этой вкладке можно было попытаться восстановить тот же id
+      try {
+        setStoredConnectionId(sessionId, id);
+      } catch (e) {}
+
+      // Если non-initiator и мы в режиме reconnect, сразу пытаемся подключиться к initiator
       if (!isInitiator) {
-        connectToPeer(sessionId);
+        // небольшая пауза, чтобы PeerJS успел зарегистрироваться на сервере
+        setTimeout(() => {
+          try {
+            connectToPeer(sessionId);
+          } catch (e) {
+            // schedule reconnect handled в connectToPeer/setupConnection
+            console.warn("[usePeer] connectToPeer failed on open", e);
+          }
+        }, 50);
+      } else {
       }
+      updateRoomData("network", { connectionStatus: "connecting" });
     });
 
     // Для инициатора — ждём входящих соединений
@@ -497,7 +548,6 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     connection.on("data", (data: any) => {
       // Update received bytes (approximate)
       console.log(data);
-      const dataSize = JSON.stringify(data).length;
       if (data.type !== "ping" && data.type !== "pong") {
         const dataSize = calculateDataSize(data);
         updateBytesTransferred(0, dataSize);
@@ -670,7 +720,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
 
     const message = {
       id: Date.now().toString(),
-      sender: peer.value?.id as string,
+      sender: useDeviceId(),
       text: payload.text,
       replyMessage: payload.replyMessage,
       timestamp: Date.now(),
@@ -731,7 +781,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           // Все файлы прочитаны, отправляем одно сообщение
           const msg = {
             id: Date.now().toString(),
-            sender: peer.value?.id as string,
+            sender: useDeviceId(),
             text: payload.text,
             timestamp: Date.now(),
             type: "file-group",

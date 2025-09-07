@@ -353,6 +353,8 @@ const {
   toggleCamera,
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
+const sessionDB = useSessionDB(sessionId);
+
 const callStatusText = computed(() => {
   if (callState.value === "calling") return "Звоним собеседнику...";
   if (callState.value === "incoming") return "Входящий звонок";
@@ -536,15 +538,7 @@ function checkCallChatVisibilitySwap() {
     showChat.value = true;
   }
 }
-const endSession = () => {
-  if (conn.value) {
-    conn.value.close();
-  }
-  if (peer.value) {
-    peer.value.destroy();
-  }
-  navigateTo("/");
-};
+
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
     loadingStopped = true;
@@ -603,7 +597,118 @@ watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
 });
 onMounted(() => {
   window.addEventListener("resize", checkCallChatVisibilitySwap);
+  (async () => {
+    try {
+      await sessionDB.openDB();
+      const saved = await sessionDB.load();
+      console.log(saved);
+      if (saved && saved.step === "chat") {
+        try {
+          if (messages && typeof (messages as any).value !== "undefined") {
+            (messages as any).value = saved.messages || [];
+          }
+        } catch (err) {}
+        step.value = "chat";
+        showChat.value = true;
+        showCall.value = false;
+        consoleFinished.value = true;
+        loadingStopped = true;
+        waitingDots.value = 0;
+        consoleLogs.value.push("RESTORE: session restored from IndexedDB");
+
+        // Параллельно (незаметно) пытаемся реинициализировать peer для восстановления соединения
+        // (не меняем UI — пользователь уже в chat)
+        setTimeout(() => {
+          try {
+            initPeer({ reconnect: true });
+          } catch (e) {
+            // best-effort
+          }
+        }, 50);
+      }
+    } catch (err) {
+      // noop — best-effort восстановление
+    }
+  })();
 });
+onBeforeUnmount(async () => {
+  window.removeEventListener("resize", checkCallChatVisibilitySwap);
+  // не удаляем sessionStorage тут — sessionStorage сохраняет вкладку при reload
+  // если компонент размонтируется (навигация) — очищаем БД (пользователь ушёл)
+  try {
+    // если уходим не в рамках активного чата — удаляем сохранение
+    if (step.value !== "chat") {
+    } else {
+      // при навигации внутри приложения (onBeforeUnmount) — также сохраняем текущее состояние
+      await sessionDB.save({
+        step: step.value,
+        messages: Array.isArray((messages as any).value)
+          ? (messages as any).value
+          : [],
+      });
+    }
+  } catch (err) {}
+});
+watch(
+  messages as any,
+  () => {
+    if (step.value === "chat") {
+      try {
+        sessionDB.save({
+          step: step.value,
+          messages: Array.isArray((messages as any).value)
+            ? (messages as any).value
+            : [],
+        });
+      } catch (err) {}
+    }
+  },
+  { deep: true },
+);
+
+watch(step, (val) => {
+  if (val !== "chat") {
+  } else {
+    window.addEventListener("beforeunload", (e: BeforeUnloadEvent) => {
+      if (step.value === "chat") {
+        // сохраняем состояние в IndexedDB (асинхронно — best-effort)
+        try {
+          sessionDB.save({
+            step: step.value,
+            messages: Array.isArray((messages as any).value)
+              ? (messages as any).value
+              : [],
+          });
+        } catch (err) {}
+        // показываем стандартный диалог предупреждения
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+    sessionDB
+      .save({
+        step: step.value,
+        messages: Array.isArray((messages as any).value)
+          ? (messages as any).value
+          : [],
+      })
+      .catch(() => {});
+  }
+});
+
+// 5) В endSession() добавляем очистку БД
+const endSession = async () => {
+  if (conn.value) {
+    conn.value.close();
+  }
+  if (peer.value) {
+    peer.value.destroy();
+  }
+  try {
+    await sessionDB.clear();
+  } catch (err) {}
+  navigateTo("/");
+};
 </script>
 
 <style scoped lang="scss">
