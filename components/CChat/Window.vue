@@ -109,9 +109,10 @@ const emit = defineEmits<{
 
 const bodyRef = ref<HTMLElement>();
 const isAtBottom = ref(true);
-const notificationSound = new Audio("/sounds/notification.mp3");
+const notificationSound = process.client
+  ? new Audio("/sounds/notification.mp3")
+  : null;
 const replyingTo = ref<Message | null>(null);
-notificationSound.preload = "auto";
 
 function onVideoCall() {
   emit("call", "video");
@@ -214,6 +215,9 @@ function onScroll() {
 
 onMounted(() => {
   scrollToBottom();
+  if (notificationSound) {
+    notificationSound.preload = "auto";
+  }
 });
 
 watch(
@@ -223,7 +227,9 @@ watch(
       if (!isAtBottom.value) {
         const newMsg = props.messages[newLen - 1];
         if (newMsg.sender !== props.meId) {
-          notificationSound.play().catch(() => {});
+          if (notificationSound) {
+            notificationSound.play().catch(() => {});
+          }
         }
       }
       if (isAtBottom.value) {

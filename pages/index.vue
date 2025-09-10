@@ -56,7 +56,7 @@ const isChatRoomIdValid = computed(() => {
   return uuidV4Regex.test(chatRoomId.value);
 });
 function launchChat() {
-  navigateTo(`/chat/${chatRoomId.value}`);
+  navigateTo(`/chat/${chatRoomId.value}/entry`);
 }
 function toggleChatRoomIdGeneration() {
   if (isChatRoomIdGenerated.value) {

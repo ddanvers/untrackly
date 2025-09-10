@@ -1,90 +1,22 @@
 <template>
   <main class="chat-page" aria-label="Чат">
     <section
-      v-if="step === 'invite'"
-      class="chat-invitation"
-      aria-labelledby="chat-invitation-title"
+      v-if="showConnectionLoader"
+      class="connection-loader"
+      aria-label="Восстановление соединения"
     >
-      <header class="chat-invitation__header">
-        <h1 id="chat-invitation-title" class="chat-invitation__title">
-          Приглашение в&nbsp;закрытый чат
-        </h1>
-      </header>
-      <section v-if="!isInvited" class="chat-invitation__content" aria-label="Поделиться ссылкой">
-        <h2 class="visually-hidden">Поделиться ссылкой</h2>
-        <p class="chat-invitation__hint">
-          Поделитесь пригласительной ссылкой с&nbsp;участником чата любым удобным для вас способом
+      <div class="connection-loader__content">
+        <h2 class="connection-loader__title">Восстановление соединения</h2>
+        <p class="connection-loader__message">
+          {{ connectionLoaderMessage }}
         </p>
-        <div class="chat-invitation__link-container">
-          <div
-            ref="linkBlock"
-            class="chat-invitation__link-wrapper"
-            :style="{
-              height: fixedHeight ? fixedHeight + 'px' : 'auto',
-              backgroundColor: animating ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
-            }"
-          >
-            <span class="chat-invitation__link" aria-label="Ссылка для приглашения">{{
-              displayText
-            }}</span>
-          </div>
-          <CButton
-            @click="copyInvitationLink"
-            variant="secondary"
-            :aria-label="'Скопировать ссылку'"
-          >
-            <span>Скопировать</span>
-          </CButton>
+        <div class="connection-loader__spinner">
+          <div class="spinner-ring"></div>
         </div>
-      </section>
-      <section v-else class="chat-invitation__content" aria-label="Принять приглашение">
-        <h2 class="visually-hidden">Принять приглашение</h2>
-        <p class="chat-invitation__hint">
-          С вами поделились пригласительной ссылкой. <br />
-          Примите приглашение, чтобы начать чат.
-        </p>
-      </section>
-      <nav class="chat-invitation__button-container" aria-label="Действия приглашения">
-        <ul class="chat-invitation__actions">
-          <li class="chat-invitation__action" v-if="!isInvited">
-            <CButton
-              @click="goToChat"
-              class="chat-invitation__button"
-              size="extra-large"
-              :aria-label="'Перейти в чат'"
-            >
-              <span>Перейти в чат</span>
-            </CButton>
-          </li>
-          <li class="chat-invitation__action" v-if="isInvited">
-            <CButton
-              @click="goToChat"
-              class="chat-invitation__button"
-              size="extra-large"
-              :aria-label="'Принять приглашение'"
-              fill
-            >
-              <span>Принять</span>
-            </CButton>
-          </li>
-          <li class="chat-invitation__action" v-if="isInvited">
-            <CButton
-              @click="rejectInvite"
-              class="chat-invitation__button chat-invitation__button--secondary"
-              size="extra-large"
-              variant="secondary"
-              fill
-              :aria-label="'Отклонить приглашение'"
-            >
-              <span>Отклонить</span>
-            </CButton>
-          </li>
-        </ul>
-      </nav>
+      </div>
     </section>
-
     <section
-      v-else-if="step === 'waiting'"
+      v-if="step === 'waiting'"
       class="chat-waiting"
       aria-label="Ожидание подключения собеседника"
     >
@@ -287,7 +219,7 @@
           :hide-header="false"
           @sendAllFiles="sendFileHandler"
           @readMessage="readMessage"
-          :meId="peer?.id || ''"
+          :meId="useDeviceId() || ''"
           @call="onCall"
           :isVideoCallMinimized="isVideoCallMinimized"
         >
@@ -315,15 +247,15 @@ const route = useRoute();
 definePageMeta({
   header: false,
 });
-const step = shallowRef<"invite" | "waiting" | "chat">("invite");
-const linkBlock = ref<HTMLElement | null>(null);
+const step = shallowRef<"waiting" | "chat">(
+  route.query.chatting ? "chat" : "waiting",
+);
 const consoleLogs = ref<string[]>([]);
 const roomDataExpanded = shallowRef(true);
 const waitingDots = shallowRef(0);
 let waitingInterval: number | null = null;
 let loadingStopped = false;
 const consoleFinished = ref(false);
-const copying = shallowRef(false);
 const sessionId = route.params.id as string;
 const isInvited = shallowRef(route.query.invited);
 const fixedHeight = shallowRef<number | null>(null);
@@ -371,6 +303,13 @@ const {
   toggleCamera,
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
+const sessionDB = useSessionDB(sessionId);
+// Connection loader state
+const showConnectionLoader = ref(false);
+const connectionLoaderMessage = ref("Пытаемся восстановить соединение...");
+const loaderDots = ref(0);
+const loaderDotsInterval: number | null = null;
+
 const callStatusText = ref("");
 const isCameraEnabled = computed(() => {
   if (!localStream.value) return false;
@@ -401,37 +340,18 @@ const formatUTCDateIntl = (date: string) => {
     second: "numeric",
   }).format(new Date(date));
 };
-async function copyInvitationLink() {
-  if (copying.value) return;
-  copying.value = true;
-  if (!linkBlock.value) {
-    copying.value = false;
-    return;
-  }
-  fixedHeight.value = linkBlock.value.offsetHeight;
-  await navigator.clipboard.writeText(getInviteLink());
-  animating.value = true;
-  displayText.value = "";
-  const targetText = "Скопировано";
-  setTimeout(() => {
-    let i = 0;
-    const interval = setInterval(() => {
-      displayText.value += targetText[i];
-      i++;
-      if (i >= targetText.length) {
-        clearInterval(interval);
-        setTimeout(() => {
-          displayText.value = getInviteLink();
-          animating.value = false;
-          fixedHeight.value = null;
-          copying.value = false;
-        }, 1000);
-      }
-    }, 50);
-  }, 300);
+// Connection loader functions
+function startConnectionLoader(
+  message = "Пытаемся восстановить соединение...",
+) {
+  showConnectionLoader.value = true;
+  connectionLoaderMessage.value = message;
 }
 
-function goToChat() {
+function stopConnectionLoader() {
+  showConnectionLoader.value = false;
+}
+function initChat() {
   initPeer();
   step.value = "waiting";
   peer.value?.on("open", (id: string) => {
@@ -467,10 +387,27 @@ function goToChat() {
   };
   tick();
 }
-function rejectInvite() {
-  navigateTo("/");
+// Watch for connection status changes
+watch(
+  () => roomData.value.network.connectionStatus,
+  (status) => {
+    checkConnection(status);
+  },
+  { immediate: true },
+);
+function checkConnection(status: string) {
+  if (step.value === "chat") {
+    if (status === "connecting" || status === "reconnecting") {
+      startConnectionLoader("Пытаемся восстановить соединение...");
+    } else if (status === "failed") {
+      startConnectionLoader("Соединение потеряно, восстанавливаем...");
+    } else if (status === "connected") {
+      stopConnectionLoader();
+    } else if (status === "disconnected") {
+      startConnectionLoader("Соединение разорвано, переподключаемся...");
+    }
+  }
 }
-
 function sendFileHandler(payload: any) {
   if (payload && Array.isArray(payload.files) && payload.files.length > 0) {
     sendAllFiles(payload);
@@ -547,15 +484,7 @@ function checkCallChatVisibilitySwap() {
     showChat.value = true;
   }
 }
-const endSession = () => {
-  if (conn.value) {
-    conn.value.close();
-  }
-  if (peer.value) {
-    peer.value.destroy();
-  }
-  navigateTo("/");
-};
+
 watch(isConnectionEstablished, () => {
   if (isConnectionEstablished.value) {
     loadingStopped = true;
@@ -578,6 +507,11 @@ watch(isConnectionEstablished, () => {
       } else {
         consoleLogs.value.push("Connection established!");
         step.value = "chat";
+        navigateTo({
+          path: `/chat/${sessionId}`,
+          query: { invited: isInvited.value, chatting: "true" },
+          replace: true,
+        });
       }
     };
     showCountdown();
@@ -690,7 +624,125 @@ watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
 onMounted(() => {
   displayText.value = getInviteLink();
   window.addEventListener("resize", checkCallChatVisibilitySwap);
+  (async () => {
+    try {
+      await sessionDB.openDB();
+      const saved = await sessionDB.load();
+      console.log(saved);
+      if (saved && saved.step === "chat") {
+        try {
+          if (messages && typeof (messages as any).value !== "undefined") {
+            (messages as any).value = saved.messages || [];
+          }
+        } catch (err) {}
+        step.value = "chat";
+        showChat.value = true;
+        showCall.value = false;
+        consoleFinished.value = true;
+        loadingStopped = true;
+        waitingDots.value = 0;
+        consoleLogs.value.push("RESTORE: session restored from IndexedDB");
+
+        // Параллельно (незаметно) пытаемся реинициализировать peer для восстановления соединения
+        // (не меняем UI — пользователь уже в chat)
+        setTimeout(() => {
+          try {
+            initPeer({ reconnect: true });
+            navigateTo({
+              path: `/chat/${sessionId}`,
+              query: { invited: isInvited.value, chatting: "true" },
+              replace: true,
+            });
+          } catch (e) {
+            // best-effort
+          }
+        }, 50);
+      } else {
+        initChat();
+      }
+    } catch (err) {
+      // noop — best-effort восстановление
+    }
+  })();
 });
+onBeforeUnmount(async () => {
+  window.removeEventListener("resize", checkCallChatVisibilitySwap);
+  // не удаляем sessionStorage тут — sessionStorage сохраняет вкладку при reload
+  // если компонент размонтируется (навигация) — очищаем БД (пользователь ушёл)
+  try {
+    // если уходим не в рамках активного чата — удаляем сохранение
+    if (step.value !== "chat") {
+    } else {
+      // при навигации внутри приложения (onBeforeUnmount) — также сохраняем текущее состояние
+      await sessionDB.save({
+        step: step.value,
+        messages: Array.isArray((messages as any).value)
+          ? (messages as any).value
+          : [],
+      });
+    }
+  } catch (err) {}
+});
+watch(
+  messages as any,
+  () => {
+    if (step.value === "chat") {
+      try {
+        sessionDB.save({
+          step: step.value,
+          messages: Array.isArray((messages as any).value)
+            ? (messages as any).value
+            : [],
+        });
+      } catch (err) {}
+    }
+  },
+  { deep: true },
+);
+
+watch(step, (val) => {
+  if (val !== "chat") {
+  } else {
+    window.addEventListener("beforeunload", (e: BeforeUnloadEvent) => {
+      if (step.value === "chat") {
+        // сохраняем состояние в IndexedDB (асинхронно — best-effort)
+        try {
+          sessionDB.save({
+            step: step.value,
+            messages: Array.isArray((messages as any).value)
+              ? (messages as any).value
+              : [],
+          });
+        } catch (err) {}
+        // показываем стандартный диалог предупреждения
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+    sessionDB
+      .save({
+        step: step.value,
+        messages: Array.isArray((messages as any).value)
+          ? (messages as any).value
+          : [],
+      })
+      .catch(() => {});
+  }
+});
+
+// 5) В endSession() добавляем очистку БД
+const endSession = async () => {
+  if (conn.value) {
+    conn.value.close();
+  }
+  if (peer.value) {
+    peer.value.destroy();
+  }
+  try {
+    await sessionDB.clearAll();
+  } catch (err) {}
+  navigateTo("/");
+};
 onBeforeUnmount(() => {
   stopAll();
 });
@@ -714,147 +766,82 @@ $app-small-height: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  .chat-invitation {
+  .connection-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(var(--color-bg-on-secondary-rgb, 0, 0, 0), 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 32px;
-    width: max-content;
-    max-width: 100%;
-    padding: 24px;
-    &__header {
-      margin-bottom: 8px;
+    justify-content: center;
+
+    &__content {
       text-align: center;
+      color: var(--color-primary-on-text);
+      max-width: 400px;
+      padding: 24px;
+    }
+
+    &__spinner {
+      margin: 0 auto 24px;
+      width: 60px;
+      height: 60px;
+      position: relative;
+
+      .spinner-ring {
+        width: 60px;
+        height: 60px;
+        border: 4px solid var(--color-neutral-on-outline);
+        border-top: 4px solid var(--color-primary-on-fill);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
     }
 
     &__title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--color-primary-on-text);
-      margin: 0;
-      text-wrap: balance;
-    }
-
-    &__content {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 64px;
-      max-width: 100%;
-      @media screen and (max-height: 750px) and (max-width: $app-desktop) {
-        gap: 64px;
-      }
-      @media screen and (max-width: $app-mobile) {
-        gap: 32px;
-      }
-      @media screen and (max-height: 420px) {
-        gap: 32px;
-      }
-    }
-
-    &__hint {
       font-size: 24px;
-      text-wrap: balance;
-      text-align: center;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--color-primary-on-text);
+    }
+
+    &__message {
+      font-size: 16px;
       color: var(--color-neutral-on-text);
-      max-width: 560px;
-      @media screen and (max-width: $app-mobile) {
-        font-size: 20px;
-      }
-      @media screen and (max-height: 420px) {
-        font-size: 20px;
-      }
+      margin-bottom: 24px;
+      line-height: 1.5;
     }
 
-    &__link-container {
+    &__dots {
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
-      gap: 32px;
-      max-width: 100%;
-    }
+      gap: 8px;
 
-    &__link-wrapper {
-      position: relative;
-      min-height: 72px;
-      display: flex;
-      align-items: center;
-      max-width: 100%;
-      justify-content: center;
-      padding: 24px 32px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      width: 320px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(4px);
-      color: var(--color-neutral-on-text);
-      font-size: 18px;
-      font-weight: 500;
-      text-align: center;
-      word-break: break-word;
-      transition:
-        background-color 0.3s ease,
-        box-shadow 0.3s ease,
-        border-color 0.3s ease;
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-        border-color: rgba(255, 255, 255, 0.2);
-      }
-      @media screen and (max-width: $app-mobile) {
-        font-size: 16px;
-        padding: 12px 16px;
-      }
-      @media screen and (max-height: 420px) {
-        font-size: 16px;
-        padding: 12px 16px;
-      }
-    }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--color-neutral-on-outline);
+        transition: background-color 0.3s ease;
 
-    &__link {
-      display: block;
-      width: 100%;
-    }
-
-    &__button-container {
-      width: 100%;
-      display: flex;
-      gap: 40px;
-      justify-content: center;
-      margin-top: 32px;
-      @media screen and (max-width: $app-mobile) {
-        margin-top: 5vh;
-      }
-      @media screen and (max-width: $app-narrow-mobile) {
-        flex-direction: column;
-        gap: 16px;
-        align-items: center;
-      }
-      .chat-invitation__button {
-        span {
-          font-size: 20px;
+        &.active {
+          background: var(--color-primary-on-fill);
         }
       }
     }
-
-    &__actions {
-      display: flex;
-      flex-wrap: wrap;
-      width: 100%;
-      gap: 32px;
-      list-style: none;
-      padding: 0;
-      margin: 0;
+  }
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
     }
-    &__action {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    100% {
+      transform: rotate(360deg);
     }
   }
-
   .chat-waiting {
     color: var(--app-text-primary);
     font-size: 14px;
