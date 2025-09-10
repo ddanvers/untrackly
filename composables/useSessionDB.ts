@@ -231,11 +231,34 @@ export function useSessionDB(sessionId: string) {
         if (!dbRef.value) return resolve();
 
         // безопасно сериализуем входные данные (удаляем non-clonable)
+        // Фильтруем и модифицируем сообщения: сохраняем только текстовые
+        let filteredMessages: any[] = [];
+        if (Array.isArray(state.messages)) {
+          filteredMessages = state.messages
+            .filter((msg) => {
+              // Если нет текста и есть файлы — не сохраняем
+              if (
+                (!msg.text || msg.text.trim() === "") &&
+                Array.isArray(msg.files) &&
+                msg.files.length > 0
+              ) {
+                return false;
+              }
+              return true;
+            })
+            .map((msg) => {
+              // Если есть файлы, но есть текст — сохраняем, но files = []
+              if (Array.isArray(msg.files) && msg.files.length > 0) {
+                return { ...msg, files: [] };
+              }
+              return msg;
+            });
+        }
         const safeState: ChatState = {
           ...state,
           messages:
-            typeof state.messages !== "undefined"
-              ? safeSerialize(state.messages)
+            filteredMessages.length > 0
+              ? safeSerialize(filteredMessages)
               : undefined,
           meta:
             typeof state.meta !== "undefined"
@@ -318,12 +341,111 @@ export function useSessionDB(sessionId: string) {
       }
     });
   }
+  async function clearAll() {
+    return async () => {
+      if (typeof window === "undefined" || !("indexedDB" in window)) {
+        return;
+      }
 
+      try {
+        // Закроем нашу открытую DB, если есть
+        if (dbRef.value) {
+          try {
+            dbRef.value.close();
+          } catch (e) {}
+          dbRef.value = null;
+        }
+
+        const deletions: Promise<void>[] = [];
+
+        // Если доступна современная API — получаем список всех баз и удаляем их
+        if (typeof (indexedDB as any).databases === "function") {
+          try {
+            const dbs: Array<{ name?: string; version?: number }> = await (
+              indexedDB as any
+            ).databases();
+            for (const info of dbs) {
+              if (!info || !info.name) continue;
+              deletions.push(
+                new Promise<void>((res) => {
+                  const req = indexedDB.deleteDatabase(info.name!);
+                  req.onsuccess = () => res();
+                  req.onerror = () => res(); // best-effort — не блокируем весь процесс из-за одной ошибки
+                  req.onblocked = () => res();
+                }),
+              );
+            }
+          } catch (e) {
+            // Если вызов databases() упал — продолжим fallback
+          }
+        } else {
+          // Fallback: попробуем удалить базы, названные по нашему паттерну,
+          // используя данные из sessionStorage (best-effort).
+          try {
+            if (typeof sessionStorage !== "undefined") {
+              for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (!key) continue;
+                if (key.startsWith("chat:tab:")) {
+                  const tabId = sessionStorage.getItem(key);
+                  if (!tabId) continue;
+                  const sessionId = key.slice("chat:tab:".length);
+                  const dbName = `chat_db_${sessionId}_${tabId}`;
+                  deletions.push(
+                    new Promise<void>((res) => {
+                      const req = indexedDB.deleteDatabase(dbName);
+                      req.onsuccess = () => res();
+                      req.onerror = () => res();
+                      req.onblocked = () => res();
+                    }),
+                  );
+                }
+              }
+            }
+          } catch (e) {
+            // sessionStorage может быть недоступен — ничего не делаем
+          }
+        }
+
+        // Выполним все удаляющие операции (best-effort)
+        await Promise.allSettled(deletions);
+
+        // Удалим все наши sessionStorage ключи chat:tab:*
+        try {
+          if (typeof sessionStorage !== "undefined") {
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+              const key = sessionStorage.key(i);
+              if (key?.startsWith("chat:tab:")) keysToRemove.push(key);
+            }
+            for (const k of keysToRemove) {
+              try {
+                sessionStorage.removeItem(k);
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+        } catch (e) {
+          // ничего
+        }
+      } catch (err) {
+        // Best-effort: если что-то пошло не так, всё равно возвращаем resolve
+        // но логируем ошибку через reject для отладки (можно поменять на resolve если не хотим бросать)
+        // Здесь возвращаем resolve чтобы не ломать UX; caller всё равно может поймать ошибки.
+        try {
+          // eslint-disable-next-line no-console
+          console.warn("clearAll encountered an error:", err);
+        } catch {}
+      }
+    };
+  }
   return {
     openDB,
     save,
     load,
     clear,
+    clearAll,
     // для дебага
     _getDbName: getDbName,
   };

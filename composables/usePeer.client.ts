@@ -170,6 +170,62 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       exponentialBackoff: 1000, // Base retry delay
     },
   });
+  // reconnect loop state (используем setTimeout-loop, чтобы менять delay)
+  const companionReconnectTimer = ref<number | null>(null);
+  const initiatorUnloadHandler: (() => void) | null = null;
+
+  /**
+   * Запускает loop повторных попыток подключения (экспоненциальный бэкофф)
+   * будет пытаться пока conn не станет open
+   */
+
+  function startCompanionReconnectLoop() {
+    if (companionReconnectTimer.value) return;
+    metricsState.retryState.attempts = 0;
+
+    const attempt = () => {
+      if (conn.value?.open) {
+        stopCompanionReconnectLoop();
+        return;
+      }
+
+      metricsState.retryState.attempts++;
+      metricsState.retryState.lastRetryTime = Date.now();
+
+      const target = sessionId; // <- всегда инициатор
+      console.log(
+        "[usePeer] reconnect loop attempt",
+        metricsState.retryState.attempts,
+        "->",
+        target,
+      );
+
+      try {
+        connectToPeer(target);
+      } catch (e) {
+        console.warn("[usePeer] reconnect attempt failed:", e);
+      }
+
+      const nextDelay = Math.min(
+        30000,
+        1000 * 2 ** Math.min(6, metricsState.retryState.attempts - 1),
+      );
+
+      companionReconnectTimer.value = window.setTimeout(
+        attempt,
+        nextDelay,
+      ) as unknown as number;
+    };
+
+    attempt();
+  }
+
+  function stopCompanionReconnectLoop() {
+    if (!companionReconnectTimer.value) return;
+    clearTimeout(companionReconnectTimer.value);
+    companionReconnectTimer.value = null;
+    metricsState.retryState.attempts = 0;
+  }
 
   function initializeMetricsTracking(): void {
     metricsState.connectionStartTime = Date.now();
@@ -442,8 +498,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     // Для инициатора — используем свой sessionId, для клиента — PeerJS сгенерирует ID
     // Для инициатора — если reconnect, НЕ используем sessionId как peerId
     if (isInitiator) {
-      peer.value = new Peer(reconnect ? undefined : sessionId, options);
-      peer.value.connect(sessionId, { reliable: true });
+      peer.value = new Peer(sessionId, options);
     } else {
       peer.value = new Peer(undefined, options);
     }
@@ -451,24 +506,22 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     peer.value.on("open", (id: string) => {
       console.log("[usePeer] Peer open", id, { storedPeerId, reconnect });
 
-      // Сохраняем id в sessionStorage чтобы при reload в этой вкладке можно было попытаться восстановить тот же id
+      // Сохраняем свой id в sessionStorage чтобы при reload в этой вкладке можно было попытаться восстановить тот же id
       try {
         setStoredConnectionId(sessionId, id);
       } catch (e) {}
 
-      // Если non-initiator и мы в режиме reconnect, сразу пытаемся подключиться к initiator
+      // Если non-initiator и не reconnect — старое поведение: подключаемся к initiator (sessionId)
       if (!isInitiator) {
-        // небольшая пауза, чтобы PeerJS успел зарегистрироваться на сервере
         setTimeout(() => {
           try {
             connectToPeer(sessionId);
           } catch (e) {
-            // schedule reconnect handled в connectToPeer/setupConnection
             console.warn("[usePeer] connectToPeer failed on open", e);
           }
         }, 50);
-      } else {
       }
+
       updateRoomData("network", { connectionStatus: "connecting" });
     });
 
@@ -515,9 +568,15 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     });
   }
 
-  function connectToPeer(targetId: string) {
+  function connectToPeer(targetId?: string) {
     if (!peer.value) return;
-    const connection = peer.value.connect(targetId, { reliable: true });
+    const target = targetId || sessionId; // всегда по умолчанию к sessionId (инициатору)
+    if (!target) {
+      console.warn("[usePeer] connectToPeer: no target specified");
+      return;
+    }
+    console.log("[usePeer] connectToPeer ->", target);
+    const connection = peer.value.connect(target, { reliable: true });
     setupConnection(connection);
   }
 
@@ -527,6 +586,9 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     connection.on("open", () => {
       console.log("[usePeer] Connection open");
       isConnectionEstablished.value = true;
+
+      // остановим loop reconnect (если он был запущен)
+      stopCompanionReconnectLoop();
 
       updateRoomData("network", {
         connectionStatus: "connected",
@@ -660,10 +722,20 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         companionLastSeen: Date.now(),
       });
 
-      // Clean up intervals and prepare for potential reconnection
       if (metricsState.pingInterval) {
         clearInterval(metricsState.pingInterval);
         metricsState.pingInterval = null;
+      }
+
+      if (!isInitiator) {
+        console.log(
+          "[usePeer] Connection closed, starting reconnect loop (non-initiator)",
+        );
+        startCompanionReconnectLoop();
+      } else {
+        console.log(
+          "[usePeer] Connection closed (initiator) — not starting reconnect loop",
+        );
       }
     });
 

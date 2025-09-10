@@ -1,6 +1,21 @@
 <template>
   <main class="chat-page" aria-label="Чат">
     <section
+      v-if="showConnectionLoader"
+      class="connection-loader"
+      aria-label="Восстановление соединения"
+    >
+      <div class="connection-loader__content">
+        <h2 class="connection-loader__title">Восстановление соединения</h2>
+        <p class="connection-loader__message">
+          {{ connectionLoaderMessage }}
+        </p>
+        <div class="connection-loader__spinner">
+          <div class="spinner-ring"></div>
+        </div>
+      </div>
+    </section>
+    <section
       v-if="step === 'waiting'"
       class="chat-waiting"
       aria-label="Ожидание подключения собеседника"
@@ -268,6 +283,11 @@ const {
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
 const sessionDB = useSessionDB(sessionId);
+// Connection loader state
+const showConnectionLoader = ref(false);
+const connectionLoaderMessage = ref("Пытаемся восстановить соединение...");
+const loaderDots = ref(0);
+const loaderDotsInterval: number | null = null;
 
 const callStatusText = computed(() => {
   if (callState.value === "calling") return "Звоним собеседнику...";
@@ -303,7 +323,17 @@ const formatUTCDateIntl = (date: string) => {
     second: "numeric",
   }).format(new Date(date));
 };
+// Connection loader functions
+function startConnectionLoader(
+  message = "Пытаемся восстановить соединение...",
+) {
+  showConnectionLoader.value = true;
+  connectionLoaderMessage.value = message;
+}
 
+function stopConnectionLoader() {
+  showConnectionLoader.value = false;
+}
 function initChat() {
   initPeer();
   step.value = "waiting";
@@ -340,7 +370,27 @@ function initChat() {
   };
   tick();
 }
-
+// Watch for connection status changes
+watch(
+  () => roomData.value.network.connectionStatus,
+  (status) => {
+    checkConnection(status);
+  },
+  { immediate: true },
+);
+function checkConnection(status: string) {
+  if (step.value === "chat") {
+    if (status === "connecting" || status === "reconnecting") {
+      startConnectionLoader("Пытаемся восстановить соединение...");
+    } else if (status === "failed") {
+      startConnectionLoader("Соединение потеряно, восстанавливаем...");
+    } else if (status === "connected") {
+      stopConnectionLoader();
+    } else if (status === "disconnected") {
+      startConnectionLoader("Соединение разорвано, переподключаемся...");
+    }
+  }
+}
 function sendFileHandler(payload: any) {
   if (payload && Array.isArray(payload.files) && payload.files.length > 0) {
     sendAllFiles(payload);
@@ -514,6 +564,8 @@ onMounted(() => {
             // best-effort
           }
         }, 50);
+      } else {
+        initChat();
       }
     } catch (err) {
       // noop — best-effort восстановление
@@ -594,13 +646,10 @@ const endSession = async () => {
     peer.value.destroy();
   }
   try {
-    await sessionDB.clear();
+    await sessionDB.clearAll();
   } catch (err) {}
   navigateTo("/");
 };
-onMounted(() => {
-  initChat();
-});
 </script>
 
 <style scoped lang="scss">
@@ -621,6 +670,82 @@ $app-small-height: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  .connection-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(var(--color-bg-on-secondary-rgb, 0, 0, 0), 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &__content {
+      text-align: center;
+      color: var(--color-primary-on-text);
+      max-width: 400px;
+      padding: 24px;
+    }
+
+    &__spinner {
+      margin: 0 auto 24px;
+      width: 60px;
+      height: 60px;
+      position: relative;
+
+      .spinner-ring {
+        width: 60px;
+        height: 60px;
+        border: 4px solid var(--color-neutral-on-outline);
+        border-top: 4px solid var(--color-primary-on-fill);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+    }
+
+    &__title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--color-primary-on-text);
+    }
+
+    &__message {
+      font-size: 16px;
+      color: var(--color-neutral-on-text);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    &__dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--color-neutral-on-outline);
+        transition: background-color 0.3s ease;
+
+        &.active {
+          background: var(--color-primary-on-fill);
+        }
+      }
+    }
+  }
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
   .chat-waiting {
     color: var(--app-text-primary);
     font-size: 14px;
