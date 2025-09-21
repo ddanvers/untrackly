@@ -5,14 +5,25 @@
     @dragenter.prevent="onSectionDragEnter"
     @dragover.prevent
   >
-    <section v-if="props.replyingTo" class="message-form__reply" @click="goToReply">
-      <div class="message-form__reply-content">
-        <span class="message-form__reply-author"> В ответ на сообщение</span>
-        <p class="message-form__reply-text">
-          {{ props.replyingTo.text || "Файл" }}
+    <section
+      v-if="props.replyingTo || props.editingMessage"
+      class="message-form__attached-message"
+      @click="goToReply"
+    >
+      <div class="message-form__attached-message-content">
+        <span class="message-form__attached-message-author">{{
+          props.replyingTo ? "В ответ на сообщение" : "Редактирование сообщения"
+        }}</span>
+        <p class="message-form__attached-message-text">
+          {{ props.replyingTo?.text || props.editingMessage?.text || "Файл" }}
         </p>
       </div>
-      <button type="button" class="close-btn" @dragstart.prevent @click.stop="cancelReply">
+      <button
+        type="button"
+        class="close-btn"
+        @dragstart.prevent
+        @click.stop="removeAttachedMessage"
+      >
         <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
       </button>
     </section>
@@ -43,7 +54,7 @@
         </button>
       </li>
     </ul>
-    <form class="message-form__actions" @submit.prevent="sendMessage">
+    <form class="message-form__actions" @submit.prevent>
       <CButton
         @click="onAttachClick"
         button-type="button"
@@ -57,7 +68,7 @@
       <input ref="fileInput" type="file" multiple style="display: none" @change="onFileChange" />
       <div class="message-form__input-wrapper">
         <CInput
-          v-model="text"
+          v-model="messageText"
           class="message-form__input"
           placeholder="Напишите ваше сообщение"
           @keyup.enter="sendMessage"
@@ -71,6 +82,7 @@
         bgColor="transparent"
         variant="icon-default"
         class="message-form__send"
+        @click="sendMessage()"
         size="large"
         icon-size="i-large"
         ><NuxtImg src="/icons/chat/send.svg" width="32px"></NuxtImg
@@ -79,23 +91,6 @@
   </section>
 </template>
 <script setup lang="ts">
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: number;
-  read?: boolean;
-  type?: string;
-  fileUrl?: string;
-  fileName?: string;
-  fileMime?: string;
-  files?: FileAttachment[];
-}
-interface FileAttachment {
-  name: string;
-  type: string;
-  fileUrl: string;
-}
 const DEFAULT_FILE_ICON = "file.svg";
 const FILE_ICONS = {
   doc: "doc.svg",
@@ -113,21 +108,21 @@ const FILE_ICONS = {
 };
 
 const props = defineProps<{
-  replyingTo?: Message;
+  replyingTo: Message | null;
+  editingMessage: Message | null;
 }>();
-const emit = defineEmits([
-  "send",
-  "attach",
-  "detach",
-  "sendAllFiles",
-  "cancelReply",
-  "goToReply",
-]);
+const emits = defineEmits<{
+  (e: "sendMessage", payload: SendMessageRequest): void;
+  (e: "editMessage", payload: EditMessageRequest): void;
+  (e: "replyToMessage", payload: ReplyMessageRequest): void;
+  (e: "removeAttachedMessage"): void;
+  (e: "goToReply"): void;
+}>();
 
-const text = ref("");
+const messageText = ref("");
 const dragActive = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
-const attachedFiles = ref<{ file: File; preview?: string }[]>([]);
+const attachedFiles = ref<FileAttachment[]>([]);
 
 const getIconByType = (type?: string) => {
   return `/icons/file_formats/${
@@ -136,33 +131,36 @@ const getIconByType = (type?: string) => {
       : DEFAULT_FILE_ICON
   }`;
 };
-function cancelReply() {
-  emit("cancelReply");
+function removeAttachedMessage() {
+  emits("removeAttachedMessage");
 }
 function goToReply() {
-  emit("goToReply");
+  emits("goToReply");
 }
 function sendMessage(event?: KeyboardEvent) {
   if (event?.shiftKey) return;
-  const trimmedText = text.value.trim();
+  const trimmedText = messageText.value.trim();
   if (!trimmedText && !attachedFiles.value.length) return;
-  if (trimmedText && !attachedFiles.value.length) {
-    emit("send", trimmedText);
-    text.value = "";
-    return;
+  if (props.editingMessage) {
+    emits("editMessage", {
+      text: trimmedText,
+      files: attachedFiles.value,
+      editingId: props.editingMessage.id,
+    });
+  } else if (props.replyingTo) {
+    emits("replyToMessage", {
+      text: trimmedText,
+      files: attachedFiles.value,
+      replyingId: props.replyingTo.id,
+    });
+  } else {
+    emits("sendMessage", {
+      text: trimmedText,
+      files: attachedFiles.value,
+    });
   }
-  if (attachedFiles.value.length) {
-    const files = attachedFiles.value.map((f) => ({
-      name: f.file.name,
-      type: f.file.type,
-      size: f.file.size,
-      file: f.file,
-      preview: f.preview,
-    }));
-    emit("sendAllFiles", { text: trimmedText, files });
-    text.value = "";
-    attachedFiles.value = [];
-  }
+  messageText.value = "";
+  attachedFiles.value = [];
 }
 function onPaste(event: ClipboardEvent) {
   const items = event.clipboardData?.items;
@@ -173,7 +171,7 @@ function onPaste(event: ClipboardEvent) {
       const file = item.getAsFile();
       if (file?.type.startsWith("image/")) {
         const preview = URL.createObjectURL(file);
-        attachedFiles.value.push({ file, preview });
+        attachedFiles.value.push({ id: crypto.randomUUID(), file, preview });
       }
     }
   }
@@ -184,7 +182,7 @@ function onSectionDragEnter() {
 
 function onOverlayDragLeave(event: DragEvent) {
   const to = event.relatedTarget as HTMLElement | null;
-  if (!event.currentTarget?.contains(to!)) {
+  if (!(event.currentTarget as HTMLElement)?.contains(to!)) {
     dragActive.value = false;
   }
 }
@@ -201,7 +199,7 @@ function addFiles(files: FileList) {
     if (file.type.startsWith("image/")) {
       preview = URL.createObjectURL(file);
     }
-    attachedFiles.value.push({ file, preview });
+    attachedFiles.value.push({ id: crypto.randomUUID(), file, preview });
   }
 }
 
@@ -218,6 +216,21 @@ function onFileChange(e: Event) {
 function detachFile(idx: number) {
   attachedFiles.value.splice(idx, 1);
 }
+
+watch(
+  () => props.editingMessage,
+  (newVal) => {
+    if (newVal) {
+      attachedFiles.value =
+        newVal.files?.map((f) => ({
+          id: f.id,
+          file: f.file,
+          preview: (f.file as ModelFile)?.fileUrl,
+        })) || [];
+      messageText.value = newVal.text || "";
+    }
+  },
+);
 </script>
 <style lang="scss" scoped>
 .message-form {
@@ -226,7 +239,7 @@ function detachFile(idx: number) {
   gap: 8px;
   padding-top: 16px;
   border-top: 1px solid var(--color-neutral-on-outline);
-  &__reply {
+  &__attached-message {
     display: flex;
     align-items: center;
     border-left: 4px solid var(--color-primary-on-outline);

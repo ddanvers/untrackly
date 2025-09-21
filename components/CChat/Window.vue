@@ -24,14 +24,7 @@
         </slot>
       </template>
     </CChatHeader>
-    <section
-      class="chat__body"
-      :class="{
-        'chat__body--minimized': isVideoCallMinimized,
-      }"
-      ref="bodyRef"
-      @scroll="onScroll"
-    >
+    <section class="chat__body" ref="bodyRef" @scroll="onScroll">
       <div v-if="messages.length">
         <CChatMessage
           class="chat__message"
@@ -44,65 +37,33 @@
           :meId="meId"
           @read="onRead(msg.id)"
           @reply="onReply"
+          @edit="onEdit"
           @scroll-to-message="scrollToMessage"
         />
       </div>
       <div v-else class="chat__body--empty">Чат пуст. Всё готово к обмену сообщениями</div>
     </section>
     <CChatMessageForm
-      @send="sendMessage"
-      @sendAllFiles="onSendAllFiles"
-      @sendFile="sendFile"
+      @sendMessage="sendMessage"
+      @editMessage="editMessage"
       :replyingTo="replyingTo"
-      @cancelReply="cancelReply"
+      :editingMessage="editingMessage"
+      @removeAttachedMessage="removeAttachedMessage"
       @go-to-reply="goToReply"
     />
   </section>
 </template>
 
 <script setup lang="ts">
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: number;
-  read?: boolean;
-}
-interface ReplyMessageData {
-  id: string;
-  text: string;
-  sender: string;
-}
 const props = defineProps<{
   title: string;
   meId: string;
   messages: Message[];
-  isVideoCallMinimized: boolean;
 }>();
 
 const emit = defineEmits<{
-  (
-    e: "sendMessage",
-    payload: {
-      text: string;
-      replyMessage: ReplyMessageData | null;
-    },
-  ): void;
-  (e: "sendFile", file: File): void;
-  (
-    e: "sendAllFiles",
-    payload: {
-      text: string;
-      replyMessage: ReplyMessageData | null;
-      files: {
-        name: string;
-        type: string;
-        size: number;
-        file: File;
-        preview?: string;
-      }[];
-    },
-  ): void;
+  (e: "sendMessage", payload: SendMessageRequest): void;
+  (e: "editMessage", payload: EditMessageRequest): void;
   (e: "readMessage", id: string): void;
   (e: "call", type: "audio" | "video"): void;
 }>();
@@ -113,7 +74,7 @@ const notificationSound = process.client
   ? new Audio("/sounds/notification.mp3")
   : null;
 const replyingTo = ref<Message | null>(null);
-
+const editingMessage = ref<Message | null>(null);
 function onVideoCall() {
   emit("call", "video");
 }
@@ -122,6 +83,9 @@ function onAudioCall() {
 }
 function onReply(message: Message) {
   replyingTo.value = message;
+}
+function onEdit(message: Message) {
+  editingMessage.value = message;
 }
 function scrollToMessage(id: string) {
   const el = document.getElementById(id);
@@ -143,54 +107,27 @@ function goToReply() {
     scrollToMessage(replyingTo.value.id);
   }
 }
-function cancelReply() {
+function removeAttachedMessage() {
   replyingTo.value = null;
+  editingMessage.value = null;
 }
 onMounted(() => {
   console.log("[Window.vue] mounted");
   scrollToBottom();
 });
 
-function sendMessage(text: string) {
-  console.log("[Window.vue] sendMessage", text);
-  emit("sendMessage", {
-    text,
-    replyMessage: replyingTo.value
-      ? {
-          id: replyingTo.value?.id as string,
-          text: replyingTo.value?.text as string,
-          sender: replyingTo.value?.sender as string,
-        }
-      : null,
-  });
+function sendMessage(request: SendMessageRequest) {
+  console.log("[Window.vue] sendMessage", request);
+  emit("sendMessage", request);
   setTimeout(scrollToBottom, 0);
-  replyingTo.value = null;
+}
+function editMessage(request: EditMessageRequest) {
+  console.log("[Window.vue] editMessage", request);
+  emit("editMessage", request);
+  editingMessage.value = null;
 }
 
-function onSendAllFiles(payload: {
-  text: string;
-  files: {
-    name: string;
-    type: string;
-    size: number;
-    file: File;
-    preview?: string;
-  }[];
-}) {
-  console.log("[Window.vue] onSendAllFiles", payload);
-  emit("sendAllFiles", {
-    ...payload,
-    replyMessage: replyingTo.value
-      ? {
-          id: replyingTo.value?.id as string,
-          text: replyingTo.value?.text as string,
-          sender: replyingTo.value?.sender as string,
-        }
-      : null,
-  });
-  setTimeout(scrollToBottom, 0);
-  replyingTo.value = null;
-}
+function deleteMessage(message: Message) {}
 
 function onRead(id: string) {
   console.log("[Window.vue] onRead", id);

@@ -42,7 +42,7 @@
             <li class="chat-message__menu-item" @click="replyToMessage(message)">
               <NuxtImg src="/icons/chat/reply.svg" width="16px"></NuxtImg>Ответить
             </li>
-            <li class="chat-message__menu-item" @click="replyToMessage(message)">
+            <li class="chat-message__menu-item" @click="editMessage(message)">
               <NuxtImg src="/icons/chat/pen.svg" width="16px"></NuxtImg>Редактировать
             </li>
             <li class="chat-message__menu-item" @click="replyToMessage(message)">
@@ -74,14 +74,14 @@
         <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
         <div class="image-preview">
           <img
-            :src="message.files[0].fileUrl"
-            :alt="message.files[0].name"
+            :src="message.files[0].file.fileUrl"
+            :alt="message.files[0].file.name"
             class="chat-message__image"
-            @click="handleImgClick([message.files[0]], message.files[0].fileUrl)"
+            @click="handleImgClick(message.files, message.files[0].file.fileUrl)"
           />
           <a
-            :href="message.files[0].fileUrl"
-            :download="message.files[0].name"
+            :href="message.files[0].file.fileUrl"
+            :download="message.files[0].file.name"
             class="download-icon"
             title="Скачать"
           >
@@ -89,50 +89,65 @@
           ></a>
         </div>
       </template>
-      <template v-else-if="message.type === 'file-group' && message.files?.length">
+      <template v-else-if="message.type === 'message' && message.files?.length">
         <div v-if="message.text" class="chat-message__group-text">{{ message.text }}</div>
         <ul class="file-attachments-list">
           <li
             v-for="(file, idx) in message.files"
-            :key="file.name"
+            :key="file.file.name"
             class="file-attachment"
             :class="{
-              'file-attachment__item--img': file.type && file.type.startsWith('image/'),
+              'file-attachment__item--img': file.file.type && file.file.type.startsWith('image/'),
             }"
           >
-            <template v-if="file.type && file.type.startsWith('image/')">
+            <template v-if="file.file.type && file.file.type.startsWith('image/')">
               <div class="file-attachment__img-wrapper">
                 <img
-                  @click="handleImgClick(message.files, file.fileUrl)"
-                  :src="file.fileUrl"
+                  @click="handleImgClick(message.files, file.file.fileUrl)"
+                  :src="file.file.fileUrl"
                   class="file-attachment__img"
                 />
-                <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
+                <a
+                  :href="file.file.fileUrl"
+                  :download="file.file.name"
+                  class="download-icon"
+                  title="Скачать"
+                >
                   <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
                 ></a>
               </div>
             </template>
-            <template v-else-if="file.type && file.type.startsWith('video/')">
+            <template v-else-if="file.file.type && file.file.type.startsWith('video/')">
               <img
-                :src="getIconByType(file.name.split('.').pop())"
+                :src="getIconByType(file.file.name.split('.').pop())"
                 class="file-attachment__type-icon"
                 width="32px"
               />
-              <span @click="handleVideoClick(file.fileUrl)"> {{ file.name }}</span>
-              <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
+              <span @click="handleVideoClick(file.file.fileUrl)"> {{ file.file.name }}</span>
+              <a
+                :href="file.file.fileUrl"
+                :download="file.file.name"
+                class="download-icon"
+                title="Скачать"
+              >
                 <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
               ></a>
             </template>
             <template v-else>
               <img
-                :src="getIconByType(file.name.split('.').pop())"
+                :src="getIconByType(file.file.name.split('.').pop())"
                 class="file-attachment__type-icon"
                 width="32px"
               />
-              <a :href="file.fileUrl" target="_blank" class="file-attachment__link">{{
-                file.name
+              <a :href="file.file.fileUrl" target="_blank" class="file-attachment__link">{{
+                file.file.name
               }}</a>
-              <a :href="file.fileUrl" :download="file.name" class="download-icon" title="Скачать">
+              <a
+                :href="file.file.fileUrl"
+                :download="file.file.name"
+                class="download-icon"
+                title="Скачать"
+              >
                 <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
               ></a>
             </template>
@@ -147,29 +162,6 @@
 </template>
 
 <script setup lang="ts">
-interface FileAttachment {
-  name: string;
-  type: string;
-  fileUrl: string;
-}
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: number;
-  read?: boolean;
-  replyMessage?: ReplyMessageData;
-  type?: string;
-  fileUrl?: string;
-  fileName?: string;
-  fileMime?: string;
-  files?: FileAttachment[];
-}
-interface ReplyMessageData {
-  id: string;
-  sender: string;
-  text: string;
-}
 const DEFAULT_FILE_ICON = "file.svg";
 const FILE_ICONS = {
   doc: "doc.svg",
@@ -195,7 +187,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "reply", message: Message): void;
   (e: "read", id: string): void;
-  (e: "scroll-to-message", id: string): void; // <— новое событие
+  (e: "scroll-to-message", id: string): void;
+  (e: "edit", message: Message): void;
+  (e: "delete", id: string): void;
 }>();
 
 const { openDialog, setImages } = useDialogImages();
@@ -220,10 +214,10 @@ const getIconByType = (type?: string) => {
   }`;
 };
 
-function handleImgClick(images: FileAttachment[], clickedUrl: string) {
-  const imageUrls = images
-    .filter((image) => image.type?.startsWith("image/"))
-    .map((image) => image.fileUrl);
+function handleImgClick(messageFiles: MessageFile[], clickedUrl: string) {
+  const imageUrls = messageFiles
+    .filter((messageFile) => messageFile.file.type?.startsWith("image/"))
+    .map((messageFile) => messageFile.file.fileUrl);
   setImages([
     imageUrls.find((url) => url === clickedUrl)!,
     ...imageUrls.filter((url) => url !== clickedUrl),
@@ -238,12 +232,16 @@ function replyToMessage(message: Message) {
   emit("reply", message);
   menuOpened.value = false;
 }
+function editMessage(message: Message) {
+  menuOpened.value = false;
+  emit("edit", message);
+}
 function isMessageHasOnlyImage(message: Message) {
   return (
-    message.type === "file-group" &&
+    message.type === "message" &&
     message.files?.length === 1 &&
-    message.files[0].type &&
-    message.files[0].type.startsWith("image/")
+    message.files[0].file.type &&
+    message.files[0].file.type.startsWith("image/")
   );
 }
 onMounted(() => {
