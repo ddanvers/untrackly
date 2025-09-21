@@ -37,6 +37,7 @@
           :meId="meId"
           @read="onRead(msg.id)"
           @reply="onReply"
+          @delete="onDelete"
           @edit="onEdit"
           @scroll-to-message="scrollToMessage"
         />
@@ -64,6 +65,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "sendMessage", payload: SendMessageRequest): void;
   (e: "editMessage", payload: EditMessageRequest): void;
+  (e: "deleteMessage", id: string): void;
   (e: "readMessage", id: string): void;
   (e: "call", type: "audio" | "video"): void;
 }>();
@@ -127,7 +129,10 @@ function editMessage(request: EditMessageRequest) {
   editingMessage.value = null;
 }
 
-function deleteMessage(message: Message) {}
+function onDelete(id: string) {
+  console.log("[Window.vue] deleteMessage", id);
+  emit("deleteMessage", id);
+}
 
 function onRead(id: string) {
   console.log("[Window.vue] onRead", id);

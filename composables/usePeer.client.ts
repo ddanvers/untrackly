@@ -87,6 +87,18 @@ interface ReplyMessageData {
   sender: string;
 }
 export function usePeer(sessionId: string, isInitiator: boolean) {
+  /**
+   * Удалить сообщение по id и синхронизировать с собеседником
+   */
+  function deleteMessage(messageId: string) {
+    const index = messages.value.findIndex((m: any) => m.id === messageId);
+    if (index !== -1) {
+      messages.value.splice(index, 1);
+    }
+    if (conn.value?.open) {
+      conn.value.send({ type: "delete-message", id: messageId });
+    }
+  }
   const peer = ref<Peer | null>(null);
   const conn = ref<DataConnection | null>(null);
   const messages = ref<Message[]>([]);
@@ -645,6 +657,15 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           "read",
         ].includes(data.type)
       ) {
+        return;
+      }
+
+      // Обработка удаления сообщения
+      if (data?.type === "delete-message" && data.id) {
+        const idx = messages.value.findIndex((m) => m.id === data.id);
+        if (idx !== -1) {
+          messages.value.splice(idx, 1);
+        }
         return;
       }
 
@@ -1293,9 +1314,9 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     initPeer,
     sendMessage,
     editMessage,
+    deleteMessage,
     attachFile,
     detachFile,
-
     attachedFiles,
     destroy,
     readMessage,

@@ -42,10 +42,10 @@
             <li class="chat-message__menu-item" @click="replyToMessage(message)">
               <NuxtImg src="/icons/chat/reply.svg" width="16px"></NuxtImg>Ответить
             </li>
-            <li class="chat-message__menu-item" @click="editMessage(message)">
+            <li v-if="isMe" class="chat-message__menu-item" @click="editMessage(message)">
               <NuxtImg src="/icons/chat/pen.svg" width="16px"></NuxtImg>Редактировать
             </li>
-            <li class="chat-message__menu-item" @click="replyToMessage(message)">
+            <li v-if="isMe" class="chat-message__menu-item" @click="deleteMessage(message)">
               <NuxtImg src="/icons/chat/delete.svg" width="16px"></NuxtImg>Удалить
             </li>
           </ul>
@@ -235,6 +235,10 @@ function replyToMessage(message: Message) {
 function editMessage(message: Message) {
   menuOpened.value = false;
   emit("edit", message);
+}
+function deleteMessage(message: Message) {
+  menuOpened.value = false;
+  emit("delete", message.id);
 }
 function isMessageHasOnlyImage(message: Message) {
   return (
