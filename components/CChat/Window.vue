@@ -47,6 +47,7 @@
     <CChatMessageForm
       @sendMessage="sendMessage"
       @editMessage="editMessage"
+      @replyToMessage="replyToMessage"
       :replyingTo="replyingTo"
       :editingMessage="editingMessage"
       @removeAttachedMessage="removeAttachedMessage"
@@ -65,6 +66,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "sendMessage", payload: SendMessageRequest): void;
   (e: "editMessage", payload: EditMessageRequest): void;
+  (e: "replyToMessage", payload: ReplyMessageRequest): void;
   (e: "deleteMessage", id: string): void;
   (e: "readMessage", id: string): void;
   (e: "call", type: "audio" | "video"): void;
@@ -128,7 +130,11 @@ function editMessage(request: EditMessageRequest) {
   emit("editMessage", request);
   editingMessage.value = null;
 }
-
+function replyToMessage(request: ReplyMessageRequest) {
+  console.log("[Window.vue] replyToMessage", request);
+  emit("replyToMessage", request);
+  replyingTo.value = null;
+}
 function onDelete(id: string) {
   console.log("[Window.vue] deleteMessage", id);
   emit("deleteMessage", id);

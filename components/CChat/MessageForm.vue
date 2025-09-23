@@ -146,12 +146,18 @@ function sendMessage(event?: KeyboardEvent) {
       text: trimmedText,
       files: attachedFiles.value,
       editingId: props.editingMessage.id,
+      replyMessage: props.editingMessage.replyMessage,
+      read: props.editingMessage.read,
     });
   } else if (props.replyingTo) {
     emits("replyToMessage", {
       text: trimmedText,
       files: attachedFiles.value,
-      replyingId: props.replyingTo.id,
+      replyMessage: {
+        id: props.replyingTo.id,
+        sender: props.replyingTo.sender,
+        text: props.replyingTo.text,
+      },
     });
   } else {
     emits("sendMessage", {
@@ -228,6 +234,9 @@ watch(
           preview: (f.file as ModelFile)?.fileUrl,
         })) || [];
       messageText.value = newVal.text || "";
+    } else {
+      attachedFiles.value = [];
+      messageText.value = "";
     }
   },
 );

@@ -87,18 +87,6 @@ interface ReplyMessageData {
   sender: string;
 }
 export function usePeer(sessionId: string, isInitiator: boolean) {
-  /**
-   * Удалить сообщение по id и синхронизировать с собеседником
-   */
-  function deleteMessage(messageId: string) {
-    const index = messages.value.findIndex((m: any) => m.id === messageId);
-    if (index !== -1) {
-      messages.value.splice(index, 1);
-    }
-    if (conn.value?.open) {
-      conn.value.send({ type: "delete-message", id: messageId });
-    }
-  }
   const peer = ref<Peer | null>(null);
   const conn = ref<DataConnection | null>(null);
   const messages = ref<Message[]>([]);
@@ -697,7 +685,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           read: false,
           text: typedData.text,
           timestamp: typedData.timestamp,
-          replyMessage: typedData.replyMessage || null,
+          replyMessage: typedData.replyMessage,
           type: "message",
           files: filesWithUrl,
           isEdited: typedData.isEdited,
@@ -812,7 +800,10 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     // Для обычных сообщений
     return JSON.stringify(data).length;
   }
-  async function sendMessage(payload: SendMessageRequest) {
+  async function sendMessage(
+    payload: SendMessageRequest,
+    replyMessage?: ReplyMessageData,
+  ) {
     console.log("[usePeer] sendMessage", payload);
     if (!conn.value?.open) return;
     const filesToSend = await Promise.all(
@@ -842,6 +833,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       text: payload.text,
       timestamp: Date.now(),
       files: filesToSend,
+      replyMessage: replyMessage,
       read: false,
     };
     console.log("[usePeer] sendMessage: message", message);
@@ -888,7 +880,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       text: payload.text,
       timestamp: Date.now(),
       files: filesToSend,
-      read: false,
+      read: payload.read,
+      replyMessage: payload.replyMessage,
       isEdited: true,
       existingFileIds,
     };
@@ -922,6 +915,24 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     updateRoomData("messages", {
       lastMessageTimestamp: message.timestamp,
     });
+  }
+  function replyToMessage(request: ReplyMessageRequest) {
+    sendMessage(
+      {
+        text: request.text,
+        files: request.files,
+      },
+      request.replyMessage,
+    );
+  }
+  function deleteMessage(messageId: string) {
+    const index = messages.value.findIndex((m: any) => m.id === messageId);
+    if (index !== -1) {
+      messages.value.splice(index, 1);
+    }
+    if (conn.value?.open) {
+      conn.value.send({ type: "delete-message", id: messageId });
+    }
   }
   // Добавить файл к списку
   function attachFile(file: File) {
@@ -1318,6 +1329,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     attachFile,
     detachFile,
     attachedFiles,
+    replyToMessage,
     destroy,
     readMessage,
     roomData,

@@ -220,6 +220,7 @@
           @editMessage="editMessage"
           @readMessage="readMessage"
           @deleteMessage="deleteMessage"
+          @replyToMessage="replyToMessage"
           @call="onCall"
         >
           <template #headerButtons>
@@ -289,6 +290,7 @@ const {
   editMessage,
   deleteMessage,
   readMessage,
+  replyToMessage,
   peer,
   conn,
   roomData,

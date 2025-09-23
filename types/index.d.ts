@@ -4,7 +4,6 @@ declare global {
     sender: string;
     text: string;
     timestamp: number;
-    replyMessage?: ReplyMessageData | null;
     read?: boolean;
     type?: string;
     fileUrl?: string;
@@ -18,12 +17,14 @@ declare global {
   interface SendMessageRequest {
     text: string;
     files: FileAttachment[];
+    replyMessage?: ReplyMessageData;
   }
   interface EditMessageRequest extends SendMessageRequest {
     editingId?: string;
+    read?: boolean;
   }
   interface ReplyMessageRequest extends SendMessageRequest {
-    replyingId?: string;
+    replyMessage: ReplyMessageData;
   }
   interface FileAttachment {
     id: string;
