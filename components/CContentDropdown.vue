@@ -5,7 +5,7 @@
       width: props.width,
     }"
   >
-    <div ref="target" class="container-target">
+    <div ref="target" class="container-target" @click.stop>
       <slot name="target"></slot>
     </div>
     <Transition name="fade">

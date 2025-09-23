@@ -1,19 +1,6 @@
 import Peer from "peerjs";
 import type { DataConnection } from "peerjs";
 import { useDebounce } from "~/composables/useDebounce";
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: number;
-  replyMessage: ReplyMessageData | null;
-  read?: boolean;
-  type?: string;
-  fileUrl?: string;
-  fileName?: string;
-  fileMime?: string;
-  files?: { name: string; type: string; size: number; fileUrl: string }[];
-}
 type ConnectionStatus =
   | "connecting"
   | "connected"
@@ -661,43 +648,71 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         return;
       }
 
+      // Обработка удаления сообщения
+      if (data?.type === "delete-message" && data.id) {
+        const idx = messages.value.findIndex((m) => m.id === data.id);
+        if (idx !== -1) {
+          messages.value.splice(idx, 1);
+        }
+        return;
+      }
+
       // Process regular messages
       let msg: Message;
-
+      console.log("data well pupupu", data);
       if (typeof data === "string") {
         msg = JSON.parse(data);
-      } else if (data?.type === "file-group") {
-        // Handle file groups
-        const filesWithUrl = data.files.map((f: any) => {
-          const fileData = f.fileData;
-          // ... file processing logic ...
-          const blob = new Blob([fileData], { type: f.type });
-          return {
-            ...f,
-            fileUrl: URL.createObjectURL(blob),
-          };
-        });
-
+      } else if (data?.type === "message") {
+        console.log("gotta in on handler", data);
+        const typedData = data as Message;
+        const filesWithUrl = typedData.files
+          .filter((f) => f)
+          .map((f) => {
+            const fileData = f.file.fileData;
+            const blob = new Blob([fileData], { type: f.file.type });
+            return {
+              ...f,
+              file: {
+                ...f.file,
+                fileUrl: URL.createObjectURL(blob),
+              },
+            };
+          });
+        console.log("filesWithUrl", filesWithUrl);
         msg = {
-          id: data.id,
-          sender: data.sender,
+          id: typedData.id,
+          sender: typedData.sender,
           read: false,
-          text: data.text,
-          timestamp: data.timestamp,
-          replyMessage: data.replyMessage || null,
-          type: "file-group",
+          text: typedData.text,
+          timestamp: typedData.timestamp,
+          replyMessage: typedData.replyMessage,
+          type: "message",
           files: filesWithUrl,
+          isEdited: typedData.isEdited,
+          existingFileIds: typedData.existingFileIds,
         };
-
-        // Update file sharing metrics
         updateRoomData("messages", {
-          filesShared: roomData.value.messages.filesShared + data.files.length,
+          filesShared:
+            roomData.value.messages.filesShared + typedData.files.length,
         });
       } else {
         msg = data as Message;
       }
-
-      messages.value.push(msg);
+      console.log("i got your message here", msg);
+      if (msg.isEdited) {
+        const indexToEdit = messages.value.findIndex((m) => m.id === msg.id);
+        messages.value[indexToEdit] = {
+          ...msg,
+          files: [
+            ...messages.value[indexToEdit].files.filter((f) =>
+              msg.existingFileIds?.includes(f.id),
+            ),
+            ...(msg.files || []),
+          ],
+        };
+      } else {
+        messages.value.push(msg);
+      }
 
       // Update message metrics
       updateRoomData("messages", {
@@ -759,22 +774,23 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     if (!data) return 0;
 
     // Для файловых сообщений считаем реальный размер файлов
-    if (data.type === "file-group" && data.files) {
+    if (data.type === "message" && data.files) {
+      const typedData = data as Message;
       let totalSize = JSON.stringify({
-        id: data.id,
-        sender: data.sender,
-        text: data.text,
-        timestamp: data.timestamp,
-        type: data.type,
-        replyMessage: data.replyMessage,
+        id: typedData.id,
+        sender: typedData.sender,
+        text: typedData.text,
+        timestamp: typedData.timestamp,
+        type: typedData.type,
+        replyMessage: typedData.replyMessage,
       }).length;
-
+      console.log("CALCULATE SIZE FILES", typedData.files);
       // Добавляем реальный размер файлов
-      data.files.forEach((file: any) => {
-        if (file.size) {
-          totalSize += file.size; // Используем реальный размер файла
-        } else if (file.fileData instanceof ArrayBuffer) {
-          totalSize += file.fileData.byteLength;
+      typedData.files.forEach((file) => {
+        if (file?.file.size) {
+          totalSize += file.file.size; // Используем реальный размер файла
+        } else if (file?.file.fileData instanceof ArrayBuffer) {
+          totalSize += file.file.fileData.byteLength;
         }
       });
 
@@ -784,36 +800,140 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     // Для обычных сообщений
     return JSON.stringify(data).length;
   }
-  function sendMessage(payload: {
-    text: string;
-    replyMessage: ReplyMessageData | null;
-  }) {
+  async function sendMessage(
+    payload: SendMessageRequest,
+    replyMessage?: ReplyMessageData,
+  ) {
+    console.log("[usePeer] sendMessage", payload);
     if (!conn.value?.open) return;
-
-    const message = {
-      id: Date.now().toString(),
+    const filesToSend = await Promise.all(
+      payload.files.map(async (f) => {
+        const file = f.file;
+        const arrayBuffer = await (file as File).arrayBuffer();
+        const fileUrl = URL.createObjectURL(file as File);
+        const msgFile: MessageFile = {
+          id: f.id,
+          preview: f.preview,
+          file: {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            fileData: arrayBuffer,
+            fileUrl,
+          },
+        };
+        return msgFile;
+      }),
+    );
+    console.log("[usePeer] sendMessage: filesToSend", filesToSend);
+    const message: Message = {
+      id: crypto.randomUUID(),
+      type: "message",
       sender: useDeviceId(),
       text: payload.text,
-      replyMessage: payload.replyMessage,
       timestamp: Date.now(),
+      files: filesToSend,
+      replyMessage: replyMessage,
       read: false,
     };
-
-    const messageStr = JSON.stringify(message);
-    conn.value.send(messageStr);
-
-    // Update sent bytes
-    updateBytesTransferred(messageStr.length, 0);
-
-    // Update message metrics
+    console.log("[usePeer] sendMessage: message", message);
+    conn.value.send(message);
+    const messageSize = calculateDataSize(message);
+    updateBytesTransferred(messageSize, 0);
     updateRoomData("messages", {
       messagesSent: roomData.value.messages.messagesSent + 1,
       lastMessageTimestamp: message.timestamp,
     });
-
     messages.value.push(message);
   }
+  async function editMessage(payload: EditMessageRequest) {
+    console.log("[usePeer] editMessage", payload);
+    if (!conn.value?.open) return;
 
+    const filesToSend: MessageFile[] = [];
+    const existingFileIds: string[] = [];
+
+    for (const f of payload.files) {
+      if (f.file instanceof File) {
+        const arrayBuffer = await (f.file as File).arrayBuffer();
+        const fileUrl = URL.createObjectURL(f.file as File);
+        filesToSend.push({
+          id: f.id,
+          preview: f.preview,
+          file: {
+            name: f.file.name,
+            size: f.file.size,
+            type: f.file.type,
+            fileData: arrayBuffer,
+            fileUrl,
+          },
+        });
+      } else {
+        existingFileIds.push(f.id);
+      }
+    }
+
+    const message: Message = {
+      id: payload.editingId || crypto.randomUUID(),
+      type: "message",
+      sender: useDeviceId(),
+      text: payload.text,
+      timestamp: Date.now(),
+      files: filesToSend,
+      read: payload.read,
+      replyMessage: payload.replyMessage,
+      isEdited: true,
+      existingFileIds,
+    };
+    console.log("[usePeer] editMessage: message", message);
+    conn.value.send(message);
+    const messageSize = calculateDataSize(message);
+    updateBytesTransferred(messageSize, 0);
+    const indexToEdit = messages.value.findIndex((m) => m.id === message.id);
+    if (indexToEdit !== -1) {
+      messages.value[indexToEdit] = {
+        ...messages.value[indexToEdit],
+        ...message,
+        files: [
+          ...messages.value[indexToEdit].files.filter((f) =>
+            existingFileIds.includes(f.id),
+          ),
+          ...filesToSend.map((f) => ({
+            ...f,
+            file: {
+              ...f.file,
+              fileUrl:
+                f.file.fileUrl ||
+                URL.createObjectURL(
+                  new Blob([f.file.fileData], { type: f.file.type }),
+                ),
+            },
+          })),
+        ],
+      };
+    }
+    updateRoomData("messages", {
+      lastMessageTimestamp: message.timestamp,
+    });
+  }
+  function replyToMessage(request: ReplyMessageRequest) {
+    sendMessage(
+      {
+        text: request.text,
+        files: request.files,
+      },
+      request.replyMessage,
+    );
+  }
+  function deleteMessage(messageId: string) {
+    const index = messages.value.findIndex((m: any) => m.id === messageId);
+    if (index !== -1) {
+      messages.value.splice(index, 1);
+    }
+    if (conn.value?.open) {
+      conn.value.send({ type: "delete-message", id: messageId });
+    }
+  }
   // Добавить файл к списку
   function attachFile(file: File) {
     attachedFiles.value.push(file);
@@ -825,60 +945,6 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   }
 
   // Отправить одно сообщение с несколькими файлами и текстом
-  function sendAllFiles(payload: {
-    text: string;
-    replyMessage: ReplyMessageData | null;
-    files: {
-      name: string;
-      type: string;
-      size: number;
-      file: File;
-      preview?: string;
-    }[];
-  }) {
-    if (!conn.value?.open) return;
-    const filesToSend: any[] = [];
-    let filesProcessed = 0;
-    payload.files.forEach((f, idx) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        filesToSend[idx] = {
-          name: f.name,
-          type: f.type,
-          size: f.size,
-          fileData: reader.result,
-        };
-        filesProcessed++;
-        if (filesProcessed === payload.files.length) {
-          // Все файлы прочитаны, отправляем одно сообщение
-          const msg = {
-            id: Date.now().toString(),
-            sender: useDeviceId(),
-            text: payload.text,
-            timestamp: Date.now(),
-            type: "file-group",
-            replyMessage: payload.replyMessage || null,
-            files: filesToSend,
-            read: false,
-          };
-          conn.value!.send(msg);
-          // Для локального отображения
-          const messageSize = calculateDataSize(msg);
-          updateBytesTransferred(messageSize, 0);
-          messages.value.push({
-            ...msg,
-            files: filesToSend.map((f) => ({
-              ...f,
-              fileUrl: URL.createObjectURL(
-                new Blob([f.fileData], { type: f.type }),
-              ),
-            })),
-          });
-        }
-      };
-      reader.readAsArrayBuffer(f.file);
-    });
-  }
 
   function destroy() {
     if (metricsState.pingInterval) {
@@ -1258,10 +1324,12 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     isConnectionEstablished,
     initPeer,
     sendMessage,
+    editMessage,
+    deleteMessage,
     attachFile,
     detachFile,
-    sendAllFiles,
     attachedFiles,
+    replyToMessage,
     destroy,
     readMessage,
     roomData,

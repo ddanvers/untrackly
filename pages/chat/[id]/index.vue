@@ -191,7 +191,6 @@
           :remote-stream="remoteStream"
           :cam-enabled="isCameraEnabled"
           :mic-enabled="isMicEnabled"
-          @minimize="onMinimizeVideoCall"
           @accept="onAcceptCall"
           @decline="onDeclineCall"
           @end="onEndCall"
@@ -215,13 +214,14 @@
         <CChatWindow
           title="Собеседник"
           :messages="messages"
-          @sendMessage="sendMessage"
           :hide-header="false"
-          @sendAllFiles="sendFileHandler"
-          @readMessage="readMessage"
           :meId="useDeviceId() || ''"
+          @sendMessage="sendMessage"
+          @editMessage="editMessage"
+          @readMessage="readMessage"
+          @deleteMessage="deleteMessage"
+          @replyToMessage="replyToMessage"
           @call="onCall"
-          :isVideoCallMinimized="isVideoCallMinimized"
         >
           <template #headerButtons>
             <div v-if="callState === 'active'" class="chat-header-buttons-wrapper">
@@ -258,25 +258,26 @@ let loadingStopped = false;
 const consoleFinished = ref(false);
 const sessionId = route.params.id as string;
 const isInvited = shallowRef(route.query.invited);
-const fixedHeight = shallowRef<number | null>(null);
-const animating = shallowRef(false);
 const displayText = shallowRef("Генерируем ссылку...");
 const showCall = ref(false);
 const showChat = ref(true);
-const isVideoCallMinimized = ref(false);
 
-const callingAudio = process.client ? new Audio("/sounds/calling.mp3") : null;
+const callingAudio = import.meta.client
+  ? new Audio("/sounds/calling.mp3")
+  : null;
 if (callingAudio) {
   callingAudio.loop = true;
   callingAudio.preload = "auto";
 }
-const establishedAudio = process.client
+const establishedAudio = import.meta.client
   ? new Audio("/sounds/call_established.mp3")
   : null;
 if (establishedAudio) {
   establishedAudio.preload = "auto";
 }
-const endedAudio = process.client ? new Audio("/sounds/call_ended.mp3") : null;
+const endedAudio = import.meta.client
+  ? new Audio("/sounds/call_ended.mp3")
+  : null;
 if (endedAudio) {
   endedAudio.preload = "auto";
 }
@@ -286,8 +287,10 @@ const {
   messages,
   initPeer,
   sendMessage,
-  sendAllFiles,
+  editMessage,
+  deleteMessage,
   readMessage,
+  replyToMessage,
   peer,
   conn,
   roomData,
@@ -304,13 +307,10 @@ const {
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
 const sessionDB = useSessionDB(sessionId);
-// Connection loader state
 const showConnectionLoader = ref(false);
 const connectionLoaderMessage = ref("Пытаемся восстановить соединение...");
-const loaderDots = ref(0);
-const loaderDotsInterval: number | null = null;
-
 const callStatusText = ref("");
+
 const isCameraEnabled = computed(() => {
   if (!localStream.value) return false;
   return localStream.value.getVideoTracks().some((t) => t.enabled);
@@ -340,7 +340,7 @@ const formatUTCDateIntl = (date: string) => {
     second: "numeric",
   }).format(new Date(date));
 };
-// Connection loader functions
+
 function startConnectionLoader(
   message = "Пытаемся восстановить соединение...",
 ) {
@@ -387,7 +387,7 @@ function initChat() {
   };
   tick();
 }
-// Watch for connection status changes
+
 watch(
   () => roomData.value.network.connectionStatus,
   (status) => {
@@ -408,20 +408,13 @@ function checkConnection(status: string) {
     }
   }
 }
-function sendFileHandler(payload: any) {
-  if (payload && Array.isArray(payload.files) && payload.files.length > 0) {
-    sendAllFiles(payload);
-  }
-}
 
 function onCall(type: "audio" | "video") {
   showCall.value = true;
   startCall(type === "video");
   callType.value = type;
 }
-function onMinimizeVideoCall(state: boolean) {
-  isVideoCallMinimized.value = state;
-}
+
 function onAcceptCall(opts?: { mic?: boolean; cam?: boolean }) {
   acceptCall({ cam: callType.value === "video" });
   setTimeout(() => {
