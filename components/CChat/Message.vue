@@ -97,7 +97,9 @@
             :key="file.file.name"
             class="file-attachment"
             :class="{
-              'file-attachment__item--img': file.file.type && file.file.type.startsWith('image/'),
+              'file-attachment--img': file.file.type && file.file.type.startsWith('image/'),
+              'file-attachment--video': file.file.type && file.file.type.startsWith('video/'),
+              'file-attachment--audio': file.file.type && file.file.type.startsWith('audio/'),
             }"
           >
             <template v-if="file.file.type && file.file.type.startsWith('image/')">
@@ -132,6 +134,13 @@
               >
                 <NuxtImg src="/icons/download.svg" width="24px" height="24px"></NuxtImg
               ></a>
+            </template>
+            <template v-else-if="file.file.type?.startsWith('audio/')">
+              <CAudioPlayer
+                :src="file.file.fileUrl"
+                :filename="file.file.name"
+                :file-size="formatBytes(file.file.size || 0)"
+              />
             </template>
             <template v-else>
               <img
@@ -224,6 +233,13 @@ function handleImgClick(messageFiles: MessageFile[], clickedUrl: string) {
   ]);
   openDialog();
 }
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
+};
 function handleVideoClick(videoUrl: string) {
   setVideo(videoUrl);
   openVideoDialog();
@@ -447,6 +463,11 @@ $app-narrow-mobile: 364px;
     background: var(--color-neutral-on-fill);
     padding: 6px 36px 6px 8px;
     margin: 2px 0;
+    &--audio {
+      padding: 6px 8px;
+      height: auto;
+      flex: 1 1 100%;
+    }
     &__img-wrapper {
       display: inline-block;
       width: 100%;
