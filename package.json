@@ -2,7 +2,7 @@
   "name": "untrackly",
   "private": true,
   "type": "module",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev --port 5464",
@@ -21,7 +21,7 @@
     "file-saver": "^2.0.5",
     "maska": "^3.2.0",
     "normalize.css": "^8.0.1",
-    "nuxt": "^3.17.5",
+    "nuxt": "^4.1.2",
     "nuxt-swiper": "^2.0.1",
     "peerjs": "^1.5.5",
     "prettier": "^3.5.3",
