@@ -293,8 +293,8 @@ $app-mobile: 600px;
 $app-narrow-mobile: 364px;
 .chat-message {
   max-width: 50%;
+  width: 50%;
   padding: 12px;
-  width: max-content;
   margin-right: auto;
   overflow: visible;
   @media screen and (max-width: $app-mobile) {
@@ -400,6 +400,7 @@ $app-narrow-mobile: 364px;
     color: var(--color-neutral-on-text);
     padding: 16px;
     overflow-wrap: anywhere;
+    width: 100%;
     .image-preview {
       position: relative;
       .download-icon {
@@ -450,6 +451,7 @@ $app-narrow-mobile: 364px;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  width: 100%;
   padding: 8px 8px 4px 8px;
   margin-top: 8px;
   margin-bottom: 4px;
@@ -465,6 +467,7 @@ $app-narrow-mobile: 364px;
     margin: 2px 0;
     &--audio {
       padding: 6px 8px;
+      width: 50%;
       height: auto;
       flex: 1 1 100%;
     }
