@@ -11,6 +11,8 @@ declare global {
     fileMime?: string;
     files: MessageFile[];
     isEdited?: boolean;
+    isVoiceMessage?: boolean;
+    transcription?: string;
     existingFileIds?: string[];
     replyMessage?: ReplyMessageData;
   }
@@ -18,6 +20,7 @@ declare global {
     text: string;
     files: FileAttachment[];
     replyMessage?: ReplyMessageData;
+    isVoiceMessage?: boolean;
   }
   interface EditMessageRequest extends SendMessageRequest {
     editingId?: string;
