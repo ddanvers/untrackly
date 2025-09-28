@@ -689,6 +689,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           type: "message",
           files: filesWithUrl,
           isEdited: typedData.isEdited,
+          isVoiceMessage: typedData.isVoiceMessage,
           existingFileIds: typedData.existingFileIds,
         };
         updateRoomData("messages", {
@@ -830,6 +831,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       id: crypto.randomUUID(),
       type: "message",
       sender: useDeviceId(),
+      isVoiceMessage: payload.isVoiceMessage,
       text: payload.text,
       timestamp: Date.now(),
       files: filesToSend,

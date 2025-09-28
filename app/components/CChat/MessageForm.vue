@@ -325,6 +325,7 @@ async function startRecording() {
         emits("replyToMessage", {
           text: "",
           files: [voiceAttachment],
+          isVoiceMessage: true,
           replyMessage: {
             id: props.replyingTo.id,
             sender: props.replyingTo.sender,
@@ -334,6 +335,7 @@ async function startRecording() {
       } else {
         emits("sendMessage", {
           text: "",
+          isVoiceMessage: true,
           files: [voiceAttachment],
         });
       }

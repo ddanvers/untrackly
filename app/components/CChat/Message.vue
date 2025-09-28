@@ -45,6 +45,13 @@
             <li v-if="isMe" class="chat-message__menu-item" @click="editMessage(message)">
               <NuxtImg src="/icons/chat/pen.svg" width="16px"></NuxtImg>Редактировать
             </li>
+            <li
+              v-if="message.isVoiceMessage"
+              class="chat-message__menu-item"
+              @click="transcribeVoiceMessage(message)"
+            >
+              <NuxtImg src="/icons/chat/transcribe.svg" width="16px"></NuxtImg>Перевести в текст
+            </li>
             <li v-if="isMe" class="chat-message__menu-item" @click="deleteMessage(message)">
               <NuxtImg src="/icons/chat/delete.svg" width="16px"></NuxtImg>Удалить
             </li>
@@ -163,6 +170,27 @@
           </li>
         </ul>
       </template>
+      <div
+        v-if="message.isVoiceMessage && (message.transcription || isTranscribing)"
+        class="chat-message__transcription"
+      >
+        <div class="chat-message__transcription-label">
+          <NuxtImg src="/icons/chat/transcribe.svg" width="16px"></NuxtImg>
+          Текст сообщения:
+        </div>
+        <div
+          v-if="isTranscribing && !message.transcription"
+          class="chat-message__transcription-loading"
+        >
+          <span class="chat-message__transcription-loading-text">Расшифровываем аудио</span>
+          <div class="chat-message__transcription-loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+        <p v-else class="chat-message__transcription-text">{{ message.transcription }}</p>
+      </div>
       <template v-else>
         {{ message.text }}
       </template>
@@ -193,12 +221,14 @@ const props = defineProps<{
   meId: string;
   parentContainer: HTMLElement;
 }>();
+
 const emit = defineEmits<{
   (e: "reply", message: Message): void;
   (e: "read", id: string): void;
   (e: "scroll-to-message", id: string): void;
   (e: "edit", message: Message): void;
   (e: "delete", id: string): void;
+  (e: "transcribe", message: Message): void;
 }>();
 
 const { openDialog, setImages } = useDialogImages();
@@ -206,15 +236,28 @@ const { openDialog: openVideoDialog, setVideo } = useDialogVideo();
 const elRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 const menuOpened = ref(false);
+const isTranscribing = ref(false);
+
 const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 });
+
+watch(
+  () => props.message.transcription,
+  (newTranscription, oldTranscription) => {
+    if (newTranscription && !oldTranscription && isTranscribing.value) {
+      isTranscribing.value = false;
+    }
+  },
+);
+
 function onClickReplyPreview() {
   if (props.message.replyMessage) {
     emit("scroll-to-message", props.message.replyMessage.id);
   }
 }
+
 const getIconByType = (type?: string) => {
   return `/icons/file_formats/${
     type && type in FILE_ICONS
@@ -233,6 +276,7 @@ function handleImgClick(messageFiles: MessageFile[], clickedUrl: string) {
   ]);
   openDialog();
 }
+
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -240,22 +284,33 @@ const formatBytes = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 };
+
 function handleVideoClick(videoUrl: string) {
   setVideo(videoUrl);
   openVideoDialog();
 }
+
 function replyToMessage(message: Message) {
   emit("reply", message);
   menuOpened.value = false;
 }
+
 function editMessage(message: Message) {
   menuOpened.value = false;
   emit("edit", message);
 }
+
 function deleteMessage(message: Message) {
   menuOpened.value = false;
   emit("delete", message.id);
 }
+
+function transcribeVoiceMessage(message: Message) {
+  menuOpened.value = false;
+  isTranscribing.value = true;
+  emit("transcribe", message);
+}
+
 function isMessageHasOnlyImage(message: Message) {
   return (
     message.type === "message" &&
@@ -264,6 +319,7 @@ function isMessageHasOnlyImage(message: Message) {
     message.files[0].file.type.startsWith("image/")
   );
 }
+
 onMounted(() => {
   nextTick(() => {
     if (!props.isMe && !props.message.read && elRef.value) {
@@ -281,6 +337,7 @@ onMounted(() => {
     }
   });
 });
+
 onBeforeUnmount(() => {
   observer?.disconnect();
 });
@@ -291,6 +348,7 @@ $app-desktop: 1384px;
 $app-laptop: 960px;
 $app-mobile: 600px;
 $app-narrow-mobile: 364px;
+
 .chat-message {
   max-width: 50%;
   width: 50%;
@@ -342,14 +400,17 @@ $app-narrow-mobile: 364px;
           padding: 8px;
           color: var(--color-neutral-on-text);
           transition: background 0.3s ease;
+          font-size: 14px;
+          white-space: nowrap;
           img {
             filter: var(--filter-neutral-on-text);
+            flex-shrink: 0;
           }
           &:hover {
             background: var(--color-neutral-on-hover);
           }
           &:active {
-            ackground: var(--color-neutral-on-active);
+            background: var(--color-neutral-on-active);
           }
         }
       }
@@ -409,6 +470,61 @@ $app-narrow-mobile: 364px;
       }
     }
   }
+
+  &__transcription {
+    background: var(--color-neutral-on-fill);
+    border: 1px solid var(--color-neutral-on-outline);
+    padding: 12px;
+    margin: 4px 8px;
+    &-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--color-neutral-on-muted);
+      margin-bottom: 8px;
+      line-height: 16px;
+      img {
+        filter: var(--filter-neutral-on-outline);
+      }
+    }
+    &-text {
+      font-size: 14px;
+      color: var(--color-neutral-on-text);
+      word-wrap: break-word;
+      hyphens: auto;
+    }
+    &-loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      &-text {
+        font-size: 14px;
+        color: var(--color-neutral-on-muted);
+      }
+      &-dots {
+        display: flex;
+        gap: 4px;
+        span {
+          width: 4px;
+          height: 4px;
+          background: var(--color-neutral-on-outline);
+          border-radius: 50%;
+          animation: chat-message-loading 1.4s ease-in-out infinite both;
+          &:nth-child(1) {
+            animation-delay: -0.32s;
+          }
+          &:nth-child(2) {
+            animation-delay: -0.16s;
+          }
+          &:nth-child(3) {
+            animation-delay: 0s;
+          }
+        }
+      }
+    }
+  }
+
   &__group-text {
     margin-top: 8px;
     color: var(--app-text-primary);
@@ -517,5 +633,18 @@ $app-narrow-mobile: 364px;
 }
 .download-icon:hover {
   background: var(--app-pink-600);
+}
+
+@keyframes chat-message-loading {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 </style>

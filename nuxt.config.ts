@@ -1,6 +1,10 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-05-15",
   devtools: { enabled: true },
+  runtimeConfig: {
+    deepgramApiKey: process.env.DEEPGRAM_API_KEY,
+    public: {},
+  },
   modules: ["@nuxtjs/i18n", "@nuxt/image", "@nuxtjs/color-mode", "nuxt-swiper"],
   css: [
     "normalize.css/normalize.css",

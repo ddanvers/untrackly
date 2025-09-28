@@ -38,6 +38,7 @@
           @read="onRead(msg.id)"
           @reply="onReply"
           @delete="onDelete"
+          @transcribe="onTranscribe"
           @edit="onEdit"
           @scroll-to-message="scrollToMessage"
         />
@@ -68,13 +69,14 @@ const emit = defineEmits<{
   (e: "editMessage", payload: EditMessageRequest): void;
   (e: "replyToMessage", payload: ReplyMessageRequest): void;
   (e: "deleteMessage", id: string): void;
+  (e: "transcribeVoiceMessage", id: string, audioBinary?: ArrayBuffer): void;
   (e: "readMessage", id: string): void;
   (e: "call", type: "audio" | "video"): void;
 }>();
 
 const bodyRef = ref<HTMLElement>();
 const isAtBottom = ref(true);
-const notificationSound = process.client
+const notificationSound = import.meta.client
   ? new Audio("/sounds/notification.mp3")
   : null;
 const replyingTo = ref<Message | null>(null);
@@ -139,7 +141,10 @@ function onDelete(id: string) {
   console.log("[Window.vue] deleteMessage", id);
   emit("deleteMessage", id);
 }
-
+function onTranscribe(message: Message) {
+  console.log("[Window.vue] onTranscribe", message.files[0]?.file.fileData);
+  emit("transcribeVoiceMessage", message.id, message.files[0]?.file.fileData);
+}
 function onRead(id: string) {
   console.log("[Window.vue] onRead", id);
   emit("readMessage", id);

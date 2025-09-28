@@ -219,6 +219,7 @@
           @sendMessage="sendMessage"
           @editMessage="editMessage"
           @readMessage="readMessage"
+          @transcribeVoiceMessage="transcribeVoiceMessage"
           @deleteMessage="deleteMessage"
           @replyToMessage="replyToMessage"
           @call="onCall"
@@ -408,7 +409,28 @@ function checkConnection(status: string) {
     }
   }
 }
-
+const transcribeVoiceMessage = async (id: string, audioBinary: ArrayBuffer) => {
+  let transcriptionResult = "";
+  try {
+    const audioBlob = new Blob([audioBinary], { type: "audio/wav" });
+    const result = await $fetch("/api/transcribe-audio", {
+      method: "POST",
+      body: audioBlob,
+    });
+    transcriptionResult =
+      result.results?.channels?.[0]?.alternatives?.[0]?.transcript ||
+      "Транскрибация не удалась";
+    messages.value.find((m) => m.id === id)!.transcription =
+      transcriptionResult;
+  } catch (error: any) {
+    console.error("Transcription failed:", error);
+    if (error?.data?.statusMessage) {
+      transcriptionResult = `Ошибка: ${error.data.statusMessage}`;
+    } else {
+      transcriptionResult = "Ошибка при транскрибации";
+    }
+  }
+};
 function onCall(type: "audio" | "video") {
   showCall.value = true;
   startCall(type === "video");
