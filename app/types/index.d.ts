@@ -16,6 +16,16 @@ declare global {
     existingFileIds?: string[];
     replyMessage?: ReplyMessageData;
   }
+  interface MemberStatus {
+    yourStatus: UserStatus;
+    companionStatus: UserStatus;
+    companionLastSeen: number;
+    isCompanionTyping: boolean;
+    lastActivityTimestamp: number;
+    companionCameraEnabled: boolean;
+    companionMicEnabled: boolean;
+    companionHasMediaStream: boolean;
+  }
   interface SendMessageRequest {
     text: string;
     files: FileAttachment[];

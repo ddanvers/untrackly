@@ -50,6 +50,7 @@ interface ButtonProps {
   disabled?: boolean;
   bgColor?: string;
   textColor?: string;
+  iconColor?: string;
   iconSize?: IconSize;
   height?: string;
   width?: string;
@@ -98,7 +99,9 @@ const inlineStyles = computed(() => ({
 const labelStyles = computed(() => ({
   color: props.textColor,
 }));
-
+const computedIconColor = computed(
+  () => props.iconColor || "var(--filter-primary-on-text)",
+);
 const getCSSClassesForVariant = (): string[] => [
   props.variant,
   props.size,
@@ -364,7 +367,7 @@ const handleClick = (event: Event): void => {
   position: relative;
   overflow: hidden;
   transition: opacity 0.3s ease;
-  filter: var(--filter-primary-on-text);
+  filter: v-bind(computedIconColor);
   &.i-small {
     height: 32px;
     width: 56px;
