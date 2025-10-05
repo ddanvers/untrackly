@@ -15,35 +15,57 @@
     </CChatHeader>
     <div class="video-call__content">
       <header class="video-call__header">
-        <!-- <CButton
-          class="video-call__drag-btn"
-          @dragstart.prevent
-          @mousedown.prevent="startDrag"
-          @touchstart.prevent="startDrag"
-          :class="{
-            'video-call__drag-btn--hidden': !isMinimized,
-          }"
-          variant="icon-default"
-          iconSize="i-large"
-        >
-          <NuxtImg src="/icons/cursor_move.svg" width="32px"></NuxtImg>
-        </CButton> -->
         <h2 class="video-call__title" v-show="!isMinimized">{{ callStatusText }}</h2>
-        <!-- <CButton
-          variant="icon-default"
-          iconSize="i-large"
-          class="video-call__minimize-btn"
-          @click="toggleWindowMinimize"
-        >
-          <NuxtImg
-            :src="isMinimized ? '/icons/maximize_window.svg' : '/icons/minimize_window.svg'"
-            width="32px"
-          ></NuxtImg>
-        </CButton> -->
       </header>
       <div class="video-call__videos">
-        <video ref="myVideo" class="video-call__my-video" autoplay playsinline muted></video>
-        <video ref="remoteVideo" class="video-call__remote-video" autoplay playsinline></video>
+        <video
+          v-show="props.camEnabled"
+          ref="myVideo"
+          class="video-call__my-video"
+          autoplay
+          playsinline
+          muted
+        ></video>
+        <div
+          v-show="callStatusText !== 'Входящий звонок'"
+          class="video-call__member"
+          :class="{
+            'video-call__member--cam-enabled': props.members.companionCameraEnabled,
+          }"
+        >
+          <div>
+            <video
+              v-show="props.members.companionCameraEnabled"
+              ref="remoteVideo"
+              class="video-call__remote-video"
+              autoplay
+              playsinline
+            ></video>
+          </div>
+          <NuxtImg
+            v-show="!props.members.companionCameraEnabled"
+            src="/icons/chat/member_robot.svg"
+            width="320px"
+          />
+          <div class="video-call__member-controls-state">
+            <NuxtImg
+              :src="
+                props.members.companionMicEnabled
+                  ? '/icons/chat/microphone.svg'
+                  : '/icons/chat/microphone-off.svg'
+              "
+              width="32px"
+            ></NuxtImg>
+            <NuxtImg
+              :src="
+                props.members.companionCameraEnabled
+                  ? '/icons/chat/camera.svg'
+                  : '/icons/chat/camera-off.svg'
+              "
+              width="32px"
+            ></NuxtImg>
+          </div>
+        </div>
       </div>
       <nav class="video-call__controls">
         <CButton
@@ -70,9 +92,9 @@
         </CButton>
         <CButton
           class="video-call__end-btn"
-          bgColor="var(--app-color-negavite)"
           variant="icon-default"
           iconSize="i-large"
+          iconColor="var(--filter-negative-on-fill)"
           @click="onEndCall"
           ><NuxtImg src="/icons/chat/call_end.svg" width="32px"></NuxtImg
         ></CButton>
@@ -103,6 +125,7 @@ interface Props {
   remoteStream: MediaStream | null;
   camEnabled: boolean;
   micEnabled: boolean;
+  members: MemberStatus;
 }
 interface MovedWindowPosition {
   top?: string;
@@ -347,6 +370,9 @@ $app-narrow-mobile: 364px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    @media screen and (max-width: $app-desktop) {
+      border: 0;
+    }
     .video-call__header {
       display: flex;
       justify-content: center;
@@ -355,9 +381,15 @@ $app-narrow-mobile: 364px;
       color: var(--color-neutral-on-text);
       font-size: 22px;
       margin: 24px 0px;
+      @media screen and (max-width: $app-narrow-mobile) {
+        margin: 12px 0px;
+      }
       .video-call__title {
         font-size: 24px;
         font-weight: 400;
+        @media screen and (max-width: $app-mobile) {
+          font-size: 20px;
+        }
       }
       .video-call__drag-btn {
         img {
@@ -385,29 +417,78 @@ $app-narrow-mobile: 364px;
       width: 100%;
       position: relative;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
+    }
+    .video-call__member {
+      border-radius: 1000px;
+      background-color: var(--color-bg-on-secondary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      width: 400px;
+      height: 400px;
       padding: 16px;
+      .video-call__member-controls-state {
+        display: flex;
+        gap: 24px;
+        img {
+          filter: var(--filter-neutral-on-text);
+        }
+      }
+      @media screen and (max-width: $app-mobile) {
+        width: 320px;
+        height: max-content;
+        & > img {
+          width: 256px;
+          height: 256px;
+        }
+      }
+      @media screen and (max-width: $app-narrow-mobile) {
+        width: 256px;
+        height: max-content;
+        & > img {
+          width: 156px;
+          height: 156px;
+        }
+      }
+      &--cam-enabled {
+        background-color: transparent;
+        padding: 8px;
+        border-radius: 0;
+        z-index: 100;
+        width: 100%;
+        gap: 8px;
+        height: 100%;
+        video {
+          height: 100%;
+        }
+      }
     }
     .video-call__my-video {
       position: absolute;
-      right: 32px;
-      top: 32px;
-      width: 212px;
+      bottom: 0px;
+      right: 0px;
+      padding: 16px;
+      width: 256px;
       transition:
         width 0.2s ease,
         height 0.2s ease;
-      background: var(--color-bg-on-secondary);
+      background: var(--color-bg-on-secondary-light);
       object-fit: contain;
-      z-index: 2;
+      z-index: 1000;
+      @media screen and (max-width: $app-mobile) {
+        display: none;
+      }
     }
     .video-call__remote-video {
       max-width: 100%;
-      height: 100%;
       transition:
         width 0.2s ease,
         height 0.2s ease;
-      background: var(--color-bg-on-secondary);
+      background: var(--color-bg-on-secondary-light);
+      padding: 16px;
       object-fit: contain;
       z-index: 1;
     }
@@ -419,14 +500,6 @@ $app-narrow-mobile: 364px;
       padding: 32px;
       width: 100%;
       border-top: 1px solid var(--color-neutral-on-outline);
-      img {
-        filter: var(--app-filter-black);
-      }
-      .video-call__end-btn {
-        img {
-          filter: var(--app-filter-text-light-permanent);
-        }
-      }
     }
   }
   &__incoming {

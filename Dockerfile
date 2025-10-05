@@ -1,4 +1,3 @@
-# See https://docs.docker.com/engine/reference/builder/
 FROM node:20-alpine
 
 WORKDIR /app

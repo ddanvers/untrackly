@@ -37,14 +37,6 @@ interface NetworkMetrics {
   retryAttempts: number;
 }
 
-interface MemberStatus {
-  yourStatus: UserStatus;
-  companionStatus: UserStatus;
-  companionLastSeen: number;
-  isCompanionTyping: boolean;
-  lastActivityTimestamp: number;
-}
-
 interface RoomMetadata {
   id: string;
   dateCreated: string;
@@ -105,6 +97,9 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       companionLastSeen: 0,
       isCompanionTyping: false,
       lastActivityTimestamp: Date.now(),
+      companionCameraEnabled: false,
+      companionMicEnabled: false,
+      companionHasMediaStream: false,
     },
     network: {
       connectionStatus: "connecting",
@@ -643,6 +638,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           "video-off",
           "restart-call-with-video",
           "read",
+          "mic-on",
+          "mic-off",
         ].includes(data.type)
       ) {
         return;
@@ -967,8 +964,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   const remoteStream = ref<MediaStream | null>(null);
   let mediaConn: any = null;
   let callTimeout: any = null;
-  // --- Camera state flags ---
-  const isCameraEnabled = ref(false); // по умолчанию выключено
+  const isCameraEnabled = ref(false);
+  const isMicEnabled = ref(false);
   const isCameraToggling = ref(false);
   let shouldAutoAcceptWithVideo = false;
 
@@ -989,6 +986,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     callState.value = "calling";
     callType.value = withVideo ? "video" : "audio";
     isCameraEnabled.value = !!withVideo;
+    isMicEnabled.value = !!withAudio;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
@@ -1056,6 +1054,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       mediaConn,
     });
     isCameraEnabled.value = false;
+    isMicEnabled.value = false;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
@@ -1143,7 +1142,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         type: null,
       });
     }, 1000);
-    isCameraEnabled.value = true;
+    isCameraEnabled.value = false;
+    isMicEnabled.value = false;
     isCameraToggling.value = false;
     shouldAutoAcceptWithVideo = false; // сброс автопринятия
   }
@@ -1159,6 +1159,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     localStream.value.getAudioTracks().forEach((t) => {
       t.enabled = enabled;
     });
+    conn.value?.send({ type: enabled ? "mic-on" : "mic-off" });
   }
 
   // --- Camera state flags ---
@@ -1213,20 +1214,33 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     if (data.type === "call-request") {
       callState.value = "incoming";
       callType.value = data.video ? "video" : "audio";
+      updateRoomData("members", {
+        companionCameraEnabled: !!data.video,
+        companionMicEnabled: !!data.audio,
+      });
       console.log("[usePeer] handleCallSignals: call-request", {
         callState: callState.value,
         callType: callType.value,
       });
     }
     if (data.type === "call-decline") {
+      updateRoomData("members", {
+        companionCameraEnabled: false,
+        companionMicEnabled: false,
+      });
       endCall(true);
       console.log("[usePeer] handleCallSignals: call-decline");
     }
     if (data.type === "call-end") {
+      updateRoomData("members", {
+        companionCameraEnabled: false,
+        companionMicEnabled: false,
+      });
       endCall(true);
       console.log("[usePeer] handleCallSignals: call-end");
     }
     if (data.type === "video-off") {
+      updateRoomData("members", { companionCameraEnabled: false });
       if (remoteStream.value) {
         remoteStream.value.getVideoTracks().forEach((t) => {
           t.enabled = false;
@@ -1237,6 +1251,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       }
     }
     if (data.type === "video-on") {
+      updateRoomData("members", { companionCameraEnabled: true });
       if (remoteStream.value) {
         // Включаем обратно все видео-дорожки
         remoteStream.value.getVideoTracks().forEach((t) => {
@@ -1274,6 +1289,13 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           );
         }
       }
+    }
+    if (data.type === "mic-off") {
+      updateRoomData("members", { companionMicEnabled: false });
+    }
+
+    if (data.type === "mic-on") {
+      updateRoomData("members", { companionMicEnabled: true });
     }
   }
   function readMessage(id: string) {
@@ -1349,6 +1371,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     toggleCamera: debouncedToggleCamera,
     toggleMic: debouncedToggleMic,
     isCameraEnabled,
+    isMicEnabled,
     isCameraToggling,
   };
 }

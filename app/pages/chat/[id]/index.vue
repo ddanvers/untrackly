@@ -191,6 +191,7 @@
           :remote-stream="remoteStream"
           :cam-enabled="isCameraEnabled"
           :mic-enabled="isMicEnabled"
+          :members="roomData.members"
           @accept="onAcceptCall"
           @decline="onDeclineCall"
           @end="onEndCall"
@@ -299,6 +300,8 @@ const {
   callState,
   localStream,
   remoteStream,
+  isCameraEnabled,
+  isMicEnabled,
   startCall,
   acceptCall,
   declineCall,
@@ -312,14 +315,6 @@ const showConnectionLoader = ref(false);
 const connectionLoaderMessage = ref("Пытаемся восстановить соединение...");
 const callStatusText = ref("");
 
-const isCameraEnabled = computed(() => {
-  if (!localStream.value) return false;
-  return localStream.value.getVideoTracks().some((t) => t.enabled);
-});
-const isMicEnabled = computed(() => {
-  if (!localStream.value) return false;
-  return localStream.value.getAudioTracks().some((t) => t.enabled);
-});
 function getInviteLink() {
   return `${window?.location.href}?invited=true`;
 }
