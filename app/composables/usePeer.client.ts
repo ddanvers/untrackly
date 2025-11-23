@@ -708,6 +708,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           "read",
           "mic-on",
           "mic-off",
+          "screen-share-on",
+          "screen-share-off",
         ].includes(data.type)
       ) {
         return;
@@ -1063,7 +1065,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       try {
         const dispStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
-          audio: false,
+          audio: true,
         });
 
         // set local state
@@ -1520,6 +1522,23 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       remoteStream.value.getTracks().forEach((t) => t.stop());
       remoteStream.value = null;
     }
+
+    // --- Screen Share Cleanup ---
+    cleanupLocalScreenShare(true); // suppress notify, as call-end implies everything ends
+    if (mediaConnScreenIncoming) {
+      try {
+        mediaConnScreenIncoming.close();
+      } catch (e) {
+        console.warn(
+          "[usePeer] endCall: error closing mediaConnScreenIncoming",
+          e,
+        );
+      }
+      mediaConnScreenIncoming = null;
+    }
+    updateRoomData("members", { companionHasMediaStream: false });
+    // ----------------------------
+
     clearTimeout(callTimeout);
     if (!isRemoteEnd) {
       conn.value?.send({ type: "call-end" });
