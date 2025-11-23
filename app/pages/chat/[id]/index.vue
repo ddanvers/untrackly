@@ -189,14 +189,18 @@
           :callStatusText="callStatusText"
           :local-stream="localStream"
           :remote-stream="remoteStream"
+          :screen-share-stream="screenShareStream"
+          :isMeScreenSharing="isMeScreenSharing"
           :cam-enabled="isCameraEnabled"
           :mic-enabled="isMicEnabled"
+          :screen-share-enabled="isScreenShareEnabled"
           :members="roomData.members"
           @accept="onAcceptCall"
           @decline="onDeclineCall"
           @end="onEndCall"
           @toggleMic="onToggleMic"
           @toggleCam="onToggleCam"
+          @toggleScreenShare="onToggleScreenShare"
         >
           <template #headerButtons>
             <CButton
@@ -300,6 +304,7 @@ const {
   callState,
   localStream,
   remoteStream,
+  screenShareStream,
   isCameraEnabled,
   isMicEnabled,
   startCall,
@@ -308,13 +313,18 @@ const {
   endCall,
   callType,
   toggleCamera,
+  toggleScreenShare,
+  isScreenShareEnabled,
+  screenShareOwnerId,
   toggleMic,
 } = usePeer(sessionId, !isInvited.value);
 const sessionDB = useSessionDB(sessionId);
 const showConnectionLoader = ref(false);
 const connectionLoaderMessage = ref("Пытаемся восстановить соединение...");
 const callStatusText = ref("");
-
+const isMeScreenSharing = computed(() => {
+  return screenShareOwnerId.value === useDeviceId();
+});
 function getInviteLink() {
   return `${window?.location.href}?invited=true`;
 }
@@ -463,7 +473,9 @@ function onToggleMic(enabled: boolean) {
 function onToggleCam(enabled: boolean) {
   toggleCamera(enabled);
 }
-
+function onToggleScreenShare(enabled: boolean) {
+  toggleScreenShare(enabled);
+}
 watch(callState, (val) => {
   if (val === "idle") {
     showCall.value = false;

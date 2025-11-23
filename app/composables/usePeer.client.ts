@@ -1,6 +1,7 @@
 import Peer from "peerjs";
 import type { DataConnection } from "peerjs";
 import { useDebounce } from "~/composables/useDebounce";
+
 type ConnectionStatus =
   | "connecting"
   | "connected"
@@ -78,6 +79,7 @@ interface ReplyMessageData {
   text: string;
   sender: string;
 }
+
 export function usePeer(sessionId: string, isInitiator: boolean) {
   const peer = ref<Peer | null>(null);
   const conn = ref<DataConnection | null>(null);
@@ -515,7 +517,73 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
 
     let shouldAutoAcceptWithVideo = false;
 
+    // --- Modified call handler to separate screenshare calls from regular calls ---
     peer.value.on("call", (mediaConnection) => {
+      // Detect screenshare by metadata (we set metadata: { screenshare: true, sharer })
+      const isScreenshare = mediaConnection?.metadata?.screenshare;
+
+      if (isScreenshare) {
+        console.log("[usePeer] incoming screenshare call", mediaConnection);
+        // keep separate reference
+        mediaConnScreenIncoming = mediaConnection;
+
+        // Answer WITHOUT providing any extra outgoing stream — this will not touch camera localStream
+        try {
+          // peerjs may accept answer() without args
+          mediaConnScreenIncoming.answer?.();
+        } catch (e) {
+          console.warn(
+            "[usePeer] screenshare.answer failed or requires different behavior",
+            e,
+          );
+        }
+
+        mediaConnScreenIncoming.on("stream", (remoteStream: MediaStream) => {
+          console.log("[usePeer] got remote screenshare stream", remoteStream);
+          // set separate stream for screenshare (does not touch remoteStream for camera)
+          screenShareStream.value = remoteStream;
+          isScreenShareEnabled.value = true;
+          screenShareOwnerId.value = mediaConnection?.metadata?.sharer ?? null;
+          updateRoomData("members", { companionHasMediaStream: true });
+        });
+
+        mediaConnScreenIncoming.on("close", () => {
+          console.log("[usePeer] incoming screenshare closed");
+          if (screenShareStream.value) {
+            screenShareStream.value.getTracks().forEach((t) => {
+              try {
+                t.stop();
+              } catch {}
+            });
+          }
+          screenShareStream.value = null;
+          isScreenShareEnabled.value = false;
+          screenShareOwnerId.value = null;
+          mediaConnScreenIncoming = null;
+          updateRoomData("members", { companionHasMediaStream: false });
+        });
+
+        mediaConnScreenIncoming.on("error", (e: any) => {
+          console.error("[usePeer] incoming screenshare error", e);
+          if (screenShareStream.value) {
+            screenShareStream.value.getTracks().forEach((t) => {
+              try {
+                t.stop();
+              } catch {}
+            });
+          }
+          screenShareStream.value = null;
+          isScreenShareEnabled.value = false;
+          screenShareOwnerId.value = null;
+          mediaConnScreenIncoming = null;
+          updateRoomData("members", { companionHasMediaStream: false });
+        });
+
+        // do not run regular call handling for this connection
+        return;
+      }
+
+      // ---------- existing call handling for regular calls ----------
       console.log("[usePeer] peer.on(call): incoming", {
         mediaConnection,
         callState: callState.value,
@@ -523,7 +591,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         oldMediaConn: mediaConn,
       });
       callState.value = "incoming";
-      // Явно закрываем и сбрасываем старый mediaConn
+      // Explicitly close and clear old mediaConn
       if (mediaConn) {
         try {
           mediaConn.close();
@@ -542,7 +610,7 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
         console.log("[usePeer] peer.on(call): auto-accepting with video");
         acceptCall({ cam: true, mic: true });
       }
-      // Иначе — обычное поведение (ожидание accept)
+      // otherwise — wait for accept
     });
 
     peer.value.on("error", (err) => {
@@ -640,6 +708,8 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
           "read",
           "mic-on",
           "mic-off",
+          "screen-share-on",
+          "screen-share-off",
         ].includes(data.type)
       ) {
         return;
@@ -969,6 +1039,330 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
   const isCameraToggling = ref(false);
   let shouldAutoAcceptWithVideo = false;
 
+  // --- Screen sharing (separate stream, does NOT replace camera stream) ---
+  const isScreenShareEnabled = ref(false);
+  const screenShareStream = ref<MediaStream | null>(null);
+  const screenShareOwnerId = ref<string | null>(null);
+
+  // media connections for screenshare (outgoing / incoming)
+  let mediaConnScreenOutgoing: any = null;
+  let mediaConnScreenIncoming: any = null;
+
+  /**
+   * Toggle screen sharing. Does NOT touch camera tracks.
+   * force === true -> enable, false -> disable, undefined -> toggle
+   */
+  async function toggleScreenShare(force?: boolean) {
+    const shouldEnable =
+      typeof force === "boolean" ? force : !isScreenShareEnabled.value;
+
+    if (shouldEnable) {
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        console.warn("[usePeer] Screen share not supported");
+        return;
+      }
+
+      try {
+        const dispStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+
+        // set local state
+        screenShareStream.value = dispStream;
+        isScreenShareEnabled.value = true;
+        screenShareOwnerId.value = useDeviceId();
+
+        // notify via data-channel who shares
+        conn.value?.send({
+          type: "screen-share-on",
+          sharer: screenShareOwnerId.value,
+        });
+
+        // If we have a peer and an open data connection - open a separate media call for screenshare
+        if (peer.value && conn.value?.open) {
+          try {
+            // create separate call with metadata marking it as screenshare
+            mediaConnScreenOutgoing = peer.value.call(
+              conn.value.peer,
+              dispStream,
+              {
+                metadata: {
+                  screenshare: true,
+                  sharer: screenShareOwnerId.value,
+                },
+              },
+            );
+
+            mediaConnScreenOutgoing.on("close", () => {
+              // cleanup when remote closes screenshare call
+              cleanupLocalScreenShare(false);
+            });
+            mediaConnScreenOutgoing.on("error", (e: any) => {
+              console.error("[usePeer] screenshare outgoing error", e);
+              cleanupLocalScreenShare(true);
+            });
+          } catch (e) {
+            console.warn("[usePeer] screenshare outgoing call failed", e);
+          }
+        } else {
+          console.warn(
+            "[usePeer] screenshare: no peer or no open connection — stream created locally but not sent",
+          );
+        }
+
+        // If user stops via browser UI, handle it
+        const stopHandler = () => {
+          // remove listeners on all tracks
+          dispStream
+            .getTracks()
+            .forEach((t) => t.removeEventListener("ended", stopHandler));
+          toggleScreenShare(false);
+        };
+        dispStream
+          .getTracks()
+          .forEach((t) => t.addEventListener("ended", stopHandler));
+      } catch (err) {
+        console.warn(
+          "[usePeer] toggleScreenShare: getDisplayMedia failed",
+          err,
+        );
+      }
+    } else {
+      // turn off screenshare
+      try {
+        // stop local display stream tracks
+        if (screenShareStream.value) {
+          screenShareStream.value.getTracks().forEach((t) => {
+            try {
+              t.stop();
+            } catch {}
+          });
+        }
+
+        // close outgoing screenshare media connection if exists
+        try {
+          if (mediaConnScreenOutgoing) {
+            mediaConnScreenOutgoing.close();
+            mediaConnScreenOutgoing = null;
+          }
+        } catch (e) {
+          console.warn("[usePeer] error closing mediaConnScreenOutgoing", e);
+        }
+
+        // notify peer that screenshare stopped
+        conn.value?.send({
+          type: "screen-share-off",
+          sharer: useDeviceId(),
+        });
+      } finally {
+        // clear state
+        screenShareStream.value = null;
+        isScreenShareEnabled.value = false;
+        screenShareOwnerId.value = null;
+      }
+    }
+  }
+
+  // Helper to cleanup local screenshare state (called on call close/error)
+  function cleanupLocalScreenShare(suppressNotify = false) {
+    if (screenShareStream.value) {
+      screenShareStream.value.getTracks().forEach((t) => {
+        try {
+          t.stop();
+        } catch {}
+      });
+    }
+    try {
+      if (mediaConnScreenOutgoing) {
+        mediaConnScreenOutgoing.close();
+      }
+    } catch {}
+    mediaConnScreenOutgoing = null;
+    screenShareStream.value = null;
+    isScreenShareEnabled.value = false;
+    if (!suppressNotify) {
+      conn.value?.send({
+        type: "screen-share-off",
+        sharer: useDeviceId(),
+      });
+    }
+    screenShareOwnerId.value = null;
+  }
+
+  function handleCallSignals(data: any) {
+    console.log("[usePeer] handleCallSignals", data);
+    if (data.type === "restart-call-with-video") {
+      // Для надёжности сбрасываем mediaConn
+      if (mediaConn) {
+        try {
+          mediaConn.close();
+        } catch (e) {
+          console.error(
+            "[usePeer] handleCallSignals: error closing mediaConn",
+            e,
+          );
+        }
+        mediaConn = null;
+      }
+      endCall(true);
+      setTimeout(() => {
+        shouldAutoAcceptWithVideo = true;
+        console.log(
+          "[usePeer] handleCallSignals: shouldAutoAcceptWithVideo set TRUE",
+        );
+      }, 100);
+      return;
+    }
+    if (data?.type === "read") {
+      const msg = messages.value.find((m) => m.id === data.id);
+      if (msg) msg.read = true;
+      return;
+    }
+    if (data.type === "call-request") {
+      callState.value = "incoming";
+      callType.value = data.video ? "video" : "audio";
+      updateRoomData("members", {
+        companionCameraEnabled: !!data.video,
+        companionMicEnabled: !!data.audio,
+      });
+      console.log("[usePeer] handleCallSignals: call-request", {
+        callState: callState.value,
+        callType: callType.value,
+      });
+    }
+    if (data.type === "call-decline") {
+      updateRoomData("members", {
+        companionCameraEnabled: false,
+        companionMicEnabled: false,
+      });
+      endCall(true);
+      console.log("[usePeer] handleCallSignals: call-decline");
+    }
+    if (data.type === "call-end") {
+      updateRoomData("members", {
+        companionCameraEnabled: false,
+        companionMicEnabled: false,
+      });
+      endCall(true);
+      console.log("[usePeer] handleCallSignals: call-end");
+    }
+    if (data.type === "video-off") {
+      updateRoomData("members", { companionCameraEnabled: false });
+      if (remoteStream.value) {
+        remoteStream.value.getVideoTracks().forEach((t) => {
+          t.enabled = false;
+        });
+        console.log(
+          "[usePeer] handleCallSignals: video-off, videoTracks disabled",
+        );
+      }
+    }
+    if (data.type === "video-on") {
+      updateRoomData("members", { companionCameraEnabled: true });
+      if (remoteStream.value) {
+        // Включаем обратно все видео-дорожки
+        remoteStream.value.getVideoTracks().forEach((t) => {
+          t.enabled = true;
+        });
+        console.log(
+          "[usePeer] handleCallSignals: video-on, videoTracks enabled",
+        );
+      } else if (mediaConn?.peerConnection) {
+        // На всякий случай, если remoteStream ещё не установился — получаем его из receivers
+        const receivers = mediaConn.peerConnection.getReceivers();
+        const videoTrack = receivers
+          .map((r: RTCRtpReceiver) => r.track)
+          .find(
+            (t: MediaStreamTrack | null) =>
+              t?.kind === "video" && t.readyState === "live",
+          );
+        const audioTracks = receivers
+          .map((r: RTCRtpReceiver) => r.track)
+          .filter(
+            (t: MediaStreamTrack | null) =>
+              t?.kind === "audio" && t.readyState === "live",
+          );
+        if (videoTrack) {
+          remoteStream.value = new MediaStream(
+            [videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[],
+          );
+          console.log(
+            "[usePeer] handleCallSignals: video-on, remoteStream reconstructed",
+            remoteStream.value,
+          );
+        } else {
+          console.warn(
+            "[usePeer] handleCallSignals: video-on, no live video track found",
+          );
+        }
+      }
+    }
+    if (data.type === "mic-off") {
+      updateRoomData("members", { companionMicEnabled: false });
+    }
+
+    if (data.type === "mic-on") {
+      updateRoomData("members", { companionMicEnabled: true });
+    }
+
+    // --- Screen share signals via data channel ---
+    if (data.type === "screen-share-on") {
+      updateRoomData("members", { companionHasMediaStream: true });
+      if (data.sharer) {
+        screenShareOwnerId.value = data.sharer;
+        console.log(
+          "[usePeer] handleCallSignals: screen-share-on from",
+          data.sharer,
+        );
+      }
+      return;
+    }
+    if (data.type === "screen-share-off") {
+      updateRoomData("members", { companionHasMediaStream: false });
+      if (data.sharer && screenShareOwnerId.value === data.sharer) {
+        screenShareOwnerId.value = null;
+      }
+      console.log(
+        "[usePeer] handleCallSignals: screen-share-off from",
+        data.sharer,
+      );
+      return;
+    }
+  }
+
+  const roomStatistics = computed(() => ({
+    totalActivity:
+      roomData.value.messages.messagesSent +
+      roomData.value.messages.messagesReceived,
+    averageResponseTime: roomData.value.network.roundTripTime,
+    dataTransferred:
+      roomData.value.network.sentBytes + roomData.value.network.receivedBytes,
+    connectionStability: roomData.value.network.connectionStatus,
+    sessionEfficiency: {
+      messagesPerMinute:
+        roomData.value.room.sessionDuration > 0
+          ? (roomData.value.messages.messagesSent +
+              roomData.value.messages.messagesReceived) /
+            (roomData.value.room.sessionDuration / 60000)
+          : 0,
+      callTimePercentage:
+        roomData.value.room.sessionDuration > 0
+          ? (roomData.value.call.duration /
+              roomData.value.room.sessionDuration) *
+            100
+          : 0,
+    },
+  }));
+  // --- Управление камерой и микрофоном во время звонка с debounce ---
+  const debounce = useDebounce();
+  function debouncedToggleCamera(enabled: boolean) {
+    debounce(() => toggleCamera(enabled), 300, "camera");
+  }
+  function debouncedToggleMic(enabled: boolean) {
+    debounce(() => toggleMic(enabled), 300, "mic");
+  }
+
   async function startCall(withVideo = false, withAudio = false) {
     const callStartTime = Date.now();
 
@@ -1128,6 +1522,23 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       remoteStream.value.getTracks().forEach((t) => t.stop());
       remoteStream.value = null;
     }
+
+    // --- Screen Share Cleanup ---
+    cleanupLocalScreenShare(true); // suppress notify, as call-end implies everything ends
+    if (mediaConnScreenIncoming) {
+      try {
+        mediaConnScreenIncoming.close();
+      } catch (e) {
+        console.warn(
+          "[usePeer] endCall: error closing mediaConnScreenIncoming",
+          e,
+        );
+      }
+      mediaConnScreenIncoming = null;
+    }
+    updateRoomData("members", { companionHasMediaStream: false });
+    // ----------------------------
+
     clearTimeout(callTimeout);
     if (!isRemoteEnd) {
       conn.value?.send({ type: "call-end" });
@@ -1181,123 +1592,12 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     }
   }
 
-  // --- Обработка сигналов звонка ---
-  function handleCallSignals(data: any) {
-    console.log("[usePeer] handleCallSignals", data);
-    if (data.type === "restart-call-with-video") {
-      // Для надёжности сбрасываем mediaConn
-      if (mediaConn) {
-        try {
-          mediaConn.close();
-        } catch (e) {
-          console.error(
-            "[usePeer] handleCallSignals: error closing mediaConn",
-            e,
-          );
-        }
-        mediaConn = null;
-      }
-      endCall(true);
-      setTimeout(() => {
-        shouldAutoAcceptWithVideo = true;
-        console.log(
-          "[usePeer] handleCallSignals: shouldAutoAcceptWithVideo set TRUE",
-        );
-      }, 100);
-      return;
-    }
-    if (data?.type === "read") {
-      const msg = messages.value.find((m) => m.id === data.id);
-      if (msg) msg.read = true;
-      return;
-    }
-    if (data.type === "call-request") {
-      callState.value = "incoming";
-      callType.value = data.video ? "video" : "audio";
-      updateRoomData("members", {
-        companionCameraEnabled: !!data.video,
-        companionMicEnabled: !!data.audio,
-      });
-      console.log("[usePeer] handleCallSignals: call-request", {
-        callState: callState.value,
-        callType: callType.value,
-      });
-    }
-    if (data.type === "call-decline") {
-      updateRoomData("members", {
-        companionCameraEnabled: false,
-        companionMicEnabled: false,
-      });
-      endCall(true);
-      console.log("[usePeer] handleCallSignals: call-decline");
-    }
-    if (data.type === "call-end") {
-      updateRoomData("members", {
-        companionCameraEnabled: false,
-        companionMicEnabled: false,
-      });
-      endCall(true);
-      console.log("[usePeer] handleCallSignals: call-end");
-    }
-    if (data.type === "video-off") {
-      updateRoomData("members", { companionCameraEnabled: false });
-      if (remoteStream.value) {
-        remoteStream.value.getVideoTracks().forEach((t) => {
-          t.enabled = false;
-        });
-        console.log(
-          "[usePeer] handleCallSignals: video-off, videoTracks disabled",
-        );
-      }
-    }
-    if (data.type === "video-on") {
-      updateRoomData("members", { companionCameraEnabled: true });
-      if (remoteStream.value) {
-        // Включаем обратно все видео-дорожки
-        remoteStream.value.getVideoTracks().forEach((t) => {
-          t.enabled = true;
-        });
-        console.log(
-          "[usePeer] handleCallSignals: video-on, videoTracks enabled",
-        );
-      } else if (mediaConn?.peerConnection) {
-        // На всякий случай, если remoteStream ещё не установился — получаем его из receivers
-        const receivers = mediaConn.peerConnection.getReceivers();
-        const videoTrack = receivers
-          .map((r: RTCRtpReceiver) => r.track)
-          .find(
-            (t: MediaStreamTrack | null) =>
-              t?.kind === "video" && t.readyState === "live",
-          );
-        const audioTracks = receivers
-          .map((r: RTCRtpReceiver) => r.track)
-          .filter(
-            (t: MediaStreamTrack | null) =>
-              t?.kind === "audio" && t.readyState === "live",
-          );
-        if (videoTrack) {
-          remoteStream.value = new MediaStream(
-            [videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[],
-          );
-          console.log(
-            "[usePeer] handleCallSignals: video-on, remoteStream reconstructed",
-            remoteStream.value,
-          );
-        } else {
-          console.warn(
-            "[usePeer] handleCallSignals: video-on, no live video track found",
-          );
-        }
-      }
-    }
-    if (data.type === "mic-off") {
-      updateRoomData("members", { companionMicEnabled: false });
-    }
+  // --- Управление камерой и микрофоном во время звонка с debounce ---
 
-    if (data.type === "mic-on") {
-      updateRoomData("members", { companionMicEnabled: true });
-    }
-  }
+  // (debounce functions declared above)
+
+  // --- Обработка сигналов звонка ---
+
   function readMessage(id: string) {
     const msg = messages.value.find((m) => m.id === id);
     if (!msg || msg.read) return;
@@ -1309,38 +1609,10 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
       conn.value.send({ type: "read", id });
     }
   }
-  const roomStatistics = computed(() => ({
-    totalActivity:
-      roomData.value.messages.messagesSent +
-      roomData.value.messages.messagesReceived,
-    averageResponseTime: roomData.value.network.roundTripTime,
-    dataTransferred:
-      roomData.value.network.sentBytes + roomData.value.network.receivedBytes,
-    connectionStability: roomData.value.network.connectionStatus,
-    sessionEfficiency: {
-      messagesPerMinute:
-        roomData.value.room.sessionDuration > 0
-          ? (roomData.value.messages.messagesSent +
-              roomData.value.messages.messagesReceived) /
-            (roomData.value.room.sessionDuration / 60000)
-          : 0,
-      callTimePercentage:
-        roomData.value.room.sessionDuration > 0
-          ? (roomData.value.call.duration /
-              roomData.value.room.sessionDuration) *
-            100
-          : 0,
-    },
-  }));
-  // --- Управление камерой и микрофоном во время звонка с debounce ---
-  const debounce = useDebounce();
-  function debouncedToggleCamera(enabled: boolean) {
-    debounce(() => toggleCamera(enabled), 300, "camera");
-  }
-  function debouncedToggleMic(enabled: boolean) {
-    debounce(() => toggleMic(enabled), 300, "mic");
-  }
 
+  // roomStatistics declared above
+
+  // --- Return API ---
   return {
     messages,
     peer,
@@ -1373,5 +1645,10 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     isCameraEnabled,
     isMicEnabled,
     isCameraToggling,
+    // --- Screenshare API ---
+    toggleScreenShare,
+    isScreenShareEnabled,
+    screenShareStream,
+    screenShareOwnerId,
   };
 }
