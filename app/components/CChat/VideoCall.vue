@@ -18,6 +18,27 @@
         <h2 class="video-call__title" v-show="!isMinimized">{{ callStatusText }}</h2>
       </header>
       <div class="video-call__videos">
+        <div class="video-call__minimized-members" v-if="props.screenShareEnabled">
+          <div
+            class="video-call__member--minimized video-call__member"
+            :class="{
+              'video-call__member--cam-enabled': props.members.companionCameraEnabled,
+            }"
+          >
+            <video
+              v-show="props.members.companionCameraEnabled && props.screenShareEnabled"
+              ref="remoteVideo"
+              class="video-call__remote-video"
+              autoplay
+              playsinline
+            ></video>
+            <NuxtImg
+              v-show="!props.members.companionCameraEnabled"
+              src="/icons/chat/member_robot.svg"
+              width="320px"
+            />
+          </div>
+        </div>
         <video
           v-show="props.camEnabled"
           ref="myVideo"
@@ -32,6 +53,7 @@
           :class="{
             'video-call__member--cam-enabled': props.members.companionCameraEnabled,
           }"
+          v-if="!props.screenShareEnabled"
         >
           <div>
             <video
@@ -66,6 +88,13 @@
             ></NuxtImg>
           </div>
         </div>
+        <video
+          v-show="props.screenShareEnabled"
+          ref="screenShareVideo"
+          class="video-call__remote-video"
+          autoplay
+          playsinline
+        ></video>
       </div>
       <nav class="video-call__controls">
         <CButton
@@ -87,6 +116,21 @@
         >
           <NuxtImg
             :src="camState ? '/icons/chat/camera.svg' : '/icons/chat/camera-off.svg'"
+            width="32px"
+          ></NuxtImg>
+        </CButton>
+        <CButton
+          variant="icon-default"
+          iconSize="i-large"
+          @click="toggleScreenShare"
+          :class="{ active: screenShareState }"
+        >
+          <NuxtImg
+            :src="
+              screenShareState
+                ? '/icons/chat/screen_share_off.svg'
+                : '/icons/chat/screen_share_on.svg'
+            "
             width="32px"
           ></NuxtImg>
         </CButton>
@@ -126,6 +170,9 @@ interface Props {
   camEnabled: boolean;
   micEnabled: boolean;
   members: MemberStatus;
+  screenShareEnabled: boolean;
+  isMeScreenSharing: boolean;
+  screenShareStream: MediaStream | null;
 }
 interface MovedWindowPosition {
   top?: string;
@@ -145,14 +192,17 @@ const emit = defineEmits([
   "toggleMic",
   "toggleCam",
   "minimize",
+  "toggleScreenShare",
 ]);
 
 const isMinimized = ref(false);
 const movedWindowPosition = ref<MovedWindowPosition>({});
 const myVideo = ref<HTMLVideoElement | null>(null);
 const remoteVideo = ref<HTMLVideoElement | null>(null);
+const screenShareVideo = ref<HTMLVideoElement | null>(null);
 const camState = ref(props.camEnabled);
 const micState = ref(props.micEnabled);
+const screenShareState = ref(props.screenShareEnabled);
 const videoCallEl = ref<HTMLElement | null>(null);
 let windowStartXPosition = 0;
 let windowStartYPosition = 0;
@@ -246,7 +296,11 @@ function toggleCam() {
   camState.value = newState;
   emit("toggleCam", newState);
 }
-
+function toggleScreenShare() {
+  const newState = !screenShareState.value;
+  screenShareState.value = newState;
+  emit("toggleScreenShare", newState);
+}
 function adjustOnResize() {
   if (!isMinimized.value || !videoCallEl.value || window.innerWidth < 960)
     return;
@@ -317,7 +371,19 @@ watch(
     }
   },
 );
-
+watch(
+  () => props.screenShareStream,
+  (stream) => {
+    if (screenShareVideo.value) {
+      screenShareVideo.value.srcObject = stream || null;
+      nextTick(() => {
+        if (remoteVideo.value) {
+          remoteVideo.value.srcObject = props.remoteStream || null;
+        }
+      });
+    }
+  },
+);
 onMounted(() => {
   if (myVideo.value) myVideo.value.srcObject = props.localStream || null;
   if (remoteVideo.value)
@@ -418,7 +484,13 @@ $app-narrow-mobile: 364px;
       position: relative;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      flex-direction: column;
+      gap: 32px;
+    }
+    .video-call__minimized-members {
+      display: flex;
+      gap: 24px;
     }
     .video-call__member {
       border-radius: 1000px;
@@ -464,6 +536,20 @@ $app-narrow-mobile: 364px;
         video {
           height: 100%;
         }
+      }
+    }
+    .video-call__member--minimized {
+      padding: 16px;
+      width: 256px;
+      height: 120px;
+      background: var(--color-bg-on-secondary-light);
+      object-fit: contain;
+      border-radius: 4px;
+      img {
+        width: 144px;
+      }
+      @media screen and (max-width: $app-mobile) {
+        display: none;
       }
     }
     .video-call__my-video {
