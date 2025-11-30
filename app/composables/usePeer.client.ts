@@ -1,1637 +1,185 @@
-import Peer from "peerjs";
-import type { DataConnection } from "peerjs";
-import { useDebounce } from "~/composables/useDebounce";
-
-type ConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "reconnecting"
-  | "failed";
-type UserStatus = "online" | "away" | "busy" | "offline";
-type NetworkQuality = "excellent" | "good" | "poor" | "unstable" | "critical";
-type DataTransferStatus =
-  | "idle"
-  | "transmitting"
-  | "receiving"
-  | "bidirectional";
-type CallStatus =
-  | "idle"
-  | "calling"
-  | "incoming"
-  | "active"
-  | "ended"
-  | "declined"
-  | "failed";
-interface NetworkMetrics {
-  connectionStatus: ConnectionStatus;
-  quality: NetworkQuality;
-  dataTransferStatus: DataTransferStatus;
-  sentBytes: number;
-  receivedBytes: number;
-  roundTripTime: number;
-  packetLossPercentage: number;
-  estimatedBandwidth: number;
-  lastPingTimestamp: number;
-  connectionUptime: number;
-  jitterMs: number;
-  retryAttempts: number;
-}
-
-interface RoomMetadata {
-  id: string;
-  dateCreated: string;
-  dateUpdated: string;
-  sessionDuration: number;
-  name?: string;
-}
-
-interface CallMetrics {
-  status: CallStatus;
-  type: "audio" | "video" | null;
-  startTime: number | null;
-  duration: number;
-  totalCalls: number;
-  quality: {
-    videoResolution: string | null;
-    audioQuality: "excellent" | "good" | "poor" | null;
-    frameRate: number | null;
-  };
-}
-
-interface MessageMetrics {
-  messagesSent: number;
-  messagesReceived: number;
-  unreadCount: number;
-  filesShared: number;
-  lastMessageTimestamp: number;
-}
-
-interface RoomData {
-  room: RoomMetadata;
-  members: MemberStatus;
-  network: NetworkMetrics;
-  call: CallMetrics;
-  messages: MessageMetrics;
-}
-interface ReplyMessageData {
-  id: string;
-  text: string;
-  sender: string;
-}
+import { onBeforeUnmount, watch } from "vue";
+import { usePeerConnection } from "./peer/usePeerConnection";
+import { usePeerMedia } from "./peer/usePeerMedia";
+import { usePeerMessages } from "./peer/usePeerMessages";
+import { usePeerMetrics } from "./peer/usePeerMetrics";
+import { usePeerRoom } from "./peer/usePeerRoom";
+import { calculateDataSize } from "./peer/utils";
 
 export function usePeer(sessionId: string, isInitiator: boolean) {
-  const peer = ref<Peer | null>(null);
-  const conn = ref<DataConnection | null>(null);
-  const messages = ref<Message[]>([]);
-  const isConnectionEstablished = ref(false);
-  const attachedFiles = ref<File[]>([]);
-  const roomData = ref<RoomData>({
-    room: {
-      id: sessionId,
-      dateCreated: new Date().toISOString(),
-      dateUpdated: new Date().toISOString(),
-      sessionDuration: 0,
-    },
-    members: {
-      yourStatus: "online",
-      companionStatus: "offline",
-      companionLastSeen: 0,
-      isCompanionTyping: false,
-      lastActivityTimestamp: Date.now(),
-      companionCameraEnabled: false,
-      companionMicEnabled: false,
-      companionHasMediaStream: false,
-    },
-    network: {
-      connectionStatus: "connecting",
-      quality: "good",
-      dataTransferStatus: "idle",
-      sentBytes: 0,
-      receivedBytes: 0,
-      roundTripTime: 0,
-      packetLossPercentage: 0,
-      estimatedBandwidth: 0,
-      lastPingTimestamp: 0,
-      connectionUptime: 0,
-      jitterMs: 0,
-      retryAttempts: 0,
-    },
-    call: {
-      status: "idle",
-      type: null,
-      startTime: null,
-      duration: 0,
-      totalCalls: 0,
-      quality: {
-        videoResolution: null,
-        audioQuality: null,
-        frameRate: null,
-      },
-    },
-    messages: {
-      messagesSent: 0,
-      messagesReceived: 0,
-      unreadCount: 0,
-      filesShared: 0,
-      lastMessageTimestamp: 0,
-    },
-  });
-
-  const metricsState = reactive({
-    connectionStartTime: 0,
-    lastPingTime: 0,
-    pingInterval: null as NodeJS.Timeout | null,
-    rttHistory: [] as number[], // For jitter calculation
-    bytesTracker: {
-      lastSentBytes: 0,
-      lastReceivedBytes: 0,
-      transferStartTime: 0,
-    },
-    retryState: {
-      attempts: 0,
-      lastRetryTime: 0,
-      exponentialBackoff: 1000, // Base retry delay
-    },
-  });
-  // reconnect loop state (используем setTimeout-loop, чтобы менять delay)
-  const companionReconnectTimer = ref<number | null>(null);
-  const initiatorUnloadHandler: (() => void) | null = null;
-
-  /**
-   * Запускает loop повторных попыток подключения (экспоненциальный бэкофф)
-   * будет пытаться пока conn не станет open
-   */
-
-  function startCompanionReconnectLoop() {
-    if (companionReconnectTimer.value) return;
-    metricsState.retryState.attempts = 0;
-
-    const attempt = () => {
-      if (conn.value?.open) {
-        stopCompanionReconnectLoop();
-        return;
-      }
-
-      metricsState.retryState.attempts++;
-      metricsState.retryState.lastRetryTime = Date.now();
-
-      const target = sessionId; // <- всегда инициатор
-      console.log(
-        "[usePeer] reconnect loop attempt",
-        metricsState.retryState.attempts,
-        "->",
-        target,
-      );
-
-      try {
-        connectToPeer(target);
-      } catch (e) {
-        console.warn("[usePeer] reconnect attempt failed:", e);
-      }
-
-      const nextDelay = Math.min(
-        30000,
-        1000 * 2 ** Math.min(6, metricsState.retryState.attempts - 1),
-      );
-
-      companionReconnectTimer.value = window.setTimeout(
-        attempt,
-        nextDelay,
-      ) as unknown as number;
-    };
-
-    attempt();
-  }
-
-  function stopCompanionReconnectLoop() {
-    if (!companionReconnectTimer.value) return;
-    clearTimeout(companionReconnectTimer.value);
-    companionReconnectTimer.value = null;
-    metricsState.retryState.attempts = 0;
-  }
-
-  function initializeMetricsTracking(): void {
-    metricsState.connectionStartTime = Date.now();
-    startPingMonitoring();
-    startSessionDurationTracking();
-  }
-
-  const pingPongCompanionDiscottectionTimeout = ref<NodeJS.Timeout | null>(
-    null,
-  );
-  function startCountDownCompanionDiscottection() {
-    if (!pingPongCompanionDiscottectionTimeout.value) {
-      pingPongCompanionDiscottectionTimeout.value = setTimeout(() => {
-        updateRoomData("members", {
-          companionStatus: "offline",
-        });
-        if (pingPongCompanionDiscottectionTimeout.value) {
-          clearTimeout(pingPongCompanionDiscottectionTimeout.value);
-          pingPongCompanionDiscottectionTimeout.value = null;
-        }
-      }, 5000);
-    }
-  }
-  function startPingMonitoring(): void {
-    if (metricsState.pingInterval) {
-      clearInterval(metricsState.pingInterval);
-    }
-
-    metricsState.pingInterval = setInterval(() => {
-      if (conn.value?.open) {
-        const pingStart = Date.now();
-        metricsState.lastPingTime = pingStart;
-        startCountDownCompanionDiscottection();
-        conn.value.send({
-          type: "ping",
-          timestamp: pingStart,
-        });
-      }
-    }, 5000);
-  }
-
-  function startSessionDurationTracking(): void {
-    setInterval(() => {
-      if (metricsState.connectionStartTime > 0) {
-        updateRoomData("room", {
-          sessionDuration: Date.now() - metricsState.connectionStartTime,
-        });
-      }
-    }, 1000);
-  }
-
-  /**
-   * Calculate network quality based on RTT, packet loss, and jitter
-   * Uses a composite scoring algorithm for accurate quality assessment
-   * @param rtt - Round trip time in milliseconds
-   * @param packetLoss - Packet loss percentage (0-100)
-   * @param jitter - Network jitter in milliseconds
-   * @returns Network quality classification
-   */
-  function calculateNetworkQuality(
-    rtt: number,
-    packetLoss: number,
-    jitter: number,
-  ): NetworkQuality {
-    // Weighted scoring system: RTT (40%), Packet Loss (35%), Jitter (25%)
-    const rttScore =
-      rtt < 50 ? 100 : rtt < 100 ? 80 : rtt < 200 ? 60 : rtt < 500 ? 40 : 20;
-    const lossScore =
-      packetLoss < 0.5
-        ? 100
-        : packetLoss < 1
-          ? 80
-          : packetLoss < 3
-            ? 60
-            : packetLoss < 10
-              ? 40
-              : 20;
-    const jitterScore =
-      jitter < 10
-        ? 100
-        : jitter < 20
-          ? 80
-          : jitter < 50
-            ? 60
-            : jitter < 100
-              ? 40
-              : 20;
-
-    const compositeScore =
-      rttScore * 0.4 + lossScore * 0.35 + jitterScore * 0.25;
-
-    if (compositeScore >= 90) return "excellent";
-    if (compositeScore >= 70) return "good";
-    if (compositeScore >= 50) return "poor";
-    if (compositeScore >= 30) return "unstable";
-    return "critical";
-  }
-
-  /**
-   * Calculate network jitter from RTT history
-   * Jitter represents the variance in packet delivery times
-   * @param rttHistory - Array of recent RTT measurements
-   * @returns Calculated jitter in milliseconds
-   */
-  function calculateJitter(rttHistory: number[]): number {
-    if (rttHistory.length < 2) return 0;
-
-    const mean =
-      rttHistory.reduce((sum, rtt) => sum + rtt, 0) / rttHistory.length;
-    const variance =
-      rttHistory.reduce((sum, rtt) => sum + (rtt - mean) ** 2, 0) /
-      rttHistory.length;
-    return Math.sqrt(variance);
-  }
-
-  /**
-   * Determine data transfer status based on recent activity
-   * @param sentBytes - Current sent bytes count
-   * @param receivedBytes - Current received bytes count
-   * @returns Current data transfer activity state
-   */
-  function determineDataTransferStatus(
-    sentBytes: number,
-    receivedBytes: number,
-  ): DataTransferStatus {
-    const { lastSentBytes, lastReceivedBytes } = metricsState.bytesTracker;
-
-    const isSending = sentBytes > lastSentBytes;
-    const isReceiving = receivedBytes > lastReceivedBytes;
-
-    if (isSending && isReceiving) return "bidirectional";
-    if (isSending) return "transmitting";
-    if (isReceiving) return "receiving";
-    return "idle";
-  }
-
-  function updateRoomData<T extends keyof RoomData>(
-    section: T,
-    updates: Partial<RoomData[T]>,
-  ): void {
-    roomData.value = {
-      ...roomData.value,
-      [section]: {
-        ...roomData.value[section],
-        ...updates,
-      },
-    };
-
-    if (section !== "room" && section === "messages") {
-      updateRoomData("room", {
-        dateUpdated: new Date().toISOString(),
-      });
-    }
-  }
-
-  /**
-   * Handle ping responses and update network metrics with enhanced analysis
-   * Implements comprehensive network quality assessment with jitter calculation
-   * @param timestamp - Original ping timestamp for RTT calculation
-   */
-  function handlePingResponse(timestamp: number): void {
-    const now = Date.now();
-    const rtt = now - timestamp;
-
-    // Maintain RTT history for jitter calculation (sliding window of 10 measurements)
-    metricsState.rttHistory.push(rtt);
-    if (metricsState.rttHistory.length > 10) {
-      metricsState.rttHistory.shift();
-    }
-    console.log(roomData.value);
-    const jitter = calculateJitter(metricsState.rttHistory);
-    const currentBytes =
-      roomData.value.network.sentBytes + roomData.value.network.receivedBytes;
-    const previousBytes =
-      metricsState.bytesTracker.lastSentBytes +
-      metricsState.bytesTracker.lastReceivedBytes;
-
-    // Estimate bandwidth based on data transfer over time interval
-    const timeDelta = now - roomData.value.network.lastPingTimestamp;
-    const bytesDelta = currentBytes - previousBytes;
-    const estimatedBandwidth =
-      timeDelta > 0 ? (bytesDelta * 8) / (timeDelta / 1000) / 1024 : 0; // kbps
-
-    updateRoomData("network", {
-      roundTripTime: rtt,
-      jitterMs: jitter,
-      lastPingTimestamp: now,
-      connectionUptime: now - metricsState.connectionStartTime,
-      estimatedBandwidth: Math.max(
-        estimatedBandwidth,
-        roomData.value.network.estimatedBandwidth * 0.8,
-      ), // Smoothed estimate
-      quality: calculateNetworkQuality(
-        rtt,
-        roomData.value.network.packetLossPercentage,
-        jitter,
-      ),
-    });
-  }
-
-  /**
-   * Track bytes transferred and update network metrics with enhanced precision
-   * Implements granular data transfer monitoring with activity state detection
-   * @param sent - Bytes sent in this transmission
-   * @param received - Bytes received in this transmission
-   */
-  function updateBytesTransferred(sent: number, received: number): void {
-    const newSentBytes = roomData.value.network.sentBytes + sent;
-    const newReceivedBytes = roomData.value.network.receivedBytes + received;
-
-    const dataTransferStatus = determineDataTransferStatus(
-      newSentBytes,
-      newReceivedBytes,
-    );
-
-    updateRoomData("network", {
-      sentBytes: newSentBytes,
-      receivedBytes: newReceivedBytes,
-      dataTransferStatus,
-    });
-
-    // Update tracking state for next calculation
-    metricsState.bytesTracker.lastSentBytes = newSentBytes;
-    metricsState.bytesTracker.lastReceivedBytes = newReceivedBytes;
-  }
-
-  // session helpers — SSR-safe, положи рядом с getStoredPeerId / setStoredPeerId
-  function getStoredConnectionId(sessionId: string): string | null {
-    if (typeof window === "undefined" || !("sessionStorage" in window))
-      return null;
-    try {
-      return sessionStorage.getItem(`chat:conn:${sessionId}`);
-    } catch {
-      return null;
-    }
-  }
-  function setStoredConnectionId(
-    sessionId: string,
-    connectionPeerId: string,
-  ): void {
-    if (typeof window === "undefined" || !("sessionStorage" in window)) return;
-    try {
-      sessionStorage.setItem(`chat:conn:${sessionId}`, connectionPeerId);
-    } catch {}
-  }
-  function clearStoredConnectionId(sessionId: string): void {
-    if (typeof window === "undefined" || !("sessionStorage" in window)) return;
-    try {
-      sessionStorage.removeItem(`chat:conn:${sessionId}`);
-    } catch {}
-  }
-
-  /**
-   * Enhanced connection setup with metrics tracking
-   */
-  function initPeer(opts?: { reconnect?: boolean }) {
-    const reconnect = !!opts?.reconnect;
-    const storedPeerId = reconnect ? getStoredConnectionId(sessionId) : null;
-    const options = {
-      host: "peerjs-server-gims.onrender.com",
-      path: "/",
-      secure: true,
-    };
-    console.log("[usePeer] initPeer", {
-      sessionId,
-      isInitiator,
-      reconnect,
-      storedPeerId,
-    });
-    // Для инициатора — используем свой sessionId, для клиента — PeerJS сгенерирует ID
-    // Для инициатора — если reconnect, НЕ используем sessionId как peerId
-    if (isInitiator) {
-      peer.value = new Peer(sessionId, options);
-    } else {
-      peer.value = new Peer(undefined, options);
-    }
-
-    peer.value.on("open", (id: string) => {
-      console.log("[usePeer] Peer open", id, { storedPeerId, reconnect });
-
-      // Сохраняем свой id в sessionStorage чтобы при reload в этой вкладке можно было попытаться восстановить тот же id
-      try {
-        setStoredConnectionId(sessionId, id);
-      } catch (e) {}
-
-      // Если non-initiator и не reconnect — старое поведение: подключаемся к initiator (sessionId)
-      if (!isInitiator) {
-        setTimeout(() => {
-          try {
-            connectToPeer(sessionId);
-          } catch (e) {
-            console.warn("[usePeer] connectToPeer failed on open", e);
-          }
-        }, 50);
-      }
-
-      updateRoomData("network", { connectionStatus: "connecting" });
-    });
-
-    // Для инициатора — ждём входящих соединений
-    peer.value.on("connection", (connection) => {
-      console.log("[usePeer] Incoming connection");
-      setupConnection(connection);
-    });
-
-    let shouldAutoAcceptWithVideo = false;
-
-    // --- Modified call handler to separate screenshare calls from regular calls ---
-    peer.value.on("call", (mediaConnection) => {
-      // Detect screenshare by metadata (we set metadata: { screenshare: true, sharer })
-      const isScreenshare = mediaConnection?.metadata?.screenshare;
-
-      if (isScreenshare) {
-        console.log("[usePeer] incoming screenshare call", mediaConnection);
-        // keep separate reference
-        mediaConnScreenIncoming = mediaConnection;
-
-        // Answer WITHOUT providing any extra outgoing stream — this will not touch camera localStream
-        try {
-          // peerjs may accept answer() without args
-          mediaConnScreenIncoming.answer?.();
-        } catch (e) {
-          console.warn(
-            "[usePeer] screenshare.answer failed or requires different behavior",
-            e,
-          );
-        }
-
-        mediaConnScreenIncoming.on("stream", (remoteStream: MediaStream) => {
-          console.log("[usePeer] got remote screenshare stream", remoteStream);
-          // set separate stream for screenshare (does not touch remoteStream for camera)
-          screenShareStream.value = remoteStream;
-          isScreenShareEnabled.value = true;
-          screenShareOwnerId.value = mediaConnection?.metadata?.sharer ?? null;
-          updateRoomData("members", { companionHasMediaStream: true });
-        });
-
-        mediaConnScreenIncoming.on("close", () => {
-          console.log("[usePeer] incoming screenshare closed");
-          if (screenShareStream.value) {
-            screenShareStream.value.getTracks().forEach((t) => {
-              try {
-                t.stop();
-              } catch {}
-            });
-          }
-          screenShareStream.value = null;
-          isScreenShareEnabled.value = false;
-          screenShareOwnerId.value = null;
-          mediaConnScreenIncoming = null;
-          updateRoomData("members", { companionHasMediaStream: false });
-        });
-
-        mediaConnScreenIncoming.on("error", (e: any) => {
-          console.error("[usePeer] incoming screenshare error", e);
-          if (screenShareStream.value) {
-            screenShareStream.value.getTracks().forEach((t) => {
-              try {
-                t.stop();
-              } catch {}
-            });
-          }
-          screenShareStream.value = null;
-          isScreenShareEnabled.value = false;
-          screenShareOwnerId.value = null;
-          mediaConnScreenIncoming = null;
-          updateRoomData("members", { companionHasMediaStream: false });
-        });
-
-        // do not run regular call handling for this connection
-        return;
-      }
-
-      // ---------- existing call handling for regular calls ----------
-      console.log("[usePeer] peer.on(call): incoming", {
-        mediaConnection,
-        callState: callState.value,
-        shouldAutoAcceptWithVideo,
-        oldMediaConn: mediaConn,
-      });
-      callState.value = "incoming";
-      // Explicitly close and clear old mediaConn
-      if (mediaConn) {
-        try {
-          mediaConn.close();
-        } catch (e) {
-          console.error(
-            "[usePeer] peer.on(call): error closing old mediaConn",
-            e,
-          );
-        }
-        mediaConn = null;
-      }
-      mediaConn = mediaConnection;
-      console.log("[usePeer] peer.on(call): new mediaConn set", mediaConn);
-      if (shouldAutoAcceptWithVideo) {
-        shouldAutoAcceptWithVideo = false;
-        console.log("[usePeer] peer.on(call): auto-accepting with video");
-        acceptCall({ cam: true, mic: true });
-      }
-      // otherwise — wait for accept
-    });
-
-    peer.value.on("error", (err) => {
-      console.error("[usePeer] Peer error:", err);
-    });
-  }
-
-  function connectToPeer(targetId?: string) {
-    if (!peer.value) return;
-    const target = targetId || sessionId; // всегда по умолчанию к sessionId (инициатору)
-    if (!target) {
-      console.warn("[usePeer] connectToPeer: no target specified");
-      return;
-    }
-    console.log("[usePeer] connectToPeer ->", target);
-    const connection = peer.value.connect(target, { reliable: true });
-    setupConnection(connection);
-  }
-
-  function setupConnection(connection: DataConnection) {
-    conn.value = connection;
-
-    connection.on("open", () => {
-      console.log("[usePeer] Connection open");
-      isConnectionEstablished.value = true;
-
-      // остановим loop reconnect (если он был запущен)
-      stopCompanionReconnectLoop();
-
-      updateRoomData("network", {
-        connectionStatus: "connected",
-        dataTransferStatus: "idle",
-      });
-
-      updateRoomData("members", {
-        companionStatus: "online",
-        lastActivityTimestamp: Date.now(),
-      });
-
-      // Reset retry state on successful connection
-      metricsState.retryState.attempts = 0;
-      metricsState.retryState.exponentialBackoff = 1000;
-
-      initializeMetricsTracking();
-    });
-
-    connection.on("data", (data: any) => {
-      // Update received bytes (approximate)
-      console.log(data);
-      if (data.type !== "ping" && data.type !== "pong") {
-        const dataSize = calculateDataSize(data);
-        updateBytesTransferred(0, dataSize);
-      }
-      // Handle ping responses
-      if (data?.type === "ping") {
-        // Respond to ping
-        connection.send({
-          type: "pong",
-          originalTimestamp: data.timestamp,
-          responseTimestamp: Date.now(),
-        });
-        return;
-      }
-
-      if (data?.type === "pong") {
-        handlePingResponse(data.originalTimestamp);
-        if (pingPongCompanionDiscottectionTimeout.value) {
-          clearTimeout(pingPongCompanionDiscottectionTimeout.value);
-          pingPongCompanionDiscottectionTimeout.value = null;
-        }
-        return;
-      }
-
-      // Update companion activity
-      updateRoomData("members", {
-        companionStatus: "online",
-        lastActivityTimestamp: Date.now(),
-      });
-
-      // Handle call signals
-      handleCallSignals(data);
-
-      // Filter out system messages
-      if (
-        data?.type &&
-        [
-          "call-request",
-          "call-decline",
-          "call-end",
-          "ping",
-          "pong",
-          "video-on",
-          "video-off",
-          "restart-call-with-video",
-          "read",
-          "mic-on",
-          "mic-off",
-          "screen-share-on",
-          "screen-share-off",
-        ].includes(data.type)
-      ) {
-        return;
-      }
-
-      // Обработка удаления сообщения
-      if (data?.type === "delete-message" && data.id) {
-        const idx = messages.value.findIndex((m) => m.id === data.id);
-        if (idx !== -1) {
-          messages.value.splice(idx, 1);
-        }
-        return;
-      }
-
-      // Process regular messages
-      let msg: Message;
-      console.log("data well pupupu", data);
-      if (typeof data === "string") {
-        msg = JSON.parse(data);
-      } else if (data?.type === "message") {
-        console.log("gotta in on handler", data);
-        const typedData = data as Message;
-        const filesWithUrl = typedData.files
-          .filter((f) => f)
-          .map((f) => {
-            const fileData = f.file.fileData;
-            const blob = new Blob([fileData], { type: f.file.type });
-            return {
-              ...f,
-              file: {
-                ...f.file,
-                fileUrl: URL.createObjectURL(blob),
-              },
-            };
-          });
-        console.log("filesWithUrl", filesWithUrl);
-        msg = {
-          id: typedData.id,
-          sender: typedData.sender,
-          read: false,
-          text: typedData.text,
-          timestamp: typedData.timestamp,
-          replyMessage: typedData.replyMessage,
-          type: "message",
-          files: filesWithUrl,
-          isEdited: typedData.isEdited,
-          isVoiceMessage: typedData.isVoiceMessage,
-          existingFileIds: typedData.existingFileIds,
-        };
-        updateRoomData("messages", {
-          filesShared:
-            roomData.value.messages.filesShared + typedData.files.length,
-        });
-      } else {
-        msg = data as Message;
-      }
-      console.log("i got your message here", msg);
-      if (msg.isEdited) {
-        const indexToEdit = messages.value.findIndex((m) => m.id === msg.id);
-        messages.value[indexToEdit] = {
-          ...msg,
-          files: [
-            ...messages.value[indexToEdit].files.filter((f) =>
-              msg.existingFileIds?.includes(f.id),
-            ),
-            ...(msg.files || []),
-          ],
-        };
-      } else {
-        messages.value.push(msg);
-      }
-
-      // Update message metrics
-      updateRoomData("messages", {
-        messagesReceived: roomData.value.messages.messagesReceived + 1,
-        unreadCount: roomData.value.messages.unreadCount + 1,
-        lastMessageTimestamp: msg.timestamp,
-      });
-    });
-
-    connection.on("close", () => {
-      console.log("[usePeer] Connection closed");
-      conn.value = null;
-      isConnectionEstablished.value = false;
-
-      updateRoomData("network", {
-        connectionStatus: "disconnected",
-        dataTransferStatus: "idle",
-      });
-
-      updateRoomData("members", {
-        companionStatus: "offline",
-        companionLastSeen: Date.now(),
-      });
-
-      if (metricsState.pingInterval) {
-        clearInterval(metricsState.pingInterval);
-        metricsState.pingInterval = null;
-      }
-
-      if (!isInitiator) {
-        console.log(
-          "[usePeer] Connection closed, starting reconnect loop (non-initiator)",
-        );
-        startCompanionReconnectLoop();
-      } else {
-        console.log(
-          "[usePeer] Connection closed (initiator) — not starting reconnect loop",
-        );
-      }
-    });
-
-    connection.on("error", (err: any) => {
-      console.error("[usePeer] Connection error:", err);
-      isConnectionEstablished.value = false;
-
-      // Increment retry attempts for connection resilience tracking
-      metricsState.retryState.attempts++;
-      metricsState.retryState.lastRetryTime = Date.now();
-
-      updateRoomData("network", {
-        connectionStatus: "failed",
-        retryAttempts: metricsState.retryState.attempts,
-        dataTransferStatus: "idle",
-      });
-    });
-  }
-
-  function calculateDataSize(data: any): number {
-    if (!data) return 0;
-
-    // Для файловых сообщений считаем реальный размер файлов
-    if (data.type === "message" && data.files) {
-      const typedData = data as Message;
-      let totalSize = JSON.stringify({
-        id: typedData.id,
-        sender: typedData.sender,
-        text: typedData.text,
-        timestamp: typedData.timestamp,
-        type: typedData.type,
-        replyMessage: typedData.replyMessage,
-      }).length;
-      console.log("CALCULATE SIZE FILES", typedData.files);
-      // Добавляем реальный размер файлов
-      typedData.files.forEach((file) => {
-        if (file?.file.size) {
-          totalSize += file.file.size; // Используем реальный размер файла
-        } else if (file?.file.fileData instanceof ArrayBuffer) {
-          totalSize += file.file.fileData.byteLength;
-        }
-      });
-
-      return totalSize;
-    }
-
-    // Для обычных сообщений
-    return JSON.stringify(data).length;
-  }
-  async function sendMessage(
-    payload: SendMessageRequest,
-    replyMessage?: ReplyMessageData,
-  ) {
-    console.log("[usePeer] sendMessage", payload);
-    if (!conn.value?.open) return;
-    const filesToSend = await Promise.all(
-      payload.files.map(async (f) => {
-        const file = f.file;
-        const arrayBuffer = await (file as File).arrayBuffer();
-        const fileUrl = URL.createObjectURL(file as File);
-        const msgFile: MessageFile = {
-          id: f.id,
-          preview: f.preview,
-          file: {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            fileData: arrayBuffer,
-            fileUrl,
-          },
-        };
-        return msgFile;
-      }),
-    );
-    console.log("[usePeer] sendMessage: filesToSend", filesToSend);
-    const message: Message = {
-      id: crypto.randomUUID(),
-      type: "message",
-      sender: useDeviceId(),
-      isVoiceMessage: payload.isVoiceMessage,
-      text: payload.text,
-      timestamp: Date.now(),
-      files: filesToSend,
-      replyMessage: replyMessage,
-      read: false,
-    };
-    console.log("[usePeer] sendMessage: message", message);
-    conn.value.send(message);
-    const messageSize = calculateDataSize(message);
-    updateBytesTransferred(messageSize, 0);
-    updateRoomData("messages", {
-      messagesSent: roomData.value.messages.messagesSent + 1,
-      lastMessageTimestamp: message.timestamp,
-    });
-    messages.value.push(message);
-  }
-  async function editMessage(payload: EditMessageRequest) {
-    console.log("[usePeer] editMessage", payload);
-    if (!conn.value?.open) return;
-
-    const filesToSend: MessageFile[] = [];
-    const existingFileIds: string[] = [];
-
-    for (const f of payload.files) {
-      if (f.file instanceof File) {
-        const arrayBuffer = await (f.file as File).arrayBuffer();
-        const fileUrl = URL.createObjectURL(f.file as File);
-        filesToSend.push({
-          id: f.id,
-          preview: f.preview,
-          file: {
-            name: f.file.name,
-            size: f.file.size,
-            type: f.file.type,
-            fileData: arrayBuffer,
-            fileUrl,
-          },
-        });
-      } else {
-        existingFileIds.push(f.id);
-      }
-    }
-
-    const message: Message = {
-      id: payload.editingId || crypto.randomUUID(),
-      type: "message",
-      sender: useDeviceId(),
-      text: payload.text,
-      timestamp: Date.now(),
-      files: filesToSend,
-      read: payload.read,
-      replyMessage: payload.replyMessage,
-      isEdited: true,
-      existingFileIds,
-    };
-    console.log("[usePeer] editMessage: message", message);
-    conn.value.send(message);
-    const messageSize = calculateDataSize(message);
-    updateBytesTransferred(messageSize, 0);
-    const indexToEdit = messages.value.findIndex((m) => m.id === message.id);
-    if (indexToEdit !== -1) {
-      messages.value[indexToEdit] = {
-        ...messages.value[indexToEdit],
-        ...message,
-        files: [
-          ...messages.value[indexToEdit].files.filter((f) =>
-            existingFileIds.includes(f.id),
-          ),
-          ...filesToSend.map((f) => ({
-            ...f,
-            file: {
-              ...f.file,
-              fileUrl:
-                f.file.fileUrl ||
-                URL.createObjectURL(
-                  new Blob([f.file.fileData], { type: f.file.type }),
-                ),
-            },
-          })),
-        ],
-      };
-    }
-    updateRoomData("messages", {
-      lastMessageTimestamp: message.timestamp,
-    });
-  }
-  function replyToMessage(request: ReplyMessageRequest) {
-    sendMessage(
-      {
-        text: request.text,
-        files: request.files,
-      },
-      request.replyMessage,
-    );
-  }
-  function deleteMessage(messageId: string) {
-    const index = messages.value.findIndex((m: any) => m.id === messageId);
-    if (index !== -1) {
-      messages.value.splice(index, 1);
-    }
-    if (conn.value?.open) {
-      conn.value.send({ type: "delete-message", id: messageId });
-    }
-  }
-  // Добавить файл к списку
-  function attachFile(file: File) {
-    attachedFiles.value.push(file);
-  }
-
-  // Открепить файл по индексу
-  function detachFile(index: number) {
-    attachedFiles.value.splice(index, 1);
-  }
-
-  // Отправить одно сообщение с несколькими файлами и текстом
-
-  function destroy() {
-    if (metricsState.pingInterval) {
-      clearInterval(metricsState.pingInterval);
-    }
-    conn.value?.close();
-    peer.value?.destroy();
-  }
-
-  onBeforeUnmount(destroy);
-
-  // --- Видеозвонки ---
-  const callState = ref<"idle" | "calling" | "incoming" | "active" | "ended">(
-    "idle",
-  );
-  const callType = ref<"audio" | "video">("video");
-  const localStream = ref<MediaStream | null>(null);
-  const remoteStream = ref<MediaStream | null>(null);
-  let mediaConn: any = null;
-  let callTimeout: any = null;
-  const isCameraEnabled = ref(false);
-  const isMicEnabled = ref(false);
-  const isCameraToggling = ref(false);
-  let shouldAutoAcceptWithVideo = false;
-
-  // --- Screen sharing (separate stream, does NOT replace camera stream) ---
-  const isScreenShareEnabled = ref(false);
-  const screenShareStream = ref<MediaStream | null>(null);
-  const screenShareOwnerId = ref<string | null>(null);
-
-  // media connections for screenshare (outgoing / incoming)
-  let mediaConnScreenOutgoing: any = null;
-  let mediaConnScreenIncoming: any = null;
-
-  /**
-   * Toggle screen sharing. Does NOT touch camera tracks.
-   * force === true -> enable, false -> disable, undefined -> toggle
-   */
-  async function toggleScreenShare(force?: boolean) {
-    const shouldEnable =
-      typeof force === "boolean" ? force : !isScreenShareEnabled.value;
-
-    if (shouldEnable) {
-      if (!navigator.mediaDevices?.getDisplayMedia) {
-        console.warn("[usePeer] Screen share not supported");
-        return;
-      }
-
-      try {
-        const dispStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        });
-
-        // set local state
-        screenShareStream.value = dispStream;
-        isScreenShareEnabled.value = true;
-        screenShareOwnerId.value = useDeviceId();
-
-        // notify via data-channel who shares
-        conn.value?.send({
-          type: "screen-share-on",
-          sharer: screenShareOwnerId.value,
-        });
-
-        // If we have a peer and an open data connection - open a separate media call for screenshare
-        if (peer.value && conn.value?.open) {
-          try {
-            // create separate call with metadata marking it as screenshare
-            mediaConnScreenOutgoing = peer.value.call(
-              conn.value.peer,
-              dispStream,
-              {
-                metadata: {
-                  screenshare: true,
-                  sharer: screenShareOwnerId.value,
-                },
-              },
-            );
-
-            mediaConnScreenOutgoing.on("close", () => {
-              // cleanup when remote closes screenshare call
-              cleanupLocalScreenShare(false);
-            });
-            mediaConnScreenOutgoing.on("error", (e: any) => {
-              console.error("[usePeer] screenshare outgoing error", e);
-              cleanupLocalScreenShare(true);
-            });
-          } catch (e) {
-            console.warn("[usePeer] screenshare outgoing call failed", e);
-          }
-        } else {
-          console.warn(
-            "[usePeer] screenshare: no peer or no open connection — stream created locally but not sent",
-          );
-        }
-
-        // If user stops via browser UI, handle it
-        const stopHandler = () => {
-          // remove listeners on all tracks
-          dispStream
-            .getTracks()
-            .forEach((t) => t.removeEventListener("ended", stopHandler));
-          toggleScreenShare(false);
-        };
-        dispStream
-          .getTracks()
-          .forEach((t) => t.addEventListener("ended", stopHandler));
-      } catch (err) {
-        console.warn(
-          "[usePeer] toggleScreenShare: getDisplayMedia failed",
-          err,
-        );
-      }
-    } else {
-      // turn off screenshare
-      try {
-        // stop local display stream tracks
-        if (screenShareStream.value) {
-          screenShareStream.value.getTracks().forEach((t) => {
-            try {
-              t.stop();
-            } catch {}
-          });
-        }
-
-        // close outgoing screenshare media connection if exists
-        try {
-          if (mediaConnScreenOutgoing) {
-            mediaConnScreenOutgoing.close();
-            mediaConnScreenOutgoing = null;
-          }
-        } catch (e) {
-          console.warn("[usePeer] error closing mediaConnScreenOutgoing", e);
-        }
-
-        // notify peer that screenshare stopped
-        conn.value?.send({
-          type: "screen-share-off",
-          sharer: useDeviceId(),
-        });
-      } finally {
-        // clear state
-        screenShareStream.value = null;
-        isScreenShareEnabled.value = false;
-        screenShareOwnerId.value = null;
-      }
-    }
-  }
-
-  // Helper to cleanup local screenshare state (called on call close/error)
-  function cleanupLocalScreenShare(suppressNotify = false) {
-    if (screenShareStream.value) {
-      screenShareStream.value.getTracks().forEach((t) => {
-        try {
-          t.stop();
-        } catch {}
-      });
-    }
-    try {
-      if (mediaConnScreenOutgoing) {
-        mediaConnScreenOutgoing.close();
-      }
-    } catch {}
-    mediaConnScreenOutgoing = null;
-    screenShareStream.value = null;
-    isScreenShareEnabled.value = false;
-    if (!suppressNotify) {
-      conn.value?.send({
-        type: "screen-share-off",
-        sharer: useDeviceId(),
-      });
-    }
-    screenShareOwnerId.value = null;
-  }
-
-  function handleCallSignals(data: any) {
-    console.log("[usePeer] handleCallSignals", data);
-    if (data.type === "restart-call-with-video") {
-      // Для надёжности сбрасываем mediaConn
-      if (mediaConn) {
-        try {
-          mediaConn.close();
-        } catch (e) {
-          console.error(
-            "[usePeer] handleCallSignals: error closing mediaConn",
-            e,
-          );
-        }
-        mediaConn = null;
-      }
-      endCall(true);
-      setTimeout(() => {
-        shouldAutoAcceptWithVideo = true;
-        console.log(
-          "[usePeer] handleCallSignals: shouldAutoAcceptWithVideo set TRUE",
-        );
-      }, 100);
-      return;
-    }
-    if (data?.type === "read") {
-      const msg = messages.value.find((m) => m.id === data.id);
-      if (msg) msg.read = true;
-      return;
-    }
-    if (data.type === "call-request") {
-      callState.value = "incoming";
-      callType.value = data.video ? "video" : "audio";
-      updateRoomData("members", {
-        companionCameraEnabled: !!data.video,
-        companionMicEnabled: !!data.audio,
-      });
-      console.log("[usePeer] handleCallSignals: call-request", {
-        callState: callState.value,
-        callType: callType.value,
-      });
-    }
-    if (data.type === "call-decline") {
-      updateRoomData("members", {
-        companionCameraEnabled: false,
-        companionMicEnabled: false,
-      });
-      endCall(true);
-      console.log("[usePeer] handleCallSignals: call-decline");
-    }
-    if (data.type === "call-end") {
-      updateRoomData("members", {
-        companionCameraEnabled: false,
-        companionMicEnabled: false,
-      });
-      endCall(true);
-      console.log("[usePeer] handleCallSignals: call-end");
-    }
-    if (data.type === "video-off") {
-      updateRoomData("members", { companionCameraEnabled: false });
-      if (remoteStream.value) {
-        remoteStream.value.getVideoTracks().forEach((t) => {
-          t.enabled = false;
-        });
-        console.log(
-          "[usePeer] handleCallSignals: video-off, videoTracks disabled",
-        );
-      }
-    }
-    if (data.type === "video-on") {
-      updateRoomData("members", { companionCameraEnabled: true });
-      if (remoteStream.value) {
-        // Включаем обратно все видео-дорожки
-        remoteStream.value.getVideoTracks().forEach((t) => {
-          t.enabled = true;
-        });
-        console.log(
-          "[usePeer] handleCallSignals: video-on, videoTracks enabled",
-        );
-      } else if (mediaConn?.peerConnection) {
-        // На всякий случай, если remoteStream ещё не установился — получаем его из receivers
-        const receivers = mediaConn.peerConnection.getReceivers();
-        const videoTrack = receivers
-          .map((r: RTCRtpReceiver) => r.track)
-          .find(
-            (t: MediaStreamTrack | null) =>
-              t?.kind === "video" && t.readyState === "live",
-          );
-        const audioTracks = receivers
-          .map((r: RTCRtpReceiver) => r.track)
-          .filter(
-            (t: MediaStreamTrack | null) =>
-              t?.kind === "audio" && t.readyState === "live",
-          );
-        if (videoTrack) {
-          remoteStream.value = new MediaStream(
-            [videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[],
-          );
-          console.log(
-            "[usePeer] handleCallSignals: video-on, remoteStream reconstructed",
-            remoteStream.value,
-          );
-        } else {
-          console.warn(
-            "[usePeer] handleCallSignals: video-on, no live video track found",
-          );
-        }
-      }
-    }
-    if (data.type === "mic-off") {
-      updateRoomData("members", { companionMicEnabled: false });
-    }
-
-    if (data.type === "mic-on") {
-      updateRoomData("members", { companionMicEnabled: true });
-    }
-
-    // --- Screen share signals via data channel ---
-    if (data.type === "screen-share-on") {
-      updateRoomData("members", { companionHasMediaStream: true });
-      if (data.sharer) {
-        screenShareOwnerId.value = data.sharer;
-        console.log(
-          "[usePeer] handleCallSignals: screen-share-on from",
-          data.sharer,
-        );
-      }
-      return;
-    }
-    if (data.type === "screen-share-off") {
-      updateRoomData("members", { companionHasMediaStream: false });
-      if (data.sharer && screenShareOwnerId.value === data.sharer) {
-        screenShareOwnerId.value = null;
-      }
-      console.log(
-        "[usePeer] handleCallSignals: screen-share-off from",
-        data.sharer,
-      );
-      return;
-    }
-  }
-
-  const roomStatistics = computed(() => ({
-    totalActivity:
-      roomData.value.messages.messagesSent +
-      roomData.value.messages.messagesReceived,
-    averageResponseTime: roomData.value.network.roundTripTime,
-    dataTransferred:
-      roomData.value.network.sentBytes + roomData.value.network.receivedBytes,
-    connectionStability: roomData.value.network.connectionStatus,
-    sessionEfficiency: {
-      messagesPerMinute:
-        roomData.value.room.sessionDuration > 0
-          ? (roomData.value.messages.messagesSent +
-              roomData.value.messages.messagesReceived) /
-            (roomData.value.room.sessionDuration / 60000)
-          : 0,
-      callTimePercentage:
-        roomData.value.room.sessionDuration > 0
-          ? (roomData.value.call.duration /
-              roomData.value.room.sessionDuration) *
-            100
-          : 0,
-    },
-  }));
-  // --- Управление камерой и микрофоном во время звонка с debounce ---
-  const debounce = useDebounce();
-  function debouncedToggleCamera(enabled: boolean) {
-    debounce(() => toggleCamera(enabled), 300, "camera");
-  }
-  function debouncedToggleMic(enabled: boolean) {
-    debounce(() => toggleMic(enabled), 300, "mic");
-  }
-
-  async function startCall(withVideo = false, withAudio = false) {
-    const callStartTime = Date.now();
-
-    updateRoomData("call", {
-      status: "calling",
-      type: withVideo ? "video" : "audio",
-      startTime: callStartTime,
-    });
-    console.log("[usePeer] startCall: called", {
-      withVideo,
-      withAudio,
-      callState: callState.value,
-      conn: !!conn.value,
-    });
-    callState.value = "calling";
-    callType.value = withVideo ? "video" : "audio";
-    isCameraEnabled.value = !!withVideo;
-    isMicEnabled.value = !!withAudio;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    stream.getVideoTracks().forEach((t) => {
-      t.enabled = !!withVideo;
-    });
-    stream.getAudioTracks().forEach((t) => {
-      t.enabled = !!withAudio;
-    });
-    // Оставляем только live-треки
-    const liveTracks = stream
-      .getTracks()
-      .filter((t) => t.readyState === "live");
-    const liveStream = new MediaStream(liveTracks);
-    localStream.value = liveStream;
-    console.log(
-      "[usePeer] startCall: got localStream",
-      liveStream,
-      liveTracks.map((t) => ({
-        id: t.id,
-        kind: t.kind,
-        readyState: t.readyState,
-      })),
-    );
-    mediaConn = peer.value!.call(conn.value!.peer, liveStream);
-    console.log(
-      "[usePeer] startCall: peer.call done",
-      mediaConn,
-      "peer.connections:",
-      peer.value!.connections,
-    );
-    mediaConn.on("stream", (remote: MediaStream) => {
-      remoteStream.value = remote;
-      callState.value = "active";
-      clearTimeout(callTimeout);
-      console.log("[usePeer] startCall: got remote stream", remote);
-      updateRoomData("call", {
-        status: "active",
-        totalCalls: roomData.value.call.totalCalls + 1,
-      });
-    });
-    mediaConn.on("close", () => {
-      console.log("[usePeer] startCall: mediaConn closed");
-      endCall();
-    });
-    mediaConn.on("error", (e: any) => {
-      console.error("[usePeer] startCall: mediaConn error", e);
-      endCall();
-    });
-    conn.value?.send({ type: "call-request", video: withVideo });
-    console.log("[usePeer] startCall: sent call-request");
-    callTimeout = setTimeout(() => {
-      console.warn("[usePeer] startCall: callTimeout");
-      endCall();
-    }, 30000);
-  }
-
-  async function acceptCall(opts?: { cam?: boolean; mic?: boolean }) {
-    callState.value = "active";
-    callType.value = opts?.cam ? "video" : "audio";
-    console.log("[usePeer] acceptCall: called", {
-      opts,
-      callState: callState.value,
-      mediaConn,
-    });
-    isCameraEnabled.value = false;
-    isMicEnabled.value = false;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    stream.getVideoTracks().forEach((t) => {
-      t.enabled = false;
-    });
-    stream.getAudioTracks().forEach((t) => {
-      t.enabled = false;
-    });
-    localStream.value = stream;
-    console.log("[usePeer] acceptCall: got localStream", stream);
-    if (mediaConn) {
-      mediaConn.answer(stream);
-      console.log("[usePeer] acceptCall: answered mediaConn", mediaConn);
-      mediaConn.on("stream", (remote: MediaStream) => {
-        remoteStream.value = remote;
-        callState.value = "active";
-        clearTimeout(callTimeout);
-        console.log("[usePeer] acceptCall: got remote stream", remote);
-      });
-      mediaConn.on("close", () => {
-        console.log("[usePeer] acceptCall: mediaConn closed");
-        endCall();
-      });
-      mediaConn.on("error", (e: any) => {
-        console.error("[usePeer] acceptCall: mediaConn error", e);
-        endCall();
-      });
-      callState.value = "active";
-    } else {
-      console.warn("[usePeer] acceptCall: mediaConn is null");
-    }
-  }
-
-  function endCall(isRemoteEnd = false) {
-    const callEndTime = Date.now();
-    const callDuration = roomData.value.call.startTime
-      ? callEndTime - roomData.value.call.startTime
-      : 0;
-
-    updateRoomData("call", {
-      status: "ended",
-      duration: callDuration,
-    });
-    console.log("[usePeer] endCall", {
-      isRemoteEnd,
-      mediaConn,
-      localStream: !!localStream.value,
-      remoteStream: !!remoteStream.value,
-      shouldAutoAcceptWithVideo,
-    });
-    callState.value = "ended";
-    if (mediaConn) {
-      try {
-        if (mediaConn.peerConnection) {
-          mediaConn.peerConnection.close();
-          console.log("[usePeer] endCall: peerConnection closed");
-        }
-        mediaConn.close();
-      } catch (e) {
-        console.error("[usePeer] endCall: error closing mediaConn", e);
-      }
-      mediaConn = null;
-    }
-    if (localStream.value) {
-      localStream.value.getTracks().forEach((t) => t.stop());
-      localStream.value = null;
-    }
-    if (remoteStream.value) {
-      remoteStream.value.getTracks().forEach((t) => t.stop());
-      remoteStream.value = null;
-    }
-
-    // --- Screen Share Cleanup ---
-    cleanupLocalScreenShare(true); // suppress notify, as call-end implies everything ends
-    if (mediaConnScreenIncoming) {
-      try {
-        mediaConnScreenIncoming.close();
-      } catch (e) {
-        console.warn(
-          "[usePeer] endCall: error closing mediaConnScreenIncoming",
-          e,
-        );
-      }
-      mediaConnScreenIncoming = null;
-    }
-    updateRoomData("members", { companionHasMediaStream: false });
-    // ----------------------------
-
-    clearTimeout(callTimeout);
-    if (!isRemoteEnd) {
-      conn.value?.send({ type: "call-end" });
-      console.log("[usePeer] endCall: sent call-end");
-    }
-    setTimeout(() => {
-      callState.value = "idle";
-      console.log("[usePeer] endCall: set callState idle");
-      updateRoomData("call", {
-        status: "idle",
-        startTime: null,
-        type: null,
-      });
-    }, 1000);
-    isCameraEnabled.value = false;
-    isMicEnabled.value = false;
-    isCameraToggling.value = false;
-    shouldAutoAcceptWithVideo = false; // сброс автопринятия
-  }
-
-  function declineCall() {
-    callState.value = "idle";
-    conn.value?.send({ type: "call-decline" });
-    endCall();
-  }
-
-  function toggleMic(enabled: boolean) {
-    if (!localStream.value) return;
-    localStream.value.getAudioTracks().forEach((t) => {
-      t.enabled = enabled;
-    });
-    conn.value?.send({ type: enabled ? "mic-on" : "mic-off" });
-  }
-
-  // --- Camera state flags ---
-  // (удалено дублирование)
-
-  // --- Управление камерой во время звонка ---
-  async function toggleCamera(enabled: boolean) {
-    if (!localStream.value || isCameraToggling.value) return;
-    isCameraToggling.value = true;
-    try {
-      const track = localStream.value.getVideoTracks()[0];
-      if (!track) return;
-      // просто переключаем enabled, без перезапуска звонка
-      track.enabled = enabled;
-      isCameraEnabled.value = enabled;
-      conn.value?.send({ type: enabled ? "video-on" : "video-off" });
-    } finally {
-      isCameraToggling.value = false;
-    }
-  }
-
-  // --- Управление камерой и микрофоном во время звонка с debounce ---
-
-  // (debounce functions declared above)
-
-  // --- Обработка сигналов звонка ---
-
-  function readMessage(id: string) {
-    const msg = messages.value.find((m) => m.id === id);
-    if (!msg || msg.read) return;
-    msg.read = true;
-    updateRoomData("messages", {
-      unreadCount: Math.max(0, roomData.value.messages.unreadCount - 1),
-    });
-    if (conn.value?.open) {
-      conn.value.send({ type: "read", id });
-    }
-  }
-
-  // roomStatistics declared above
-
-  // --- Return API ---
-  return {
-    messages,
+  // 1. Room Data & Statistics
+  const { roomData, updateRoomData, roomStatistics } = usePeerRoom(sessionId);
+
+  // 2. Connection Management
+  const {
     peer,
     conn,
     isConnectionEstablished,
     initPeer,
+    connectToPeer,
+    destroyPeer,
+  } = usePeerConnection(sessionId, isInitiator, updateRoomData);
+
+  // 3. Metrics & Network Quality
+  const {
+    metricsState, // exposed if needed, or just used internally
+    initializeMetricsTracking,
+    handlePingResponse,
+    updateBytesTransferred,
+    stopPingMonitoring,
+    clearPingPongTimeout,
+  } = usePeerMetrics(roomData, updateRoomData, conn);
+
+  // 4. Messages Handling
+  const {
+    messages,
+    attachedFiles,
+    attachFile,
+    detachFile,
+    sendMessage,
+    editMessage,
+    replyToMessage,
+    deleteMessage,
+    readMessage,
+    handleIncomingMessage,
+  } = usePeerMessages(conn, roomData, updateRoomData, updateBytesTransferred);
+
+  // 5. Media (Calls & Screenshare)
+  const {
+    callState,
+    callType,
+    localStream,
+    remoteStream,
+    isCameraEnabled,
+    isMicEnabled,
+    isCameraToggling,
+    isScreenShareEnabled,
+    screenShareStream,
+    screenShareOwnerId,
+    startCall,
+    acceptCall,
+    declineCall,
+    endCall,
+    toggleCamera,
+    toggleMic,
+    toggleScreenShare,
+    handleIncomingCall,
+    handleSignal,
+  } = usePeerMedia(peer, conn, roomData, updateRoomData);
+
+  // --- Coordinator Logic ---
+
+  // Watch for new Data Connections to attach listeners
+  watch(conn, (newConn) => {
+    if (newConn) {
+      // Initialize metrics when connection is established
+      // Note: usePeerConnection sets 'open' listener which calls updateRoomData
+      // We can also hook into 'open' here if needed, but let's rely on 'open' event or isConnectionEstablished
+
+      newConn.on("open", () => {
+        initializeMetricsTracking();
+      });
+
+      newConn.on("data", (data: any) => {
+        console.log("[usePeer Coordinator] received data", data);
+
+        // 0. Global: Update companion activity on ANY received data
+        updateRoomData("members", {
+          companionStatus: "online",
+          lastActivityTimestamp: Date.now(),
+        });
+
+        // 1. Metrics: Update bytes received
+        if (data.type !== "ping" && data.type !== "pong") {
+          const dataSize = calculateDataSize(data);
+          updateBytesTransferred(0, dataSize);
+        }
+
+        // 2. Metrics: Handle Ping/Pong
+        if (data?.type === "ping") {
+          newConn.send({
+            type: "pong",
+            originalTimestamp: data.timestamp,
+            responseTimestamp: Date.now(),
+          });
+          return;
+        }
+        if (data?.type === "pong") {
+          handlePingResponse(data.originalTimestamp);
+          clearPingPongTimeout();
+          return;
+        }
+
+        // 3. Media: Handle Signals
+        if (
+          [
+            "call-request",
+            "call-decline",
+            "call-end",
+            "video-on",
+            "video-off",
+            "restart-call-with-video",
+            "mic-on",
+            "mic-off",
+            "screen-share-on",
+            "screen-share-off",
+          ].includes(data?.type)
+        ) {
+          handleSignal(data);
+          return;
+        }
+
+        // 4. Messages: Handle Incoming Messages (and 'read', 'delete-message')
+        handleIncomingMessage(data);
+      });
+    }
+  });
+
+  // Watch for Peer to attach 'call' listener
+  watch(peer, (newPeer) => {
+    if (newPeer) {
+      newPeer.on("call", (mediaConnection) => {
+        handleIncomingCall(mediaConnection);
+      });
+    }
+  });
+
+  function destroy() {
+    stopPingMonitoring();
+    destroyPeer();
+    // Cleanup media streams if any
+    endCall();
+  }
+
+  onBeforeUnmount(destroy);
+
+  return {
+    // Messages
+    messages,
     sendMessage,
     editMessage,
     deleteMessage,
+    replyToMessage,
+    readMessage,
+
+    // Attachments
+    attachedFiles,
     attachFile,
     detachFile,
-    attachedFiles,
-    replyToMessage,
+
+    // Connection
+    peer,
+    conn,
+    isConnectionEstablished,
+    initPeer,
     destroy,
-    readMessage,
+
+    // Room & Metrics
     roomData,
     roomStatistics,
     updateRoomData,
-    // --- Видеозвонки ---
+
+    // Media (Calls)
     callState,
     callType,
     localStream,
@@ -1640,12 +188,13 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     acceptCall,
     declineCall,
     endCall,
-    toggleCamera: debouncedToggleCamera,
-    toggleMic: debouncedToggleMic,
+    toggleCamera,
+    toggleMic,
     isCameraEnabled,
     isMicEnabled,
     isCameraToggling,
-    // --- Screenshare API ---
+
+    // Screen Share
     toggleScreenShare,
     isScreenShareEnabled,
     screenShareStream,
