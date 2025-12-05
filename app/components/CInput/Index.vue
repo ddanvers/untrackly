@@ -1,109 +1,101 @@
 <template>
   <div class="c-input">
-    <div class="input-label" v-if="label">{{ label }}</div>
+    <div v-if="label" class="input-label">{{ label }}</div>
     <div class="input-body">
-      <div
-        class="input-main"
-        :class="{
-          'main-focus': isFocus,
-          'input-main--textarea': type === 'textarea',
-          disabled: disabled,
-          error: showMessage,
-        }"
-        @click="setFocus"
-        tabindex="1"
-      >
+      <div class="input-main" :class="inputMainClasses" tabindex="1" @click="setFocus">
         <div class="input-prepend">
-          <slot name="prepend"></slot>
+          <slot name="prepend" />
         </div>
         <input
-          v-if="type !== 'textarea'"
-          ref="input_ref"
-          class="main-input"
-          :type="inputType"
-          :value="modelValue"
-          @input="handleChange"
-          @focus="focusInput"
-          @blur="blurInput"
-          :disabled="disabled"
-          :placeholder="placeholder"
-          :data-maska="dataMaska"
-          :readonly="readonlyProp"
+          v-if="!isTextarea"
+          ref="inputRef"
           v-maska
+          class="main-input"
+          v-bind="sharedInputAttrs"
         />
         <textarea
           v-else
-          ref="input_ref"
-          :type="inputType"
-          class="main-input main-textarea"
-          :value="modelValue"
-          @input="handleChange"
-          @focus="focusInput"
-          @blur="blurInput"
-          :disabled="disabled"
-          :placeholder="placeholder"
-          :rows="rows"
-          :data-maska="dataMaska"
-          :readonly="readonlyProp"
+          ref="inputRef"
           v-maska
+          class="main-input main-textarea"
+          :rows="rows"
+          v-bind="sharedInputAttrs"
         />
         <div tabindex="1" class="input-append">
-          <div
-            v-if="showClose && modelValue && !disabled && !readonlyProp"
-            class="append-icon"
-            @click.stop="clearValue"
-          >
+          <div v-if="showClearButton" class="append-icon" @click.stop="clearValue">
             <NuxtImg src="/icons/close.svg" />
           </div>
           <div
-            v-if="type === 'password' && inputType"
-            class="append-icon"
-            style="margin-left: 8px"
-            @click.stop="changeInputType"
+            v-if="showPasswordToggle"
+            class="append-icon append-icon--spaced"
+            @click.stop="togglePasswordVisibility"
           >
-            <NuxtImg v-if="inputType === 'password'" src="/icons/eye.svg" />
-            <NuxtImg v-if="inputType === 'text'" src="/icons/eye_off.svg" />
+            <NuxtImg :src="passwordToggleIcon" />
           </div>
-          <slot name="append"></slot>
+          <slot name="append" />
         </div>
       </div>
       <div v-if="errorShow" class="input-text">
         <Transition name="message-slide">
-          <span class="error-text" v-if="showMessage && errorShow">{{ errorMessage }}</span>
+          <span v-if="isErrorVisible" class="error-text">{{ errorMessage }}</span>
         </Transition>
       </div>
       <div v-if="hint" class="input-hint">
         <Transition name="message-slide">
-          <span class="hint-text" v-if="!(showMessage && errorShow)">{{ hint }}</span>
+          <span v-if="!isErrorVisible" class="hint-text">{{ hint }}</span>
         </Transition>
       </div>
     </div>
   </div>
 </template>
-<script setup lang="ts">
-import { useI18n } from "vue-i18n";
 
-type Props = {
+<script setup lang="ts">
+type InputType =
+  | "text"
+  | "password"
+  | "email"
+  | "number"
+  | "tel"
+  | "url"
+  | "textarea";
+
+interface Props {
   modelValue: string | number | null;
   valid?: boolean;
   placeholder?: string;
   name?: string;
   label?: string;
-  type?: string;
+  type?: InputType | string;
   hint?: string;
   disabled?: boolean;
   errorShow?: boolean;
   errorMessage?: string;
   showClose?: boolean;
   readonlyProp?: boolean;
-  rules?(value?: string): boolean;
+  rules?: (value?: string) => boolean;
   dataMaska?: string;
   trimValue?: boolean;
   maskaValue?: string;
   small?: boolean;
   noBlurSelectors?: string[];
   rows?: number;
-};
+}
+
+interface Emits {
+  "update:modelValue": [value: string | number | null];
+  focus: [];
+  clear: [];
+  blur: [];
+}
+
+const INPUT_TYPE = {
+  PASSWORD: "password",
+  TEXT: "text",
+  TEXTAREA: "textarea",
+} as const;
+
+const INPUT_MAIN_SELECTOR = ".input-main";
+
 const props = withDefaults(defineProps<Props>(), {
   valid: false,
   type: "text",
@@ -118,203 +110,282 @@ const props = withDefaults(defineProps<Props>(), {
   dataMaska: "",
   maskaValue: "",
 });
-const emits = defineEmits<{
-  "update:modelValue": [string | number | null];
-  focus: [];
-  clear: [];
-  blur: [];
-}>();
-const input_ref = ref<HTMLInputElement>();
+
+const emit = defineEmits<Emits>();
+
+const inputRef = ref<HTMLInputElement | HTMLTextAreaElement>();
 const isFocus = ref(false);
 const showMessage = ref(false);
-const inputType = ref("");
-function handleChange(e: Event) {
-  const target = e.target as HTMLInputElement;
-  emits(
-    "update:modelValue",
-    props.trimValue ? target.value.trim() : target.value,
-  );
+const currentInputType = ref<string>(props.type || INPUT_TYPE.TEXT);
+
+const isTextarea = computed(() => props.type === INPUT_TYPE.TEXTAREA);
+const isErrorVisible = computed(() => showMessage.value && props.errorShow);
+
+const showClearButton = computed(
+  () =>
+    props.showClose &&
+    props.modelValue &&
+    !props.disabled &&
+    !props.readonlyProp,
+);
+const showPasswordToggle = computed(
+  () => props.type === INPUT_TYPE.PASSWORD && Boolean(currentInputType.value),
+);
+
+const passwordToggleIcon = computed(() =>
+  currentInputType.value === INPUT_TYPE.PASSWORD
+    ? "/icons/eye.svg"
+    : "/icons/eye_off.svg",
+);
+const inputMainClasses = computed(() => ({
+  "main-focus": isFocus.value,
+  "input-main--textarea": isTextarea.value,
+  disabled: props.disabled,
+  error: showMessage.value,
+}));
+
+const sharedInputAttrs = computed(() => ({
+  type: currentInputType.value,
+  value: props.modelValue,
+  disabled: props.disabled,
+  placeholder: props.placeholder,
+  "data-maska": props.dataMaska,
+  readonly: props.readonlyProp,
+  onInput: handleChange,
+  onFocus: handleFocus,
+  onBlur: handleBlur,
+}));
+
+function hideErrorMessage(): void {
   showMessage.value = false;
 }
-function clearValue() {
-  emits("update:modelValue", null);
-  emits("clear");
-  showMessage.value = false;
+
+function handleChange(event: Event): void {
+  const target = event.target as HTMLInputElement;
+  const value = props.trimValue ? target.value.trim() : target.value;
+  emit("update:modelValue", value);
+  hideErrorMessage();
 }
-function setFocus() {
-  if (input_ref.value) input_ref.value.focus();
-  showMessage.value = false;
+
+function clearValue(): void {
+  emit("update:modelValue", null);
+  emit("clear");
+  hideErrorMessage();
 }
-function focusInput() {
+
+function setFocus(): void {
+  inputRef.value?.focus();
+  hideErrorMessage();
+}
+
+function handleFocus(): void {
   isFocus.value = true;
-  showMessage.value = false;
-  emits("focus");
+  hideErrorMessage();
+  emit("focus");
 }
-function blurInput(event: FocusEvent) {
+
+function isBlurProhibited(event: FocusEvent): boolean {
+  const relatedTarget = event.relatedTarget as HTMLElement | null;
+  if (!relatedTarget) return false;
+
+  const currentInputMain = (event.target as HTMLElement).closest(
+    INPUT_MAIN_SELECTOR,
+  );
+  const relatedInputMain = relatedTarget.closest(INPUT_MAIN_SELECTOR);
+
+  if (currentInputMain !== relatedInputMain) return false;
+
+  const selectorsToCheck = [
+    INPUT_MAIN_SELECTOR,
+    ...(props.noBlurSelectors || []),
+  ];
+  return selectorsToCheck.some((selector) => relatedTarget.closest(selector));
+}
+
+function handleBlur(event: FocusEvent): void {
   if (isBlurProhibited(event)) {
     setFocus();
     return;
   }
   checkValid();
   isFocus.value = false;
-  emits("blur");
+  emit("blur");
 }
-function isBlurProhibited(event: FocusEvent) {
-  return (
-    isTheSameParentInput(event) &&
-    [".input-main", ...(props.noBlurSelectors || [])]?.some((selector) =>
-      (event.relatedTarget as HTMLElement).closest(selector),
-    )
-  );
+
+function togglePasswordVisibility(): void {
+  currentInputType.value =
+    currentInputType.value === INPUT_TYPE.PASSWORD
+      ? INPUT_TYPE.TEXT
+      : INPUT_TYPE.PASSWORD;
 }
-function isTheSameParentInput(event: FocusEvent) {
-  return (
-    event.relatedTarget &&
-    (event.relatedTarget as HTMLElement).closest(".input-main") ===
-      (event.target as HTMLElement).closest(".input-main")
-  );
-}
-function changeInputType() {
-  if (inputType.value === "password") inputType.value = "text";
-  else inputType.value = "password";
-}
-function checkValid() {
+
+function checkValid(): boolean {
   if (props.rules && props.valid) {
-    showMessage.value = !props.rules();
-    return props.rules();
+    const isValid = props.rules();
+    showMessage.value = !isValid;
+    return isValid;
   }
+
   if (!props.rules && props.valid) {
-    if (input_ref.value?.value) {
-      showMessage.value = false;
-      return true;
-    }
-    showMessage.value = true;
-    return false;
+    const hasValue = Boolean(inputRef.value?.value);
+    showMessage.value = !hasValue;
+    return hasValue;
   }
+
   showMessage.value = false;
   return true;
 }
-if (props.type) inputType.value = props.type;
+
 watch(
   () => props.modelValue,
-  () => {
-    showMessage.value = false;
-  },
+  () => hideErrorMessage(),
 );
+
 onMounted(() => {
-  if (input_ref.value) input_ref.value.onsubmit = checkValid;
+  if (inputRef.value) {
+    inputRef.value.onsubmit = checkValid;
+  }
+});
+
+const input_ref = inputRef;
+
+defineExpose({
+  input_ref,
+  inputRef,
+  checkValid,
+  setFocus,
 });
 </script>
+
 <style lang="scss" scoped>
-input[type="file"] {
-}
 .c-input {
   width: 100%;
+
   .input-label {
+    margin-bottom: 8px;
     font-size: 16px;
     font-weight: 400;
     color: var(--color-neutral-on-text);
-    margin-bottom: 8px;
     user-select: none;
+
     span {
       color: var(--app-red-500);
     }
   }
+
   .input-main {
-    height: 40px;
-    width: 100%;
-    border: 2px solid var(--color-neutral-on-outline);
-    overflow-x: hidden;
-    padding: 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
+    height: 40px;
+    padding: 0 10px;
+    overflow-x: hidden;
+    border: 2px solid var(--color-neutral-on-outline);
     transition: border-color 0.3s ease;
+
     &--textarea {
       height: auto;
       padding: 10px;
     }
+
+    &:hover:not(.disabled):not(.error) {
+      border-color: var(--color-primary-on-hover);
+    }
+
     .main-input {
-      background: transparent;
-      border: none;
-      outline: none;
-      padding: 0;
       width: 100%;
       height: 100%;
+      padding: 0;
       font-size: 16px;
       font-weight: 400;
       line-height: 150%;
       color: var(--color-primary-on-text);
-    }
-    .main-textarea {
+      background: transparent;
+      border: none;
       outline: none;
+
+      &::placeholder {
+        color: var(--color-neutral-on-muted);
+      }
+    }
+
+    .main-textarea {
       resize: none;
+      outline: none;
+
       &::-webkit-scrollbar {
-        width: 0px;
+        width: 0;
         background: transparent;
       }
     }
-    .main-input::placeholder {
-      color: var(--color-neutral-on-muted);
-    }
   }
+
   .main-focus {
     border-color: var(--color-primary-on-hover);
   }
+
   .disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    .main-input {
-      cursor: not-allowed;
-    }
     border-color: var(--color-neutral-on-muted);
+
     .main-input {
       color: var(--color-neutral-on-muted);
+      cursor: not-allowed;
     }
   }
-  .input-main:hover:not(.disabled):not(.error) {
-    border-color: var(--color-primary-on-hover);
-  }
+
   .error {
     border-color: var(--app-red-500);
   }
 
   .input-text {
-    padding: 4px 0px;
-    font-size: 12px;
-    height: 20px;
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    height: 20px;
+    padding: 4px 0;
+    font-size: 12px;
+
     .error-text {
       color: var(--app-red-500);
     }
   }
+
   .input-hint {
-    min-height: 46px;
     position: relative;
     top: -12px;
+    min-height: 46px;
+
     .hint-text {
-      color: var(--app-grey-350);
       font-size: 14px;
       font-weight: 400;
       line-height: 20px;
+      color: var(--app-grey-350);
     }
   }
+
   .input-append {
-    user-select: none;
     display: flex;
     align-items: center;
     margin-left: 8px;
+    user-select: none;
+
     .append-icon {
-      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
+      height: 100%;
+
+      &--spaced {
+        margin-left: 8px;
+      }
+
       img {
-        cursor: pointer;
         width: 24px;
         height: 24px;
+        cursor: pointer;
         filter: var(--filter-neutral-on-text);
       }
     }
@@ -331,7 +402,7 @@ input[type="file"] {
 
 .message-slide-enter-from,
 .message-slide-leave-to {
-  transform: translateY(-5px);
   opacity: 0;
+  transform: translateY(-5px);
 }
 </style>

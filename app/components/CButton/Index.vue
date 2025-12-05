@@ -11,7 +11,7 @@
     @click="handleClick"
   >
     <div v-if="loading" class="c-button__loading" aria-hidden="true">
-      <span class="c-button__spinner" :aria-label="loadingAriaLabel"></span>
+      <span class="c-button__spinner" :aria-label="loadingAriaLabel" />
     </div>
     <div v-else class="c-button__content">
       <div class="c-button__prepend">
@@ -25,7 +25,7 @@
         </slot>
       </div>
       <div class="c-button__label" :style="labelStyles">
-        <slot></slot>
+        <slot />
       </div>
       <div class="c-button__append">
         <slot name="append">
@@ -37,7 +37,17 @@
 </template>
 
 <script setup lang="ts">
-interface ButtonProps {
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "tertiary"
+  | "quaternary"
+  | "icon-default";
+type ButtonType = "submit" | "button";
+type ButtonSize = "large" | "default" | "small" | "extra-large";
+type IconSize = "i-large" | "i-medium" | "i-small";
+
+interface Props {
   variant?: ButtonVariant;
   buttonType?: ButtonType;
   loading?: boolean;
@@ -59,19 +69,7 @@ interface ButtonProps {
   loadingAriaLabel?: string;
 }
 
-type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "tertiary"
-  | "quaternary"
-  | "icon-default";
-type ButtonType = "submit" | "button";
-type ButtonSize = "large" | "default" | "small" | "extra-large";
-type IconSize = "i-large" | "i-medium" | "i-small";
-
-type ButtonEmits = (event: "click", payload: Event) => void;
-
-const props = withDefaults(defineProps<ButtonProps>(), {
+const props = withDefaults(defineProps<Props>(), {
   variant: "primary",
   size: "default",
   loading: false,
@@ -83,86 +81,110 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   appendImgAlt: "",
   loadingAriaLabel: "Loading...",
 });
-const emit = defineEmits<ButtonEmits>();
 
-const isDisabled = computed((): boolean => props.disabled || props.loading);
+const emit = defineEmits<{
+  click: [event: Event];
+}>();
+
+const isDisabled = computed(() => props.disabled || props.loading);
+
 const buttonClasses = computed(() => [
   "c-button",
-  getCSSClassesForVariant(),
-  getCSSClassesForStates(),
+  props.variant,
+  props.size,
+  props.iconSize,
+  {
+    loading: props.loading,
+    fill: props.fill,
+  },
 ]);
+
 const inlineStyles = computed(() => ({
   backgroundColor: props.bgColor,
   height: props.height,
   width: props.width,
 }));
+
 const labelStyles = computed(() => ({
   color: props.textColor,
 }));
+
 const computedIconColor = computed(
   () => props.iconColor || "var(--filter-primary-on-text)",
 );
-const getCSSClassesForVariant = (): string[] => [
-  props.variant,
-  props.size,
-  props.iconSize,
-];
 
-const getCSSClassesForStates = () => ({
-  loading: props.loading,
-  fill: props.fill,
-});
-
-const handleClick = (event: Event): void => {
+function handleClick(event: Event): void {
   if (!isDisabled.value) {
     emit("click", event);
   }
-};
+}
 </script>
 
 <style lang="scss" scoped>
+// Sizes
+$button-padding: 0 20px;
+$button-height-small: 32px;
+$button-height-default: 40px;
+$button-height-large: 48px;
+$button-height-extra-large: 56px;
+
+// Animation
+$transition-duration: 0.3s;
+$transition-easing: ease;
+
+// Spinner
+$spinner-size: 18px;
+
+// Mixins
+@mixin button-variant-base {
+  position: relative;
+  overflow: hidden;
+  transition: all $transition-duration $transition-easing;
+}
+
 .c-button {
-  border: none;
-  outline: none;
-  background: transparent;
-  cursor: pointer;
   width: fit-content;
   min-width: max-content;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+
   &__content {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
 
-    .c-button__prepend,
-    .c-button__append {
-      max-width: 24px;
-      max-height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+  &__prepend,
+  &__append {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 24px;
+    max-height: 24px;
+  }
 
-      .c-button__icon {
-        width: 24px;
-        height: 24px;
-      }
-    }
+  &__icon {
+    width: 24px;
+    height: 24px;
+  }
 
-    .c-button__label {
-      font-size: 16px;
-      font-weight: 400;
-    }
+  &__label {
+    font-size: 16px;
+    font-weight: 400;
   }
 
   &__loading {
-    height: 18px;
-    width: 18px;
     position: relative;
-    border: 2px solid;
-    border-radius: 50%;
-    border-top-color: transparent;
-    animation: rotate 1s linear infinite;
+    width: $spinner-size;
+    height: $spinner-size;
     margin: auto;
+    border: 2px solid;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: rotate 1s linear infinite;
   }
 
   &__spinner {
@@ -170,46 +192,46 @@ const handleClick = (event: Event): void => {
     width: 100%;
     height: 100%;
   }
-}
 
-.c-button.fill {
-  width: 100%;
-}
+  &.fill {
+    width: 100%;
+  }
 
-.c-button:disabled {
-  cursor: not-allowed;
-}
-
-.large {
-  padding: 0 20px;
-  height: 48px;
-}
-
-.extra-large {
-  padding: 0 20px;
-  height: 56px;
-}
-
-.default {
-  padding: 0 20px;
-  height: 40px;
-}
-
-.small {
-  padding: 0 20px;
-  height: 32px;
-
-  .c-button__content {
-    .c-button__label {
-      font-size: 14px;
-    }
+  &:disabled {
+    cursor: not-allowed;
   }
 }
 
+// Size variants
+.large {
+  height: $button-height-large;
+  padding: $button-padding;
+}
+
+.extra-large {
+  height: $button-height-extra-large;
+  padding: $button-padding;
+}
+
+.default {
+  height: $button-height-default;
+  padding: $button-padding;
+}
+
+.small {
+  height: $button-height-small;
+  padding: $button-padding;
+
+  .c-button__label {
+    font-size: 14px;
+  }
+}
+
+// Color variants
 .primary {
-  background: var(--color-primary-on-fill);
-  transition: background 0.3s ease;
   overflow: hidden;
+  background: var(--color-primary-on-fill);
+  transition: background $transition-duration $transition-easing;
 
   .c-button__label {
     color: var(--color-permanent-black);
@@ -233,8 +255,8 @@ const handleClick = (event: Event): void => {
   }
 
   &:disabled {
-    opacity: 0.4;
     background: var(--color-primary-on-muted);
+    opacity: 0.4;
   }
 
   &.loading {
@@ -248,12 +270,12 @@ const handleClick = (event: Event): void => {
 }
 
 .secondary {
+  @include button-variant-base;
+
   background: var(--color-neutral-on-fill);
-  position: relative;
-  overflow: hidden;
   transition:
-    background 0.3s ease,
-    color 0.3s ease;
+    background $transition-duration $transition-easing,
+    color $transition-duration $transition-easing;
 
   .c-button__label {
     color: var(--color-primary-on-text);
@@ -281,10 +303,9 @@ const handleClick = (event: Event): void => {
 }
 
 .tertiary {
+  @include button-variant-base;
+
   background: transparent;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
   border: 1px solid var(--app-pink-400);
 
   .c-button__label {
@@ -325,10 +346,9 @@ const handleClick = (event: Event): void => {
 }
 
 .quaternary {
+  @include button-variant-base;
+
   background: transparent;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
   border: none;
 
   .c-button__label {
@@ -361,16 +381,17 @@ const handleClick = (event: Event): void => {
 }
 
 .icon-default {
+  @include button-variant-base;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-  transition: opacity 0.3s ease;
+  transition: opacity $transition-duration $transition-easing;
   filter: v-bind(computedIconColor);
+
   &.i-small {
-    height: 32px;
     width: 56px;
+    height: 32px;
 
     .c-button__label {
       height: 16px;
@@ -378,8 +399,8 @@ const handleClick = (event: Event): void => {
   }
 
   &.i-medium {
-    height: 44px;
     width: 64px;
+    height: 44px;
 
     .c-button__label {
       height: 24px;
