@@ -26,7 +26,7 @@
         @endSession="handleEndSession"
       />
 
-      <div v-show="showCall" class="call-wrapper">
+      <div v-show="showCall" class="call-wrapper liquid-glass">
         <CChatVideoCall
           :visible="showCall"
           :incoming="callState === 'incoming'"
@@ -60,7 +60,7 @@
           </template>
         </CChatVideoCall>
       </div>
-      <div v-show="showChat" class="chat-wrapper">
+      <div v-show="showChat" class="chat-wrapper liquid-glass">
         <CChatWindow
           title="Собеседник"
           :messages="messages"

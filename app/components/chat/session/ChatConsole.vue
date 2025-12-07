@@ -2,7 +2,7 @@
   <section class="chat-waiting" aria-label="Ожидание подключения собеседника">
     <div class="waiting-shell">
       <div class="console-window-wrapper">
-        <div class="console-window">
+        <div class="console-window liquid-glass">
           <p class="console-line" v-for="(msg, i) in logs" :key="i">&gt; {{ msg }}</p>
           <div v-if="!finished" class="console-line blink">|</div>
           <div v-if="finished && !isConnectionEstablished" class="console-line">
@@ -63,8 +63,6 @@ $app-mobile: 600px;
       max-width: 100%;
       overflow-wrap: anywhere;
       padding: 16px;
-      background: var(--color-bg-on-secondary);
-      border: 1px solid var(--color-neutral-on-outline);
       height: 400px;
       overflow-y: auto;
     }

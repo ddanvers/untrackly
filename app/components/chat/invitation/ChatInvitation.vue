@@ -227,10 +227,20 @@ $app-small-height: 520px;
     max-width: 100%;
     justify-content: center;
     padding: 24px 32px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid transparent; /* controlled by individual borders or glass variable if needed */
     width: 320px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(4px);
+
+    /* Liquid Glass Effect */
+    background: var(--liquid-glass-bg);
+    box-shadow: var(--liquid-glass-shadow);
+    backdrop-filter: var(--liquid-glass-backdrop);
+    -webkit-backdrop-filter: var(--liquid-glass-backdrop);
+    border-radius: var(--radius-lg);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    border-right: 1px solid rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+
     color: var(--color-neutral-on-text);
     font-size: 18px;
     font-weight: 500;
@@ -239,11 +249,14 @@ $app-small-height: 520px;
     transition:
       background-color 0.3s ease,
       box-shadow 0.3s ease,
-      border-color 0.3s ease;
+      border-color 0.3s ease,
+      transform 0.2s ease;
+
     &:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-      border-color: rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: translateY(-2px);
     }
     @media screen and (max-width: $app-mobile) {
       font-size: 16px;
