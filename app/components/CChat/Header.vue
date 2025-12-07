@@ -29,9 +29,6 @@ $app-narrow-mobile: 364px;
   &__actions {
     display: flex;
     gap: 8px;
-    img {
-      // filter: var(--app-filter-pink-500);
-    }
   }
   &__title {
     font-size: 32px;

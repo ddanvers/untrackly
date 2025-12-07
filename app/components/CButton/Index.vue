@@ -121,21 +121,17 @@ function handleClick(event: Event): void {
 </script>
 
 <style lang="scss" scoped>
-// Sizes
 $button-padding: 0 20px;
 $button-height-small: 32px;
 $button-height-default: 40px;
 $button-height-large: 48px;
 $button-height-extra-large: 56px;
 
-// Animation
 $transition-duration: 0.3s;
 $transition-easing: ease;
 
-// Spinner
 $spinner-size: 18px;
 
-// Mixins
 @mixin button-variant-base {
   position: relative;
   overflow: hidden;
@@ -202,7 +198,6 @@ $spinner-size: 18px;
   }
 }
 
-// Size variants
 .large {
   height: $button-height-large;
   padding: $button-padding;
@@ -227,7 +222,6 @@ $spinner-size: 18px;
   }
 }
 
-// Color variants
 .primary {
   overflow: hidden;
   background: var(--color-primary-on-fill);
