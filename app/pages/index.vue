@@ -2,10 +2,14 @@
   <main class="page-hero">
     <div class="page-hero__content">
       <div class="logo-container">
-        <NuxtImg src="/icons/logo.svg"></NuxtImg>
-        <div class="logo-container__text">
-          <h1 class="logo-container__brand-name">untrackly</h1>
-          <p class="logo-container__slogan">Your words are only yours</p>
+        <div class="logo-tilt-box">
+          <div class="logo-wrapper">
+            <Logo class="logo-icon" :isClosed="!!chatRoomId" />
+          </div>
+          <div class="logo-container__text">
+            <h1 class="logo-container__brand-name">untrackly</h1>
+            <p class="logo-container__slogan">Your words are only yours</p>
+          </div>
         </div>
       </div>
       <div class="chat-connection">
@@ -153,14 +157,31 @@ $app-small-height: 520px;
     }
   }
 }
-.logo-container {
+.logo-tilt-box {
   display: flex;
   align-items: center;
   gap: 32px;
-  img {
+  padding: 10px;
+  border-radius: 20px;
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+
+  .logo-wrapper {
+    position: relative;
     width: 148px;
+    height: 148px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  &__text {
+
+  .logo-icon {
+    width: 100%;
+    position: relative;
+    z-index: 2;
+  }
+
+  .logo-container__text {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -168,29 +189,34 @@ $app-small-height: 520px;
     gap: 6px;
     padding: 12px;
   }
-  &__brand-name {
-    font-weight: 400;
+
+  .logo-container__brand-name {
+    font-weight: 700;
     font-size: 72px;
-    color: var(--color-primary-on-text);
+    background: linear-gradient(135deg, var(--orange-3) 0%, var(--orange-5) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-  &__slogan {
+  .logo-container__slogan {
     font-weight: 400;
     font-size: 18px;
-    color: var(--color-black);
+    color: var(--color-primary-on-text);
+    opacity: 0.9;
   }
   @media screen and (max-width: $app-desktop) {
     img {
       display: none;
     }
-    &__brand-name {
+    .logo-container__brand-name {
       font-size: 56px;
     }
   }
   @media screen and (max-width: $app-laptop) {
-    &__brand-name {
+    .logo-container__brand-name {
       font-size: 48px;
     }
-    &__slogan {
+    .logo-container__slogan {
       font-size: 16px;
     }
   }
@@ -207,7 +233,11 @@ $app-small-height: 520px;
   padding: 32px;
   width: 640px;
   max-width: 100%;
-  background-color: var(--color-bg-on-secondary-light);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-lg);
   &__title {
     color: var(--color-primary-on-text);
     font-size: 22px;
@@ -243,8 +273,22 @@ $app-small-height: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.1);
-  border: 2px solid var(--color-neutral-on-outline);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-lg);
+  transition:
+    transform 0.4s ease,
+    box-shadow 0.4s ease,
+    border-color 0.4s ease;
+  &:hover {
+    transform: translateY(-8px);
+    box-shadow:
+      0 16px 48px 0 rgba(0, 0, 0, 0.25),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
   img {
     height: 72px;
   }

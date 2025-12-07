@@ -283,6 +283,7 @@ defineExpose({
     overflow-x: hidden;
     border: 2px solid var(--color-neutral-on-outline);
     transition: border-color 0.3s ease;
+    border-radius: var(--radius-pill);
 
     &--textarea {
       height: auto;

@@ -145,6 +145,7 @@ $spinner-size: 18px;
   background: transparent;
   border: none;
   outline: none;
+  border-radius: var(--radius-pill);
 
   &__content {
     position: relative;
