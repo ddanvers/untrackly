@@ -81,6 +81,8 @@ $app-mobile: 600px;
       position: relative;
       max-width: 100%;
       height: calc(100vh - 48px);
+      display: flex;
+      align-items: center;
     }
   }
 }

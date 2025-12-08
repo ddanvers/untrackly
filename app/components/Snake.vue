@@ -86,7 +86,7 @@
             </div>
           </div>
         </div>
-        <div>
+        <div class="snake-game__stats-controls-wrapper">
           <!-- Virtual controls - Always visible, positioned below game board -->
           <div class="snake-game__virtual-controls">
             <div class="snake-game__dpad">
@@ -484,6 +484,15 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     .snake-game__virtual-controls {
       display: none;
     }
+    @media screen and (min-width: $app-narrow-mobile) and (min-height: $app-small-height) {
+      .snake-game__board {
+        width: 350px;
+        height: 350px;
+      }
+    }
+    & {
+      height: max-content;
+    }
   }
   &--in-game {
     @media screen and (max-height: $app-medium-height) {
@@ -511,7 +520,7 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     padding-bottom: $spacing-md;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     gap: $spacing-md;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-lg;
   }
 
   &__title {
@@ -543,7 +552,7 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
   // Controls section
   &__controls {
     text-align: center;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-lg;
   }
 
   &__instructions {
@@ -563,10 +572,24 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
   &__board-stats-controls-wrapper {
     display: flex;
     flex-direction: column;
-    @media screen and (max-height: 932px) and (min-width: $app-desktop) {
+    @media screen and (max-height: 932px) and (min-width: $app-laptop) {
       flex-direction: row;
       align-items: center;
       gap: 64px;
+      .snake-game__board-container {
+        margin-bottom: 0;
+      }
+    }
+  }
+  @media screen and (max-height: $app-medium-height) and (min-width: $app-mobile) and (max-width: 932px) {
+    &__board-stats-controls-wrapper {
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
+    }
+    & {
+      padding: $spacing-md;
+      border-radius: var(--radius-md);
     }
   }
   // Game board container
@@ -574,7 +597,7 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-lg;
     flex: 1;
   }
 
@@ -791,7 +814,6 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
   &__virtual-controls {
     display: flex;
     justify-content: center;
-    margin-top: $spacing-lg;
   }
 
   &__dpad {
@@ -856,9 +878,9 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
   // Statistics section
   &__stats {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     gap: $spacing-lg;
-    margin-top: $spacing-xl;
+    margin-top: $spacing-lg;
     padding-top: $spacing-md;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
@@ -869,7 +891,8 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     padding: $spacing-sm $spacing-lg;
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    min-width: 100px;
+    width: 152px;
+    height: max-content;
   }
 
   &__stat-label {
@@ -959,6 +982,10 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
       margin-top: $spacing-lg;
     }
 
+    &__stat {
+      padding: $spacing-sm;
+    }
+
     &__virtual-controls {
       margin-top: $spacing-md;
     }
@@ -971,11 +998,48 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     }
   }
 }
-
-@media (max-width: $app-narrow-mobile) {
+@media screen and (max-height: 932px) and (min-height: $app-medium-height) and (max-width: $app-laptop) {
+  .snake-game {
+    &__board {
+      width: 350px;
+      height: 350px;
+    }
+    &__controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    &__instructions {
+      width: 220px;
+      overflow-wrap: anywhere;
+      margin-bottom: 0;
+      text-wrap: balance;
+    }
+    &__stats-controls-wrapper {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: space-between;
+      height: 100%;
+    }
+    &__stats {
+      border-top: 0;
+      gap: $spacing-md;
+      flex-direction: column;
+      margin-top: 0;
+      padding-top: 0;
+    }
+    &__stat {
+      width: 100%;
+      padding: $spacing-sm;
+      border-radius: var(--radius-sm);
+    }
+  }
+}
+@media (max-width: $app-narrow-mobile) or (max-height: $app-small-height) {
   .snake-game {
     padding: $spacing-sm;
-
+    border-radius: var(--radius-sm);
     &__board {
       width: min(85vw, 280px);
       height: min(85vw, 280px);
