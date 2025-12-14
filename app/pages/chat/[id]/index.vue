@@ -60,7 +60,7 @@
           </template>
         </CChatVideoCall>
       </div>
-      <div v-show="showChat" class="chat-wrapper liquid-glass">
+      <div v-show="showChat" class="chat-wrapper">
         <CChatWindow
           title="Собеседник"
           :messages="messages"

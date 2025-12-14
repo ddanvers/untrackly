@@ -85,7 +85,7 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   user-select: none;
   transition: background 0.3s ease;

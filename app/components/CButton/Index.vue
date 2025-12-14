@@ -14,22 +14,17 @@
       <span class="c-button__spinner" :aria-label="loadingAriaLabel" />
     </div>
     <div v-else class="c-button__content">
-      <div class="c-button__prepend">
+      <div v-if="prependImg" class="c-button__prepend">
         <slot name="prepend">
-          <NuxtImg
-            v-if="prependImg"
-            :src="prependImg"
-            :alt="prependImgAlt"
-            class="c-button__icon"
-          />
+          <NuxtImg :src="prependImg" :alt="prependImgAlt" class="c-button__icon" />
         </slot>
       </div>
       <div class="c-button__label" :style="labelStyles">
         <slot />
       </div>
-      <div class="c-button__append">
+      <div v-if="appendImg" class="c-button__append">
         <slot name="append">
-          <NuxtImg v-if="appendImg" :src="appendImg" :alt="appendImgAlt" class="c-button__icon" />
+          <NuxtImg :src="appendImg" :alt="appendImgAlt" class="c-button__icon" />
         </slot>
       </div>
     </div>
@@ -161,6 +156,7 @@ $spinner-size: 18px;
     justify-content: center;
     max-width: 24px;
     max-height: 24px;
+    margin-right: 8px;
   }
 
   &__icon {

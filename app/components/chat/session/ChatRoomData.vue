@@ -13,16 +13,18 @@
       <!-- Room Info Block -->
       <div class="room-data__block">
         <div class="room-data__block-header">
-          <div class="room-data__icon-wrapper">
-            <NuxtImg src="/icons/chat/room/door.svg" width="32px" height="32px" />
-          </div>
+          <CHint :isShow="!expanded" position="right" text="О комнате"
+            ><NuxtImg src="/icons/chat/room/door.svg" width="32px" height="32px"
+          /></CHint>
           <h3 class="room-data__block-title">О комнате</h3>
         </div>
         <div class="room-data__block-content">
           <ul class="room-data__block-list">
             <li class="room-data__block-item">
               <div class="room-data__block-label">ID</div>
-              <div class="room-data__block-value">{{ roomData.room?.id }}</div>
+              <div class="room-data__block-value room-data__block-value--mono">
+                {{ roomData.room?.id }}
+              </div>
             </li>
             <li class="room-data__block-item">
               <div class="room-data__block-label">Дата создания</div>
@@ -39,13 +41,12 @@
           </ul>
         </div>
       </div>
-
       <!-- Members Block -->
       <div class="room-data__block">
         <div class="room-data__block-header">
-          <div class="room-data__icon-wrapper">
-            <NuxtImg src="/icons/chat/room/people.svg" width="32px" height="32px" />
-          </div>
+          <CHint :isShow="!expanded" position="right" text="Участники"
+            ><NuxtImg src="/icons/chat/room/people.svg" width="32px" height="32px"
+          /></CHint>
           <h3 class="room-data__block-title">Участники</h3>
         </div>
         <div class="room-data__block-content">
@@ -54,12 +55,12 @@
               <div class="room-data__block-label">Вы</div>
               <div class="room-data__block-value">
                 <div
-                  class="circle-state"
+                  class="status-indicator"
                   :class="{
-                    'circle-state--active': true,
-                    'circle-state--error': false,
+                    'status-indicator--online': true,
+                    'status-indicator--offline': false,
                   }"
-                ></div>
+                />
                 {{ roomData.members?.yourStatus }}
               </div>
             </li>
@@ -67,25 +68,24 @@
               <div class="room-data__block-label">Собеседник</div>
               <div class="room-data__block-value">
                 <div
-                  class="circle-state"
+                  class="status-indicator"
                   :class="{
-                    'circle-state--active': roomData.members?.companionStatus === 'online',
-                    'circle-state--error': roomData.members?.companionStatus === 'offline',
+                    'status-indicator--online': roomData.members?.companionStatus === 'online',
+                    'status-indicator--offline': roomData.members?.companionStatus === 'offline',
                   }"
-                ></div>
+                />
                 {{ roomData.members?.companionStatus }}
               </div>
             </li>
           </ul>
         </div>
       </div>
-
       <!-- Network Block -->
       <div class="room-data__block">
         <div class="room-data__block-header">
-          <div class="room-data__icon-wrapper">
-            <NuxtImg src="/icons/chat/room/network.svg" width="32px" height="32px" />
-          </div>
+          <CHint :isShow="!expanded" position="right" text="Сеть"
+            ><NuxtImg src="/icons/chat/room/network.svg" width="32px" height="32px"
+          /></CHint>
           <h3 class="room-data__block-title">Сеть</h3>
         </div>
         <div class="room-data__block-content">
@@ -94,26 +94,26 @@
               <div class="room-data__block-label">Подключение</div>
               <div class="room-data__block-value">
                 <div
-                  class="circle-state"
+                  class="status-indicator"
                   :class="{
-                    'circle-state--active': roomData.network?.connectionStatus === 'connected',
-                    'circle-state--error':
+                    'status-indicator--online': roomData.network?.connectionStatus === 'connected',
+                    'status-indicator--offline':
                       roomData.network?.connectionStatus === 'failed' ||
                       roomData.network?.connectionStatus === 'disconnected',
                   }"
-                ></div>
+                />
                 {{ roomData.network?.connectionStatus }}
               </div>
             </li>
             <li class="room-data__block-item">
               <div class="room-data__block-label">Отправлено</div>
-              <div class="room-data__block-value">
+              <div class="room-data__block-value room-data__block-value--data">
                 {{ formatBytesToMB(roomData.network?.sentBytes) }} MB
               </div>
             </li>
             <li class="room-data__block-item">
               <div class="room-data__block-label">Получено</div>
-              <div class="room-data__block-value">
+              <div class="room-data__block-value room-data__block-value--data">
                 {{ formatBytesToMB(roomData.network?.receivedBytes) }} MB
               </div>
             </li>
@@ -123,29 +123,36 @@
     </section>
 
     <footer class="room-data__footer">
-      <div class="room-data__footer-action" @click="$emit('endSession')">
-        <div class="room-data__icon-wrapper">
-          <NuxtImg
-            class="room-data__footer-end-session"
-            src="/icons/chat/room/power_off.svg"
-            width="32px"
-            height="32px"
-          />
-        </div>
-        <!-- Use a span instead of CButton for smoother transition control or wrap CButton -->
-        <div class="room-data__footer-text">
-          <span>Завершить сеанс</span>
-        </div>
+      <div v-show="expanded" class="room-data__end-session-wrapper">
+        <CButton
+          variant="quaternary"
+          button-type="button"
+          textColor="var(--color-negative-on-text)"
+          @click="$emit('endSession')"
+        >
+          Завершить сеанс
+        </CButton>
       </div>
-
-      <div class="room-data__footer-expand-wrapper" @click="$emit('toggleExpand')">
-        <NuxtImg
-          class="room-data__footer-expand"
-          src="/icons/chat/room/arrow_expand_right.svg"
-          width="32px"
-          height="32px"
-        />
+      <div v-show="!expanded" class="room-data__end-session-wrapper">
+        <CHint :isShow="!expanded" position="right" text="Завершить сеанс">
+          <CButton
+            variant="icon-default"
+            button-type="button"
+            iconColor="var(--color-negative-on-text)"
+            @click="$emit('endSession')"
+            icon-size="i-large"
+          >
+            <NuxtImg src="/icons/chat/room/power_off.svg" width="32px" height="32px" /> </CButton
+        ></CHint>
       </div>
+      <CButton
+        class="room-data__footer-expand"
+        variant="icon-default"
+        icon-size="i-large"
+        @click="$emit('toggleExpand')"
+      >
+        <NuxtImg src="/icons/chat/room/arrow_expand_right.svg" width="32px" height="32px" />
+      </CButton>
     </footer>
   </div>
 </template>
@@ -183,6 +190,8 @@ const formatBytesToMB = (bytes?: number) => {
 
 <style scoped lang="scss">
 $app-desktop: 1384px;
+$transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+$transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
 .room-data {
   display: flex;
@@ -193,33 +202,14 @@ $app-desktop: 1384px;
   white-space: nowrap;
 
   /* Liquid Glass Container */
-
   backdrop-filter: var(--liquid-glass-backdrop);
-  border: var(--liquid-glass-border);
   box-shadow: var(--liquid-glass-shadow);
-  border-radius: var(--radius-lg);
 
   will-change: width;
-  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: width 0.5s $transition-smooth;
   padding-bottom: 24px;
 
-  /* Calculation for perfect centering in compact mode (92px width) */
-  /* (92px - 32px icon) / 2 = 30px padding */
-  --content-padding-left: 30px;
-
-  /* Icon Wrapper - Stable width for smoothness */
-  &__icon-wrapper {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    img {
-      display: block;
-      background: transparent;
-    }
-  }
+  --content-padding-left: 20px;
 
   @media screen and (max-width: $app-desktop) {
     order: 3;
@@ -227,43 +217,23 @@ $app-desktop: 1384px;
     height: 100vh;
     border-radius: 0;
     border: none;
-    &__footer-expand-wrapper {
-      display: none;
-    }
   }
 
   /* Compact State Styles */
   &--compact {
-    width: 92px;
+    width: 74px;
 
     .room-data__title-wrapper,
     .room-data__block-title,
-    .room-data__block-content,
-    .room-data__footer-text {
+    .room-data__block-content {
       opacity: 0;
+      transform: translateX(-10px);
       pointer-events: none;
     }
 
-    /* In compact, we let the container width clip the content.
-       Icons stay fixed because padding-left is constant. */
-
-    .room-data__footer-action {
-      width: 48px; /* Circle shape */
-      padding: 8px; /* Adjust padding to center icon in 48px box */
-      background: transparent;
-      border: 1px solid transparent; /* Maintain definition if needed */
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.1);
-      }
-    }
-
-    /* Center the expand arrow by margin in compact if needed,
-       but if we align everything left with padding 30px,
-       the arrow needs to align with icons too. */
     .room-data__footer-expand-wrapper {
       padding-left: var(--content-padding-left);
-      justify-content: flex-start; /* keep aligned with other icons */
+      justify-content: flex-start;
     }
 
     .room-data__footer-expand {
@@ -275,36 +245,50 @@ $app-desktop: 1384px;
   &__title-wrapper,
   &__block-title,
   &__block-content,
-  &__footer-text {
-    transition: opacity 0.2s ease; /* Faster fade out so it doesn't bleed */
+  &__divider {
+    transition:
+      opacity 0.3s $transition-smooth,
+      transform 0.3s $transition-smooth;
     opacity: 1;
+    transform: translateX(0);
   }
 
   &__header {
     background-color: transparent;
-    /* Use fixed padding-left for alignment stability */
     padding: 24px var(--content-padding-left) 16px var(--content-padding-left);
     display: flex;
     align-items: center;
     gap: 16px;
     height: 80px;
-
+    margin-bottom: 12px;
     .room-data__title {
       color: var(--color-primary-on-text);
-      font-size: 32px;
-      font-weight: 500;
+      font-size: 28px;
+      font-weight: 600;
       white-space: nowrap;
+      letter-spacing: -0.02em;
     }
+  }
+
+  /* Section Divider */
+  &__divider {
+    height: 1px;
+    margin: 0 var(--content-padding-left) 0 calc(var(--content-padding-left) + 48px);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
   }
 
   &__body {
     display: flex;
-    gap: 32px;
+    gap: 24px;
     flex-direction: column;
-    /* Padding right can be standard, left must be fixed */
-    padding: 0 24px 0 0;
-    overflow-y: hidden;
     overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
 
     &::-webkit-scrollbar {
       width: 4px;
@@ -313,15 +297,19 @@ $app-desktop: 1384px;
       background: transparent;
     }
     &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 4px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
     }
 
     /* Blocks */
     .room-data__block {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
 
       .room-data__block-header {
         display: flex;
@@ -329,165 +317,153 @@ $app-desktop: 1384px;
         gap: 16px;
         height: 32px;
         padding-left: var(--content-padding-left);
-        transition: all 0.3s ease;
+        transition: all 0.3s $transition-smooth;
       }
 
       .room-data__block-title {
         color: var(--color-primary-on-text);
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 500;
-        opacity: 0.9;
         white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .room-data__block-content {
-        /* This wrapper allows us to fade out the list while keeping structure */
+        /* Wrapper for list */
       }
 
       .room-data__block-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        /* Add left padding to list to indent it or keep it aligned?
-           User wants icons on one level. The data rows (cards) are below headers.
-           Let's align data rows with the logical content start (left of icons? or indented?)
-           Standard UI: Data is indented.
-           Let's use the same padding-left for consistency of container. */
+        gap: 6px;
         padding-left: var(--content-padding-left);
-        padding-right: 24px; /* Right padding for the cards */
+        padding-right: 24px;
         margin-left: 48px;
+
         .room-data__block-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
 
           background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.04);
           border-radius: var(--radius-md);
-          padding: 12px 16px;
-          transition: background 0.3s ease;
+          padding: 14px 18px;
+          transition:
+            background 0.25s $transition-smooth,
+            border-color 0.25s $transition-smooth,
+            transform 0.2s $transition-smooth;
 
-          /* Ensure fixed height or min-width so they don't squash immediately? */
-          min-width: 300px; /* Keep content wide enough so it just gets clipped by parent */
+          min-width: 300px;
 
           &:hover {
             background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
           }
 
           .room-data__block-label {
-            font-size: 16px;
+            font-size: 15px;
             color: var(--color-neutral-on-text);
-            opacity: 0.8;
+            font-weight: 400;
           }
+
           .room-data__block-value {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             align-items: center;
             font-size: 14px;
             color: var(--color-neutral-on-muted);
+
+            &--mono {
+              font-family: "JetBrains Mono", "Fira Code", monospace;
+              font-size: 12px;
+              letter-spacing: -0.02em;
+            }
+
+            &--data {
+              font-variant-numeric: tabular-nums;
+              font-weight: 500;
+            }
           }
         }
       }
     }
   }
 
-  .room-data__footer {
+  &__footer {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     justify-content: space-between;
-    /* Remove centering, use padding for alignment */
-    align-items: flex-start;
+    align-items: center;
     margin-top: 24px;
-    padding: 24px 0 24px var(--content-padding-left);
     gap: 24px;
   }
 
-  .room-data__footer-action {
+  &__end-session-wrapper {
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 24px;
-    margin: 0 auto;
-    /* Fixed height for smoother pill-to-circle transition */
-    /* Make it occupy width in expanded, shrink in compact */
+    justify-content: center;
     width: 100%;
-    max-width: 240px; /* Limit max pill width */
-
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-pill);
-    cursor: pointer;
-    overflow: hidden;
-    transition:
-      width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-      background 0.3s ease,
-      padding 0.4s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .room-data__footer-text {
-      color: var(--color-negative-on-text);
-      font-weight: 500;
-      white-space: nowrap;
-    }
   }
-
-  /* Icon wrapper inside footer button needs to be stable */
-  .room-data__footer-action .room-data__icon-wrapper {
-    margin-left: -4px; /* Adjust for padding difference in pill vs circle */
-  }
-
-  .room-data__footer-expand-wrapper {
+  &__footer-expand-wrapper {
+    position: relative;
     width: 100%;
     display: flex;
-    /* Aligned left to match icons */
     justify-content: flex-start;
-    /* No extra padding needed here as parent has padding-left */
-    padding: 12px 0;
     cursor: pointer;
+    transition: opacity 0.2s $transition-smooth;
+    margin-bottom: 12px;
   }
 
-  /* Compact override for footer alignment checks */
-  &--compact {
-    .room-data__footer-action {
-      width: 48px;
-      padding: 0; /* Clear padding to let flex center the icon */
-      justify-content: center;
-
-      .room-data__icon-wrapper {
-        margin-left: 0;
-      }
-    }
-
-    /* Make sure the arrow stays centered in the 92px container */
-    .room-data__footer-expand-wrapper {
-      /* Parent padding-left is 30px.
-         If we want arrow centered in 92px, that's 30px from left.
-         Since the icon is 32px, it sits exactly where other icons sit.
-         So justify-start is correct. */
-    }
-  }
-
-  .room-data__footer-expand {
-    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    opacity: 0.6;
-    &:hover {
-      opacity: 1;
-    }
+  &__footer-expand {
+    transition: transform 0.4s $transition-smooth;
+    margin-right: auto;
   }
 }
 
-.circle-state {
-  width: 8px;
-  height: 8px;
+/* Status Indicator */
+.status-indicator {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  &--active {
+  position: relative;
+  flex-shrink: 0;
+
+  &--online {
     background-color: var(--color-positive-on-fill);
-    box-shadow: 0 0 8px var(--color-positive-on-fill);
+    box-shadow: 0 0 10px var(--color-positive-on-fill);
+
+    /* Pulse animation */
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: var(--color-positive-on-fill);
+      animation: pulse 2s ease-in-out infinite;
+    }
   }
-  &--error {
+
+  &--offline {
     background-color: var(--color-negative-on-fill);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(2);
   }
 }
 </style>

@@ -1,12 +1,12 @@
 <template>
   <div class="c-audio-player">
-    <div class="c-audio-player__header mb-3">
+    <div class="c-audio-player__header">
       <span class="c-audio-player__filename">{{ filename }}</span>
       <a :href="src" :download="filename" class="plain-button-icon" title="Скачать">
         <NuxtImg src="/icons/download.svg" />
       </a>
     </div>
-    <div class="c-audio-player__player-wrapper mb-3">
+    <div class="c-audio-player__player-wrapper">
       <button
         @click="togglePlay"
         :disabled="!canPlay"
@@ -111,10 +111,10 @@ async function createWaveSurferInstance(colors: {
     waveColor: colors.waveColor,
     progressColor: colors.progressColor,
     cursorColor: colors.cursorColor,
-    barWidth: 2,
-    barRadius: 1,
-    barGap: 4,
-    height: 52,
+    barWidth: 3,
+    barRadius: 3,
+    barGap: 2,
+    height: 42,
     responsive: true,
     normalize: true,
     backend: "WebAudio",
@@ -281,24 +281,32 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .c-audio-player {
   background: var(--color-neutral-on-fill);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 16px;
+  padding: 12px 16px;
   width: 100%;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
+  gap: 8px; /* Consistent gap */
+
   &__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* Remove default margins if any, use gap */
+    margin-bottom: 0 !important;
   }
+
   &__player-wrapper {
     display: flex;
     gap: 12px;
     align-items: center;
+    margin-bottom: 0 !important; /* Remove mb-3 */
   }
+
   &__filename {
     font-size: 14px;
+    font-weight: 500;
     color: var(--color-neutral-on-text);
     text-overflow: ellipsis;
     overflow: hidden;
@@ -309,7 +317,7 @@ onBeforeUnmount(() => {
 
   &__waveform-container {
     position: relative;
-    height: 52px;
+    height: 42px; /* Match JS height */
     width: 100%;
     overflow: hidden;
   }
@@ -317,6 +325,8 @@ onBeforeUnmount(() => {
   &__waveform {
     height: 100%;
     cursor: pointer;
+    border-radius: 8px; /* soft corners on waveform container */
+    overflow: hidden;
 
     canvas {
       background: transparent;
@@ -353,7 +363,8 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: var(--color-neutral-on-text);
+    color: var(--color-neutral-on-muted); /* More subtle */
+    margin-top: 4px;
   }
 }
 
@@ -363,22 +374,36 @@ onBeforeUnmount(() => {
   }
 }
 .plain-button-icon {
-  padding: 2px;
+  padding: 6px; /* Larger hit area */
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s;
-  border: 1px solid var(--color-neutral-on-outline);
+  transition: all 0.2s ease;
+  border: none; /* No border */
+  border-radius: 50%; /* Circle */
+  background: transparent;
   z-index: 2;
   cursor: pointer;
-  transition: background 0.3s;
   width: 32px;
   height: 32px;
   flex-shrink: 0;
+
   img {
     filter: var(--filter-primary-on-text);
     width: 100%;
     height: 100%;
+    transition: transform 0.2s;
+  }
+
+  &:hover {
+    background: var(--color-bg-on-secondary-light); /* Hover background */
+    img {
+      transform: scale(1.1);
+    }
+  }
+
+  &:active {
+    background: var(--color-neutral-on-outline);
   }
 }
 </style>

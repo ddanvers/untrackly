@@ -81,7 +81,6 @@
           @keyup.enter="sendMessage"
           @paste="onPaste"
           type="textarea"
-          :rows="2"
         />
         <CButton
           v-else
@@ -159,7 +158,7 @@ const audioChunks = ref<Blob[]>([]);
 
 const shouldShowVoiceButton = computed(
   () =>
-    !messageText.value.trim() &&
+    !messageText.value?.trim() &&
     !attachedFiles.value.length &&
     !props.editingMessage,
 );
@@ -188,7 +187,7 @@ function goToReply() {
 
 function sendMessage(event?: KeyboardEvent) {
   if (event?.shiftKey) return;
-  const trimmedText = messageText.value.trim();
+  const trimmedText = messageText.value?.trim();
   if (!trimmedText && !attachedFiles.value.length) return;
   if (props.editingMessage) {
     emits("editMessage", {
@@ -405,9 +404,10 @@ onUnmounted(() => {
 .message-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-neutral-on-outline);
+  /* Floating layout: Remove border-top, add padding */
+  padding: 16px;
+  /* border-top: 1px solid var(--color-neutral-on-outline); <-- REMOVED */
+  background: transparent;
 
   &.recording-active {
     width: 100%;
@@ -418,16 +418,13 @@ onUnmounted(() => {
     .message-form__input-wrapper {
       justify-content: center;
     }
-    .message-form__cancel-recording {
-      height: 72px;
-    }
   }
 
   &__voice-timer {
     display: flex;
     align-items: center;
     gap: 12px;
-    height: 72px;
+    height: 48px;
     padding: 12px 16px;
     border-left: 4px solid var(--color-primary-on-outline);
     margin-left: 20px;
@@ -450,10 +447,15 @@ onUnmounted(() => {
     align-items: center;
     border-left: 4px solid var(--color-primary-on-outline);
     padding: 8px 16px;
-    margin: 0px 104px 12px;
+    /* Floating card style */
+    margin: 0 0 8px 0;
     position: relative;
     transition: background 0.3s ease;
     cursor: pointer;
+    background: var(--color-bg-on-secondary-light); /* Card background */
+    border-radius: var(--radius-md); /* Rounded card */
+    overflow: hidden; /* Ensure left border curves */
+
     &:hover {
       background: var(--app-blue-100);
     }
@@ -503,10 +505,12 @@ onUnmounted(() => {
     display: flex;
     gap: 12px;
     width: 100%;
-    left: 92px;
-    padding: 12px;
+    /* Reset left/max-width for floating layout */
+    left: 0;
+    max-width: 100%;
+
+    padding: 12px 4px; /* Slight padding for shadow/scroll */
     padding-top: 0;
-    max-width: calc(100% - 72px * 2);
     overflow: auto;
   }
   .form-file-attachment {
@@ -519,8 +523,11 @@ onUnmounted(() => {
     justify-content: center;
     max-width: 92px;
     gap: 8px;
+    border-radius: var(--radius-sm); /* Rounded thumbnails */
+
     &__img {
       width: 72px;
+      border-radius: var(--radius-sm);
     }
     &__file {
       color: var(--color-neutral-on-text);
@@ -531,16 +538,38 @@ onUnmounted(() => {
       white-space: nowrap;
     }
   }
+
   &__actions {
     display: flex;
-    align-items: center;
-    padding: 0px 16px 16px;
-    gap: 16px;
+    align-items: flex-end; /* Align bottom */
+    /* Floating Bar Style */
+    padding: 8px 12px;
+    gap: 8px; /* Tighter gap */
     flex-wrap: wrap;
+    background: var(--color-neutral-on-fill);
+    border-radius: 28px; /* Large pill shape */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Soft lift */
   }
+
   &__input-wrapper {
     display: flex;
     flex: 1;
+
+    /* Override CInput styles for seamless look */
+    :deep(.c-input) {
+      .input-main {
+        border: none !important; /* Remove separate border */
+        background: transparent !important;
+        box-shadow: none !important;
+        border-radius: 0;
+        padding: 0;
+
+        &:hover,
+        &.main-focus {
+          border-color: transparent;
+        }
+      }
+    }
   }
 
   position: relative;
@@ -556,8 +585,7 @@ onUnmounted(() => {
     inset: 0;
     background: var(--app-blue-100);
     border: 2px dashed var(--app-blue-500);
-    border-bottom-left-radius: 24px;
-    border-bottom-right-radius: 24px;
+    border-radius: var(--radius-lg); /* Rounded overlay */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -599,6 +627,8 @@ onUnmounted(() => {
   width: 24px;
   height: 24px;
   user-select: none;
+  border-radius: 50%; /* Circular close button */
+
   img {
     filter: var(--filter-neutral-on-text);
   }
