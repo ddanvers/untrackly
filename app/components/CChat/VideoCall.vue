@@ -52,14 +52,6 @@
                 "
                 width="32px"
               ></NuxtImg>
-              <NuxtImg
-                :src="
-                  props.members.companionCameraEnabled
-                    ? '/icons/chat/camera.svg'
-                    : '/icons/chat/camera-off.svg'
-                "
-                width="32px"
-              ></NuxtImg>
             </div>
           </div>
 
@@ -654,18 +646,16 @@ $app-narrow-mobile: 364px;
           }
 
           .video-call__member {
-            width: auto;
+            width: 320px;
             height: 100%;
-            aspect-ratio: 4/3;
             border-radius: 12px;
             position: relative;
-            padding: 0; /* Reset padding */
-            overflow: hidden; /* Ensure content doesn't spill out */
+            padding: 0;
+            overflow: hidden;
 
             @media screen and (max-width: $app-mobile) {
               min-width: 100%;
               scroll-snap-align: center;
-              aspect-ratio: 16/9; /* Optional: adjust aspect ratio for mobile if needed */
             }
 
             & > img {
@@ -673,9 +663,7 @@ $app-narrow-mobile: 364px;
               height: 100%;
               object-fit: contain;
               padding: 0;
-              transform: translateY(
-                -12px
-              ); /* Shift up slightly to make room for icons if needed, or just center */
+              transform: translateY(-12px);
             }
 
             .video-call__member-controls-state {
@@ -683,10 +671,6 @@ $app-narrow-mobile: 364px;
               bottom: 4px;
               left: 50%;
               transform: translateX(-50%);
-              background: rgba(0, 0, 0, 0.6);
-              padding: 4px 8px;
-              border-radius: 8px;
-              gap: 8px;
               z-index: 10;
 
               img {
@@ -700,30 +684,38 @@ $app-narrow-mobile: 364px;
               height: 100%;
               aspect-ratio: 16/9;
               padding: 0;
-              height: fit-content;
+              height: 100%;
+              .video-call__member-controls-state {
+                right: 24px;
+                transform: translateX(0);
+                left: unset;
+                bottom: 24px;
+              }
               @media screen and (max-width: $app-mobile) {
                 min-width: 100%;
                 scroll-snap-align: center;
               }
-
-              video {
-                width: 100%;
+              .video-call__video-wrapper {
                 height: 100%;
+                width: 100%;
+              }
+              video {
+                height: 100%;
+                width: 100%;
                 object-fit: cover;
                 border-radius: 12px;
               }
             }
           }
-
           .video-call__my-video {
             position: static;
-            width: auto;
+            width: 320px;
             height: 100%;
             aspect-ratio: 16/9;
             border-radius: 12px;
-            padding: 0;
-            display: block !important; /* Force show even on mobile if needed */
-
+            padding: 16px;
+            object-fit: cover;
+            display: block;
             @media screen and (max-width: $app-mobile) {
               min-width: 100%;
               scroll-snap-align: center;
@@ -855,7 +847,6 @@ $app-narrow-mobile: 364px;
       flex-direction: column;
       width: 400px;
       height: 400px;
-      padding: 16px;
       transition: all 0.3s ease;
 
       .video-call__member-controls-state {
@@ -883,15 +874,12 @@ $app-narrow-mobile: 364px;
       }
       &--cam-enabled {
         background-color: transparent;
-        padding: 8px;
         border-radius: 0;
         z-index: 100;
         width: 100%;
         gap: 8px;
         height: fit-content;
         video {
-          height: 100%;
-          width: 100%;
           object-fit: contain;
           border-radius: 12px;
         }
@@ -973,27 +961,31 @@ $app-narrow-mobile: 364px;
       flex-direction: column;
       width: 260px;
       height: 260px;
-      padding: 16px;
       transition: all 0.3s ease;
       position: relative;
-      &--cam-enabled {
-        background-color: transparent;
-      }
       .video-call__member-controls-state {
         position: absolute;
-        bottom: 0px;
-        left: 100%;
-        transform: translateX(-100%);
-        background: rgba(0, 0, 0, 0.6);
-        padding: 4px 8px;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
         border-radius: 8px;
         gap: 16px;
         z-index: 10;
         display: flex;
+        opacity: 0.9;
         img {
           width: 28px;
           height: 28px;
           filter: var(--filter-neutral-on-text);
+        }
+      }
+      &--cam-enabled {
+        background-color: transparent;
+        .video-call__member-controls-state {
+          right: 24px;
+          transform: translateX(0);
+          left: unset;
+          bottom: 24px;
         }
       }
       @media screen and (max-width: $app-mobile) {
@@ -1005,7 +997,6 @@ $app-narrow-mobile: 364px;
         }
       }
       .video-call__video-wrapper {
-        width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1019,15 +1010,14 @@ $app-narrow-mobile: 364px;
         }
       }
       &--cam-enabled {
-        padding: 8px;
+        height: fit-content;
         border-radius: 0;
         z-index: 100;
-        width: 100%;
+        width: fit-content;
+        max-height: 100%;
+        max-width: 100%;
         gap: 8px;
-        height: fit-content;
         video {
-          height: 100%;
-          width: 100%;
           object-fit: contain;
           border-radius: 12px;
         }

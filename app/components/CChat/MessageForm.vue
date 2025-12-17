@@ -77,7 +77,7 @@
           v-if="!isRecording"
           v-model="messageText"
           class="message-form__input"
-          placeholder="Напишите ваше сообщение"
+          placeholder="Сообщение"
           @keyup.enter="sendMessage"
           @paste="onPaste"
           type="textarea"
