@@ -27,6 +27,11 @@
         <CButton @click="handleCopy" variant="secondary" :aria-label="'Скопировать ссылку'">
           <span>Скопировать</span>
         </CButton>
+        
+        <label class="chat-invitation__checkbox" v-if="!isInvited">
+            <input type="checkbox" v-model="isGroup" class="chat-invitation__checkbox-input">
+            <span class="chat-invitation__checkbox-label">Групповой чат</span>
+        </label>
       </div>
     </section>
 
@@ -86,13 +91,23 @@ const props = defineProps<{
   isInvited: boolean;
 }>();
 
-const { inviteLink, copyToClipboard } = useInvitationLink(props.sessionId);
+const isGroup = ref(false);
+const { inviteLink, copyToClipboard } = useInvitationLink(
+  props.sessionId,
+  isGroup,
+);
 
 const linkBlock = ref<HTMLElement | null>(null);
 const fixedHeight = ref<number | null>(null);
 const animating = ref(false);
 const displayText = ref(inviteLink.value);
 const copying = ref(false);
+
+watch(inviteLink, (val) => {
+  if (!animating.value) {
+    displayText.value = val;
+  }
+});
 
 async function handleCopy() {
   if (copying.value) return;
@@ -139,7 +154,9 @@ async function handleCopy() {
 function handleGoToChat() {
   navigateTo({
     path: `/chat/${props.sessionId}`,
-    query: { invited: props.isInvited ? "true" : undefined },
+    query: {
+      invited: props.isInvited ? "true" : undefined,
+    },
   });
 }
 
@@ -301,6 +318,31 @@ $app-small-height: 520px;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  &__checkbox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--color-neutral-on-text);
+
+    &-input {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: var(--color-primary-on-fill);
+    }
+
+    &-label {
+      font-size: 18px;
+    }
+    
+    @media screen and (max-width: $app-mobile) {
+      &-label {
+        font-size: 16px;
+      }
+    }
   }
 }
 

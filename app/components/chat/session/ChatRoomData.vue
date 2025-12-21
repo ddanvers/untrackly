@@ -51,32 +51,25 @@
         </div>
         <div class="room-data__block-content">
           <ul class="room-data__block-list">
-            <li class="room-data__block-item">
-              <div class="room-data__block-label">Вы</div>
-              <div class="room-data__block-value">
-                <div
-                  class="status-indicator"
-                  :class="{
-                    'status-indicator--online': true,
-                    'status-indicator--offline': false,
-                  }"
-                />
-                {{ roomData.members?.yourStatus }}
-              </div>
-            </li>
-            <li class="room-data__block-item">
-              <div class="room-data__block-label">Собеседник</div>
-              <div class="room-data__block-value">
-                <div
-                  class="status-indicator"
-                  :class="{
-                    'status-indicator--online': roomData.members?.companionStatus === 'online',
-                    'status-indicator--offline': roomData.members?.companionStatus === 'offline',
-                  }"
-                />
-                {{ roomData.members?.companionStatus }}
-              </div>
-            </li>
+             <li 
+                v-for="(member, id) in roomData.members" 
+                :key="id"
+                class="room-data__block-item"
+             >
+                <div class="room-data__block-label">
+                    {{ member.name }} {{ member.isSelf ? '(Вы)' : '' }}
+                </div>
+                <div class="room-data__block-value">
+                    <div
+                      class="status-indicator"
+                      :class="{
+                        'status-indicator--online': member.status === 'online',
+                        'status-indicator--offline': member.status !== 'online',
+                      }"
+                    />
+                    {{ member.status === 'online' ? 'Online' : 'Offline' }}
+                </div>
+             </li>
           </ul>
         </div>
       </div>

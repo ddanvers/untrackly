@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
-import type { RoomData } from "./types";
+import { useDeviceId } from "~/composables/useDeviceId";
+import type { Member, RoomData } from "./types";
 
 export function usePeerRoom(sessionId: string) {
   const roomData = ref<RoomData>({
@@ -9,16 +10,7 @@ export function usePeerRoom(sessionId: string) {
       dateUpdated: new Date().toISOString(),
       sessionDuration: 0,
     },
-    members: {
-      yourStatus: "online",
-      companionStatus: "offline",
-      companionLastSeen: 0,
-      isCompanionTyping: false,
-      lastActivityTimestamp: Date.now(),
-      companionCameraEnabled: false,
-      companionMicEnabled: false,
-      companionHasMediaStream: false,
-    },
+    members: {}, // Will be populated as peers connect
     network: {
       connectionStatus: "connecting",
       quality: "good",
@@ -73,6 +65,27 @@ export function usePeerRoom(sessionId: string) {
     }
   }
 
+  function updateMember(memberId: string, updates: Partial<Member>) {
+    const current = roomData.value.members[memberId] || {
+      id: memberId,
+      name: "Пользователь", // Default name, should be updated via handshake
+      isSelf: memberId === useDeviceId(),
+      status: "offline",
+      lastSeen: 0,
+      isTyping: false,
+      cameraEnabled: false,
+      micEnabled: false,
+      hasMediaStream: false,
+    };
+    roomData.value.members = {
+      ...roomData.value.members,
+      [memberId]: {
+        ...current,
+        ...updates,
+      },
+    };
+  }
+
   const roomStatistics = computed(() => ({
     totalActivity:
       roomData.value.messages.messagesSent +
@@ -100,6 +113,7 @@ export function usePeerRoom(sessionId: string) {
   return {
     roomData,
     updateRoomData,
+    updateMember,
     roomStatistics,
   };
 }

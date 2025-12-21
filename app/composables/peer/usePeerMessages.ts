@@ -1,12 +1,7 @@
-import type { DataConnection } from "peerjs";
 import { type Ref, ref } from "vue";
+import { useDeviceId } from "~/composables/useDeviceId";
 import type { Message, MessageFile, ReplyMessageData, RoomData } from "./types";
 import { calculateDataSize } from "./utils";
-
-// Assuming useDeviceId is a global composable or auto-imported
-// If not, we might need to import it. Since it was used in the original file without import shown in the top,
-// it's likely auto-imported. If it fails, I'll need to find where it comes from.
-// Checking original file imports... it wasn't imported. So it's auto-imported.
 
 export interface SendMessageRequest {
   text: string;
@@ -29,7 +24,7 @@ export interface ReplyMessageRequest {
 }
 
 export function usePeerMessages(
-  conn: Ref<DataConnection | null>,
+  broadcast: (data: any) => void,
   roomData: Ref<RoomData>,
   updateRoomData: <T extends keyof RoomData>(
     section: T,
@@ -53,7 +48,6 @@ export function usePeerMessages(
     replyMessage?: ReplyMessageData,
   ) {
     console.log("[usePeerMessages] sendMessage", payload);
-    if (!conn.value?.open) return;
 
     const filesToSend = await Promise.all(
       payload.files.map(async (f) => {
@@ -88,7 +82,7 @@ export function usePeerMessages(
     };
 
     console.log("[usePeerMessages] sendMessage: message", message);
-    conn.value.send(message);
+    broadcast(message);
 
     const messageSize = calculateDataSize(message);
     updateBytesTransferred(messageSize, 0);
@@ -103,7 +97,6 @@ export function usePeerMessages(
 
   async function editMessage(payload: EditMessageRequest) {
     console.log("[usePeerMessages] editMessage", payload);
-    if (!conn.value?.open) return;
 
     const filesToSend: MessageFile[] = [];
     const existingFileIds: string[] = [];
@@ -124,8 +117,6 @@ export function usePeerMessages(
           },
         });
       } else {
-        // It's an existing file, we just need its ID
-        // In the original code: existingFileIds.push(f.id);
         existingFileIds.push(f.id);
       }
     }
@@ -144,7 +135,7 @@ export function usePeerMessages(
     };
 
     console.log("[usePeerMessages] editMessage: message", message);
-    conn.value.send(message);
+    broadcast(message);
 
     const messageSize = calculateDataSize(message);
     updateBytesTransferred(messageSize, 0);
@@ -193,9 +184,7 @@ export function usePeerMessages(
     if (index !== -1) {
       messages.value.splice(index, 1);
     }
-    if (conn.value?.open) {
-      conn.value.send({ type: "delete-message", id: messageId });
-    }
+    broadcast({ type: "delete-message", id: messageId });
   }
 
   function readMessage(id: string) {
@@ -205,21 +194,10 @@ export function usePeerMessages(
     updateRoomData("messages", {
       unreadCount: Math.max(0, roomData.value.messages.unreadCount - 1),
     });
-    if (conn.value?.open) {
-      conn.value.send({ type: "read", id });
-    }
+    broadcast({ type: "read", id });
   }
 
   function handleIncomingMessage(data: any) {
-    // Logic from original connection.on('data') for messages
-    // ...
-    // Need to adapt it.
-    // Original:
-    /*
-      if (data?.type === "delete-message" && data.id) { ... }
-      else if (data?.type === "message" || typeof data === "string") { ... }
-      */
-
     if (data?.type === "delete-message" && data.id) {
       const idx = messages.value.findIndex((m) => m.id === data.id);
       if (idx !== -1) {
@@ -266,6 +244,9 @@ export function usePeerMessages(
         isVoiceMessage: typedData.isVoiceMessage,
         existingFileIds: typedData.existingFileIds,
       };
+
+      // Update room data for specific members?
+      // roomData.messages tracks GLOBAL stats for the room, so just increment.
       updateRoomData("messages", {
         filesShared:
           roomData.value.messages.filesShared + typedData.files.length,
@@ -289,14 +270,16 @@ export function usePeerMessages(
         };
       }
     } else {
-      messages.value.push(msg);
+      // Check if message already exists (deduplication for mesh network)
+      if (!messages.value.some((m) => m.id === msg.id)) {
+        messages.value.push(msg);
+        updateRoomData("messages", {
+          messagesReceived: roomData.value.messages.messagesReceived + 1,
+          unreadCount: roomData.value.messages.unreadCount + 1,
+          lastMessageTimestamp: msg.timestamp,
+        });
+      }
     }
-
-    updateRoomData("messages", {
-      messagesReceived: roomData.value.messages.messagesReceived + 1,
-      unreadCount: roomData.value.messages.unreadCount + 1,
-      lastMessageTimestamp: msg.timestamp,
-    });
   }
 
   return {

@@ -1,58 +1,76 @@
-import { onBeforeUnmount, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { usePeerConnection } from "./peer/usePeerConnection";
 import { usePeerMedia } from "./peer/usePeerMedia";
 import { usePeerMessages } from "./peer/usePeerMessages";
 import { usePeerMetrics } from "./peer/usePeerMetrics";
 import { usePeerRoom } from "./peer/usePeerRoom";
-import { calculateDataSize } from "./peer/utils";
 
-export function usePeer(sessionId: string, isInitiator: boolean) {
-  // 1. Room Data & Statistics
-  const { roomData, updateRoomData, roomStatistics } = usePeerRoom(sessionId);
+export interface UsePeerOptions {
+  sessionId: string;
+  isInitiator: boolean;
+}
 
-  // 2. Connection Management
+export function usePeer(options: UsePeerOptions) {
+  const { sessionId, isInitiator } = options;
+
+  // 1. Core Room Data & Member State
+  const { roomData, updateRoomData, updateMember, roomStatistics } =
+    usePeerRoom(sessionId);
+
+  // 5. Metrics (Moved up because usePeerMessages needs updateBytesTransferred)
+  const { updateBytesTransferred } = usePeerMetrics(
+    roomData,
+    updateRoomData,
+    ref(null),
+  );
+
+  // 2. Peer Connection Logic
+  // Handles establishing connections (mesh), identifying peers, and basic reliability
   const {
     peer,
-    conn,
+    connections,
     isConnectionEstablished,
+    myName,
     initPeer,
     connectToPeer,
     destroyPeer,
-  } = usePeerConnection(sessionId, isInitiator, updateRoomData);
+    broadcast,
+  } = usePeerConnection(
+    sessionId,
+    isInitiator,
+    updateRoomData,
+    updateMember,
+    onMessageReceived,
+  );
 
-  // 3. Metrics & Network Quality
-  const {
-    metricsState, // exposed if needed, or just used internally
-    initializeMetricsTracking,
-    handlePingResponse,
-    updateBytesTransferred,
-    stopPingMonitoring,
-    clearPingPongTimeout,
-  } = usePeerMetrics(roomData, updateRoomData, conn);
-
-  // 4. Messages Handling
+  // 3. Messages
+  // Handles chat messages, files, edits
   const {
     messages,
-    attachedFiles,
-    attachFile,
-    detachFile,
     sendMessage,
     editMessage,
     replyToMessage,
     deleteMessage,
     readMessage,
+    attachedFiles,
+    attachFile,
+    detachFile,
     handleIncomingMessage,
-  } = usePeerMessages(conn, roomData, updateRoomData, updateBytesTransferred);
+  } = usePeerMessages(
+    broadcast,
+    roomData,
+    updateRoomData,
+    updateBytesTransferred,
+  );
 
-  // 5. Media (Calls & Screenshare)
+  // 4. Media (Audio/Video/Screen)
+  // Handles calls, streams, tracks
   const {
     callState,
-    callType,
     localStream,
-    remoteStream,
+    remoteStreams, // Now a map
     isCameraEnabled,
     isMicEnabled,
-    isCameraToggling,
     isScreenShareEnabled,
     screenShareStream,
     screenShareOwnerId,
@@ -65,139 +83,118 @@ export function usePeer(sessionId: string, isInitiator: boolean) {
     toggleScreenShare,
     handleIncomingCall,
     handleSignal,
-  } = usePeerMedia(peer, conn, roomData, updateRoomData);
+  } = usePeerMedia(
+    peer as any,
+    connections as any,
+    roomData,
+    updateRoomData,
+    updateMember,
+    broadcast,
+  );
 
-  // --- Coordinator Logic ---
+  // ------------------------------------------------------------------------
+  // Data Routing / Orchestration
+  // ------------------------------------------------------------------------
 
-  // Watch for new Data Connections to attach listeners
-  watch(conn, (newConn) => {
-    if (newConn) {
-      // Initialize metrics when connection is established
-      // Note: usePeerConnection sets 'open' listener which calls updateRoomData
-      // We can also hook into 'open' here if needed, but let's rely on 'open' event or isConnectionEstablished
-
-      newConn.on("open", () => {
-        initializeMetricsTracking();
-      });
-
-      newConn.on("data", (data: any) => {
-        console.log("[usePeer Coordinator] received data", data);
-
-        // 0. Global: Update companion activity on ANY received data
-        updateRoomData("members", {
-          companionStatus: "online",
-          lastActivityTimestamp: Date.now(),
-        });
-
-        // 1. Metrics: Update bytes received
-        if (data.type !== "ping" && data.type !== "pong") {
-          const dataSize = calculateDataSize(data);
-          updateBytesTransferred(0, dataSize);
-        }
-
-        // 2. Metrics: Handle Ping/Pong
-        if (data?.type === "ping") {
-          newConn.send({
-            type: "pong",
-            originalTimestamp: data.timestamp,
-            responseTimestamp: Date.now(),
-          });
-          return;
-        }
-        if (data?.type === "pong") {
-          handlePingResponse(data.originalTimestamp);
-          clearPingPongTimeout();
-          return;
-        }
-
-        // 3. Media: Handle Signals
-        if (
-          [
-            "call-request",
-            "call-decline",
-            "call-end",
-            "video-on",
-            "video-off",
-            "restart-call-with-video",
-            "mic-on",
-            "mic-off",
-            "screen-share-on",
-            "screen-share-off",
-          ].includes(data?.type)
-        ) {
-          handleSignal(data);
-          return;
-        }
-
-        // 4. Messages: Handle Incoming Messages (and 'read', 'delete-message')
-        handleIncomingMessage(data);
-      });
+  function onMessageReceived(data: any, senderId: string) {
+    // Route based on type
+    if (
+      data?.type === "message" ||
+      data?.type === "delete-message" ||
+      data?.type === "read" ||
+      typeof data === "string"
+    ) {
+      handleIncomingMessage(data);
     }
-  });
 
-  // Watch for Peer to attach 'call' listener
-  watch(peer, (newPeer) => {
-    if (newPeer) {
-      newPeer.on("call", (mediaConnection) => {
-        handleIncomingCall(mediaConnection);
-      });
+    // Call signaling messages
+    if (
+      data?.type === "call-request" ||
+      data?.type === "call-decline" ||
+      data?.type === "call-end" ||
+      data?.type === "video-on" ||
+      data?.type === "video-off" ||
+      data?.type === "mic-on" ||
+      data?.type === "mic-off" ||
+      data?.type === "screen-share-on" ||
+      data?.type === "screen-share-off" ||
+      data?.type === "restart-call-with-video"
+    ) {
+      handleSignal(data, senderId);
     }
-  });
 
-  function destroy() {
-    stopPingMonitoring();
-    destroyPeer();
-    // Cleanup media streams if any
-    endCall();
+    // Ping / Metrics (handled in usePeerRoom or usePeerMetrics usually?
+    // metrics usually purely internal state update based on transfer,
+    // but if we had a ping message, it would go here)
   }
 
-  onBeforeUnmount(destroy);
+  // ------------------------------------------------------------------------
+  // Lifecycle & Watchers
+  // ------------------------------------------------------------------------
+
+  // Update ping on connection changes is complex in mesh.
+  // We can trust usePeerConnection to handle connection status.
+
+  // Watch for incoming calls via PeerJS MediaConnection
+  watch(
+    () => peer.value,
+    (newPeer) => {
+      if (!newPeer) return;
+      newPeer.on("call", (mediaConn) => {
+        handleIncomingCall(mediaConn);
+      });
+    },
+    { immediate: true },
+  );
+
+  onMounted(() => {
+    initPeer();
+  });
+
+  onUnmounted(() => {
+    destroyPeer();
+    endCall(); // Helper to cleanup media
+  });
 
   return {
-    // Messages
+    // Room Data
+    roomData,
+    roomStatistics,
+    myName,
+
+    // Connection
+    peer, // Exposed
+    initPeer, // Exposed
+    isConnectionEstablished, // True if at least one
+    connections,
+
+    // Chat
     messages,
     sendMessage,
     editMessage,
-    deleteMessage,
     replyToMessage,
+    deleteMessage,
     readMessage,
-
-    // Attachments
     attachedFiles,
     attachFile,
     detachFile,
 
-    // Connection
-    peer,
-    conn,
-    isConnectionEstablished,
-    initPeer,
-    destroy,
-
-    // Room & Metrics
-    roomData,
-    roomStatistics,
-    updateRoomData,
-
-    // Media (Calls)
+    // Call / Media
     callState,
-    callType,
     localStream,
-    remoteStream,
+    remoteStreams,
+    screenShareStream,
+    screenShareOwnerId,
+
+    isCameraEnabled,
+    isMicEnabled,
+    isScreenShareEnabled,
     startCall,
     acceptCall,
     declineCall,
     endCall,
     toggleCamera,
     toggleMic,
-    isCameraEnabled,
-    isMicEnabled,
-    isCameraToggling,
-
-    // Screen Share
     toggleScreenShare,
-    isScreenShareEnabled,
-    screenShareStream,
-    screenShareOwnerId,
   };
 }

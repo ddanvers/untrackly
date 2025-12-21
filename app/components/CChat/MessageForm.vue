@@ -252,6 +252,7 @@ function onOverlayDrop(e: DragEvent) {
 function addFiles(files: FileList) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    if (!file) continue;
     let preview: string | undefined;
     if (file.type.startsWith("image/")) {
       preview = URL.createObjectURL(file);

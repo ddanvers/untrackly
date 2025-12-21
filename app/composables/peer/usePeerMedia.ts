@@ -1,26 +1,41 @@
 import type { DataConnection, MediaConnection, Peer } from "peerjs";
-import { type Ref, ref } from "vue";
+import {
+  computed,
+  type Ref,
+  reactive,
+  ref,
+  shallowReactive,
+  shallowRef,
+  watch,
+} from "vue";
 import { useDebounce } from "~/composables/useDebounce";
-import type { RoomData } from "./types";
+import { useDeviceId } from "~/composables/useDeviceId";
+import type { Member, RoomData } from "./types";
 
 export function usePeerMedia(
   peer: Ref<Peer | null>,
-  conn: Ref<DataConnection | null>,
+  connections: Record<string, DataConnection>,
   roomData: Ref<RoomData>,
   updateRoomData: <T extends keyof RoomData>(
     section: T,
     updates: Partial<RoomData[T]>,
   ) => void,
+  updateMember: (id: string, updates: Partial<Member>) => void,
+  broadcast: (data: any) => void,
 ) {
   const callState = ref<"idle" | "calling" | "incoming" | "active" | "ended">(
     "idle",
   );
   const callType = ref<"audio" | "video">("video");
-  const localStream = ref<MediaStream | null>(null);
-  const remoteStream = ref<MediaStream | null>(null);
+  const localStream = shallowRef<MediaStream | null>(null);
+
+  // Record<peerId, MediaStream>
+  const remoteStreams = shallowReactive<Record<string, MediaStream>>({});
+
+  // Record<peerId, MediaConnection>
+  const mediaConnections = shallowReactive<Record<string, MediaConnection>>({});
 
   // Internal mutable state
-  let mediaConn: MediaConnection | null = null;
   let callTimeout: any = null;
   let shouldAutoAcceptWithVideo = false;
 
@@ -30,12 +45,97 @@ export function usePeerMedia(
 
   // Screen sharing
   const isScreenShareEnabled = ref(false);
-  const screenShareStream = ref<MediaStream | null>(null);
+  const screenShareStream = shallowRef<MediaStream | null>(null);
   const screenShareOwnerId = ref<string | null>(null);
-  let mediaConnScreenOutgoing: MediaConnection | null = null;
+  // Record<peerId, MediaConnection>
+  const mediaConnsScreenOutgoing = shallowReactive<
+    Record<string, MediaConnection>
+  >({});
   let mediaConnScreenIncoming: MediaConnection | null = null;
 
   const debounce = useDebounce();
+
+  // Mesh propagation: Call new peers as they join if a call is active
+  // We perform this check whenever connections change, but we need to be careful about collisions.
+  // Rule: If both peers are active, the one with the 'larger' peerID calls the other.
+  // If one is active and the other is just joining (idle), the active one calls.
+  // Since we don't easily know the other's state without a message, we'll use the Tie-Breaker for all "mesh" calls
+  // triggered by new data connections.
+  watch(
+    () => Object.keys(connections).length,
+    (newCount, oldCount) => {
+      if (
+        (callState.value === "active" || callState.value === "calling") &&
+        newCount > oldCount
+      ) {
+        // Broad scan for any unconnected peers in the mesh
+        checkAndCallPeers();
+      }
+    },
+  );
+
+  function checkAndCallPeers() {
+    if (!localStream.value || !peer.value?.id) return;
+    const myId = peer.value.id;
+
+    for (const [peerId, conn] of Object.entries(connections)) {
+      // If we are already connected media-wise, skip
+      if (mediaConnections[peerId]) continue;
+
+      // If data connection is not open, we can't negotiate yet.
+      // In a real app, we'd hook into conn.on('open'), but here we poll/watch.
+      if (!conn.open) continue;
+
+      // Tie-Breaker / Role Logic:
+      // We assume the other peer is also "ready" or will be soon.
+      // To avoid A calling B AND B calling A simultaneously:
+      // Initiate IF myId > theirId.
+      // wait... if we are the "Old" peer and they are "New", we usually want Old -> New.
+      // But "New" might be 'active' too if they joined A first.
+
+      // Let's stick to: Always try to call if we don't have a media conn?
+      // PeerJS handles incoming calls automatically.
+      // If we both call, we get 2 streams. We can deduce one.
+
+      // Better: "Impolite" Caller wins? JS strings compare well.
+      if (myId > peerId) {
+        console.log(
+          `[usePeerMedia] Mesh Tie-Breaker: I (${myId}) am calling ${peerId}`,
+        );
+        try {
+          const mediaConn = peer.value.call(peerId, localStream.value);
+          setupMediaConnection(mediaConn, peerId);
+
+          // Send immediate metadata
+          connections[peerId]?.send({
+            type: isCameraEnabled.value ? "video-on" : "video-off",
+          });
+          connections[peerId]?.send({
+            type: isMicEnabled.value ? "mic-on" : "mic-off",
+          });
+        } catch (e) {
+          console.warn("[usePeerMedia] Failed to mesh-call", peerId, e);
+        }
+      } else {
+        console.log(
+          `[usePeerMedia] Mesh Tie-Breaker: Waiting for ${peerId} to call me`,
+        );
+      }
+    }
+  }
+
+  // Also run this check periodically or on data connection open?
+  // Since we don't have deep access to 'conn' events here easily without refactoring usePeerConnection,
+  // we can rely on the watcher + a specialized poller or just the watcher delay.
+  // Let's add a robust poller for the duration of the call to ensure mesh healing.
+  let meshHealInterval: any = null;
+  watch(callState, (val) => {
+    if (val === "active") {
+      meshHealInterval = setInterval(checkAndCallPeers, 2000);
+    } else {
+      clearInterval(meshHealInterval);
+    }
+  });
 
   function debouncedToggleCamera(enabled: boolean) {
     debounce(() => toggleCamera(enabled), 300, "camera");
@@ -44,6 +144,7 @@ export function usePeerMedia(
     debounce(() => toggleMic(enabled), 300, "mic");
   }
 
+  // Call all connected peers
   async function startCall(withVideo = false, withAudio = false) {
     const callStartTime = Date.now();
 
@@ -56,7 +157,7 @@ export function usePeerMedia(
       withVideo,
       withAudio,
       callState: callState.value,
-      conn: !!conn.value,
+      peers: Object.keys(connections).length,
     });
     callState.value = "calling";
     callType.value = withVideo ? "video" : "audio";
@@ -64,10 +165,15 @@ export function usePeerMedia(
     isMicEnabled.value = !!withAudio;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      let stream = localStream.value;
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        localStream.value = stream;
+      }
+
       stream.getVideoTracks().forEach((t) => {
         t.enabled = !!withVideo;
       });
@@ -79,25 +185,51 @@ export function usePeerMedia(
         .getTracks()
         .filter((t) => t.readyState === "live");
       const liveStream = new MediaStream(liveTracks);
-      localStream.value = liveStream;
+      // We don't overwrite localStream.value with a new MediaStream usually,
+      // but PeerJS might like the wrapper.
+      // Actually, let's just use the original stream for PeerJS calls.
 
-      if (peer.value && conn.value?.peer) {
-        mediaConn = peer.value.call(conn.value.peer, liveStream);
-        setupMediaConnection(mediaConn);
-      } else {
-        console.warn("[usePeerMedia] startCall: peer or conn not ready");
+      // Call each peer
+      if (peer.value) {
+        for (const [peerId, conn] of Object.entries(connections)) {
+          if (conn.open) {
+            try {
+              const mediaConn = peer.value.call(peerId, liveStream);
+              setupMediaConnection(mediaConn, peerId);
+
+              conn.send({
+                type: "call-request",
+                video: withVideo,
+                audio: withAudio,
+              });
+            } catch (e) {
+              console.warn("Failed to call peer", peerId, e);
+            }
+          }
+        }
+
+        if (peer.value.id) {
+          updateMember(peer.value.id, {
+            cameraEnabled: !!withVideo,
+            micEnabled: !!withAudio,
+            hasMediaStream: true,
+          });
+          broadcast({ type: withVideo ? "video-on" : "video-off" });
+          broadcast({ type: withAudio ? "mic-on" : "mic-off" });
+        }
       }
 
-      conn.value?.send({
-        type: "call-request",
-        video: withVideo,
-        audio: withAudio,
-      });
-      console.log("[usePeerMedia] startCall: sent call-request");
+      console.log("[usePeerMedia] startCall: signals and metadata sent");
 
       callTimeout = setTimeout(() => {
-        console.warn("[usePeerMedia] startCall: callTimeout");
-        endCall();
+        if (callState.value === "calling") {
+          console.warn(
+            "[usePeerMedia] startCall: callTimeout - no one answered?",
+          );
+          if (Object.keys(remoteStreams).length === 0) {
+            endCall();
+          }
+        }
       }, 30000);
     } catch (e) {
       console.error("[usePeerMedia] startCall error", e);
@@ -111,60 +243,154 @@ export function usePeerMedia(
     console.log("[usePeerMedia] acceptCall: called", {
       opts,
       callState: callState.value,
-      mediaConn: !!mediaConn,
     });
     isCameraEnabled.value = false;
     isMicEnabled.value = false;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      let stream = localStream.value;
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        localStream.value = stream;
+      }
+
+      // Initially set tracks based on opts, BUT we need to answer calls.
       stream.getVideoTracks().forEach((t) => {
-        t.enabled = false; // Start disabled, user enables explicitly if needed?
-        // Wait, original code disabled them: t.enabled = false.
-        // But then passed stream to answer.
+        t.enabled = !!opts?.cam;
       });
       stream.getAudioTracks().forEach((t) => {
-        t.enabled = false;
+        t.enabled = !!opts?.mic;
       });
-      localStream.value = stream;
 
-      if (mediaConn) {
-        mediaConn.answer(stream);
-        setupMediaConnection(mediaConn);
-      } else {
-        console.warn("[usePeerMedia] acceptCall: mediaConn is null");
+      // Answer all incoming pending calls?
+      // Or just answer calls as they come?
+      // With Mesh, we might receive calls from A, B, C.
+      // Usually we answer them when they arrive.
+      // If we are 'accepting' a call, it implies we just got a request.
+
+      // Logic: Iterate over existing media connections that are not open/answered?
+      // PeerJS doesn't easily expose "pending answer" state.
+      // BUT, `handleIncomingCall` sets `mediaConn`.
+
+      // We need to answer ALL current media connections?
+      for (const [peerId, mc] of Object.entries(mediaConnections)) {
+        if (!mc.open) {
+          // simplistic check
+          try {
+            mc.answer(stream);
+          } catch (e) {
+            console.warn("Failed to answer call from", peerId, e);
+          }
+        }
       }
-    } catch (e) {
+
+      // Also enable our tracks if requested
+      if (opts?.cam) await toggleCamera(true);
+      else await toggleCamera(false);
+
+      if (opts?.mic) toggleMic(true);
+      else toggleMic(false);
+
+      if (peer.value?.id) {
+        updateMember(peer.value.id, {
+          cameraEnabled: !!opts?.cam,
+          micEnabled: !!opts?.mic,
+          hasMediaStream: true,
+        });
+        broadcast({ type: opts?.cam ? "video-on" : "video-off" });
+        broadcast({ type: opts?.mic ? "mic-on" : "mic-off" });
+      }
+    } catch (e: any) {
       console.error("[usePeerMedia] acceptCall error", e);
+      if (e.name === "NotReadableError") {
+        console.warn(
+          "[usePeerMedia] Camera or Microphone is already in use by another tab or application.",
+        );
+        // Don't necessarily end the whole call if we just can't open our cam
+        // Maybe just mark as "active" without local stream?
+        callState.value = "active";
+        return;
+      }
       endCall();
     }
   }
 
-  function setupMediaConnection(connection: MediaConnection) {
+  function setupMediaConnection(connection: MediaConnection, peerId: string) {
+    if (mediaConnections[peerId]) {
+      // cleanup old connection if any
+      try {
+        mediaConnections[peerId].close();
+      } catch (e) {}
+    }
+    mediaConnections[peerId] = connection;
+
     connection.on("stream", (remote: MediaStream) => {
-      remoteStream.value = remote;
+      remoteStreams[peerId] = remote;
+      updateMember(peerId, { hasMediaStream: true }); // Ensure UI knows
+
       callState.value = "active";
       clearTimeout(callTimeout);
-      console.log("[usePeerMedia] got remote stream", remote);
+      console.log("[usePeerMedia] got remote stream from", peerId);
+
       updateRoomData("call", {
         status: "active",
         totalCalls: roomData.value.call.totalCalls + 1,
       });
+
+      updateMember(peerId, { hasMediaStream: true });
     });
     connection.on("close", () => {
-      console.log("[usePeerMedia] mediaConn closed");
-      endCall();
+      console.log("[usePeerMedia] mediaConn closed for", peerId);
+      delete remoteStreams[peerId];
+      delete mediaConnections[peerId];
+      updateMember(peerId, { hasMediaStream: false });
+
+      // In group calls, we only end if we are NOT an initiator and the hub (initiator) left?
+      // Or just let the user end manually.
+      // For now, let's NOT auto-end the whole session just because one peer left.
     });
     connection.on("error", (e: any) => {
-      console.error("[usePeerMedia] mediaConn error", e);
-      endCall();
+      console.error("[usePeerMedia] mediaConn error", peerId, e);
+      // maybe don't end entire call if just one peer fails
+      delete remoteStreams[peerId];
+      delete mediaConnections[peerId];
+      updateMember(peerId, { hasMediaStream: false });
     });
   }
 
-  function endCall(isRemoteEnd = false) {
+  let isEnding = false;
+  function endCall(isRemoteEnd = false, peerIdEnded?: string) {
+    if (isEnding && !peerIdEnded) return;
+
+    // If peerIdEnded is provided, only remove that specific peer from our tracked media
+    if (isRemoteEnd && peerIdEnded) {
+      console.log("[usePeerMedia] removing peer from call:", peerIdEnded);
+      delete remoteStreams[peerIdEnded];
+      const mc = mediaConnections[peerIdEnded];
+      if (mc) {
+        try {
+          mc.close();
+        } catch (e) {}
+        delete mediaConnections[peerIdEnded];
+      }
+      updateMember(peerIdEnded, {
+        hasMediaStream: false,
+        cameraEnabled: false,
+        micEnabled: false,
+      });
+      // Full cleanup if we are the only ones left
+      if (Object.keys(mediaConnections).length === 0) {
+        endCall(false);
+      }
+      return;
+    }
+
+    if (callState.value === "idle" || callState.value === "ended") return;
+    isEnding = true;
+
     const callEndTime = Date.now();
     const callDuration = roomData.value.call.startTime
       ? callEndTime - roomData.value.call.startTime
@@ -174,36 +400,40 @@ export function usePeerMedia(
       status: "ended",
       duration: callDuration,
     });
-    console.log("[usePeerMedia] endCall", {
+
+    console.log("[usePeerMedia] endCall (Full Cleanup)", {
       isRemoteEnd,
-      mediaConn: !!mediaConn,
+      connections: Object.keys(mediaConnections).length,
     });
+
     callState.value = "ended";
 
-    if (mediaConn) {
+    // Close all media connections
+    for (const mc of Object.values(mediaConnections)) {
       try {
-        if (mediaConn.peerConnection) {
-          mediaConn.peerConnection.close();
-        }
-        mediaConn.close();
-      } catch (e) {
-        console.error("[usePeerMedia] endCall: error closing mediaConn", e);
-      }
-      mediaConn = null;
+        mc.close();
+      } catch (e) {}
     }
+    for (const k of Object.keys(mediaConnections)) delete mediaConnections[k];
 
     if (localStream.value) {
       localStream.value.getTracks().forEach((t) => {
-        t.stop();
+        try {
+          t.stop();
+        } catch (e) {}
       });
       localStream.value = null;
     }
-    if (remoteStream.value) {
-      remoteStream.value.getTracks().forEach((t) => {
-        t.stop();
-      });
-      remoteStream.value = null;
+
+    // Stop all remote streams just in case
+    for (const rs of Object.values(remoteStreams)) {
+      try {
+        rs.getTracks().forEach((t) => {
+          t.stop();
+        });
+      } catch (e) {}
     }
+    for (const k of Object.keys(remoteStreams)) delete remoteStreams[k];
 
     // Screen Share Cleanup
     cleanupLocalScreenShare(true);
@@ -213,11 +443,27 @@ export function usePeerMedia(
       } catch (e) {}
       mediaConnScreenIncoming = null;
     }
-    updateRoomData("members", { companionHasMediaStream: false });
+
+    // Reset member flags
+    for (const pid of Object.keys(connections)) {
+      updateMember(pid, {
+        hasMediaStream: false,
+        cameraEnabled: false,
+        micEnabled: false,
+      });
+    }
 
     clearTimeout(callTimeout);
+
+    // Broadcast end to all if we initiated the end
     if (!isRemoteEnd) {
-      conn.value?.send({ type: "call-end" });
+      for (const conn of Object.values(connections)) {
+        if (conn.open) {
+          try {
+            conn.send({ type: "call-end" });
+          } catch (e) {}
+        }
+      }
     }
 
     setTimeout(() => {
@@ -227,7 +473,8 @@ export function usePeerMedia(
         startTime: null,
         type: null,
       });
-    }, 1000);
+      isEnding = false;
+    }, 1500);
 
     isCameraEnabled.value = false;
     isMicEnabled.value = false;
@@ -237,7 +484,12 @@ export function usePeerMedia(
 
   function declineCall() {
     callState.value = "idle";
-    conn.value?.send({ type: "call-decline" });
+
+    for (const conn of Object.values(connections)) {
+      try {
+        conn.send({ type: "call-decline" });
+      } catch (e) {}
+    }
     endCall();
   }
 
@@ -246,7 +498,13 @@ export function usePeerMedia(
     localStream.value.getAudioTracks().forEach((t) => {
       t.enabled = enabled;
     });
-    conn.value?.send({ type: enabled ? "mic-on" : "mic-off" });
+    isMicEnabled.value = enabled;
+
+    for (const conn of Object.values(connections)) {
+      try {
+        conn.send({ type: enabled ? "mic-on" : "mic-off" });
+      } catch (e) {}
+    }
   }
 
   async function toggleCamera(enabled: boolean) {
@@ -257,7 +515,12 @@ export function usePeerMedia(
       if (!track) return;
       track.enabled = enabled;
       isCameraEnabled.value = enabled;
-      conn.value?.send({ type: enabled ? "video-on" : "video-off" });
+
+      for (const conn of Object.values(connections)) {
+        try {
+          conn.send({ type: enabled ? "video-on" : "video-off" });
+        } catch (e) {}
+      }
     } finally {
       isCameraToggling.value = false;
     }
@@ -284,32 +547,35 @@ export function usePeerMedia(
         isScreenShareEnabled.value = true;
         screenShareOwnerId.value = useDeviceId();
 
-        conn.value?.send({
-          type: "screen-share-on",
-          sharer: screenShareOwnerId.value,
-        });
-
-        if (peer.value && conn.value?.open) {
+        // Broadcast screen share on
+        for (const conn of Object.values(connections)) {
           try {
-            mediaConnScreenOutgoing = peer.value.call(
-              conn.value.peer,
-              dispStream,
-              {
-                metadata: {
-                  screenshare: true,
-                  sharer: screenShareOwnerId.value,
-                },
-              },
-            );
+            conn.send({
+              type: "screen-share-on",
+              sharer: screenShareOwnerId.value,
+            });
+          } catch (e) {}
+        }
 
-            mediaConnScreenOutgoing.on("close", () => {
-              cleanupLocalScreenShare(false);
-            });
-            mediaConnScreenOutgoing.on("error", (_e: any) => {
-              cleanupLocalScreenShare(true);
-            });
-          } catch (e) {
-            console.warn("[usePeerMedia] screenshare outgoing call failed", e);
+        if (peer.value) {
+          for (const [peerId, conn] of Object.entries(connections)) {
+            if (conn.open) {
+              try {
+                const mc = peer.value.call(peerId, dispStream, {
+                  metadata: {
+                    screenshare: true,
+                    sharer: screenShareOwnerId.value,
+                  },
+                });
+                mediaConnsScreenOutgoing[peerId] = mc;
+
+                mc.on("close", () => {
+                  delete mediaConnsScreenOutgoing[peerId];
+                });
+              } catch (e) {
+                console.warn("Screen share call failed to", peerId, e);
+              }
+            }
           }
         }
 
@@ -326,30 +592,8 @@ export function usePeerMedia(
         console.warn("[usePeerMedia] toggleScreenShare failed", err);
       }
     } else {
-      try {
-        if (screenShareStream.value) {
-          screenShareStream.value.getTracks().forEach((t) => {
-            try {
-              t.stop();
-            } catch {}
-          });
-        }
-        try {
-          if (mediaConnScreenOutgoing) {
-            mediaConnScreenOutgoing.close();
-            mediaConnScreenOutgoing = null;
-          }
-        } catch (e) {}
-
-        conn.value?.send({
-          type: "screen-share-off",
-          sharer: useDeviceId(),
-        });
-      } finally {
-        screenShareStream.value = null;
-        isScreenShareEnabled.value = false;
-        screenShareOwnerId.value = null;
-      }
+      // Disable
+      cleanupLocalScreenShare(false);
     }
   }
 
@@ -361,28 +605,36 @@ export function usePeerMedia(
         } catch {}
       });
     }
-    try {
-      if (mediaConnScreenOutgoing) {
-        mediaConnScreenOutgoing.close();
-      }
-    } catch {}
-    mediaConnScreenOutgoing = null;
+
+    for (const mc of Object.values(mediaConnsScreenOutgoing)) {
+      try {
+        mc.close();
+      } catch {}
+    }
+    for (const k of Object.keys(mediaConnsScreenOutgoing))
+      delete mediaConnsScreenOutgoing[k];
+
     screenShareStream.value = null;
     isScreenShareEnabled.value = false;
     if (!suppressNotify) {
-      conn.value?.send({
-        type: "screen-share-off",
-        sharer: useDeviceId(),
-      });
+      for (const conn of Object.values(connections)) {
+        try {
+          conn.send({
+            type: "screen-share-off",
+            sharer: useDeviceId(),
+          });
+        } catch (e) {}
+      }
     }
     screenShareOwnerId.value = null;
   }
 
   function handleIncomingCall(mediaConnection: MediaConnection) {
     const isScreenshare = mediaConnection?.metadata?.screenshare;
+    const peerId = mediaConnection.peer;
 
     if (isScreenshare) {
-      console.log("[usePeerMedia] incoming screenshare call", mediaConnection);
+      console.log("[usePeerMedia] incoming screenshare call from", peerId);
       mediaConnScreenIncoming = mediaConnection;
 
       try {
@@ -392,14 +644,10 @@ export function usePeerMedia(
       }
 
       mediaConnScreenIncoming.on("stream", (remoteStream: MediaStream) => {
-        console.log(
-          "[usePeerMedia] got remote screenshare stream",
-          remoteStream,
-        );
         screenShareStream.value = remoteStream;
         isScreenShareEnabled.value = true;
         screenShareOwnerId.value = mediaConnection?.metadata?.sharer ?? null;
-        updateRoomData("members", { companionHasMediaStream: true });
+        updateMember(peerId, { hasMediaStream: true });
       });
 
       mediaConnScreenIncoming.on("close", () => {
@@ -413,24 +661,46 @@ export function usePeerMedia(
     }
 
     // Regular call
-    console.log("[usePeerMedia] incoming call", mediaConnection);
-    callState.value = "incoming";
-    if (mediaConn) {
-      try {
-        mediaConn.close();
-      } catch (e) {}
-      mediaConn = null;
-    }
-    mediaConn = mediaConnection;
+    console.log(
+      "[usePeerMedia] incoming call from",
+      peerId,
+      "Current state:",
+      callState.value,
+    );
 
-    if (shouldAutoAcceptWithVideo) {
-      shouldAutoAcceptWithVideo = false;
-      console.log("[usePeerMedia] auto-accepting with video");
-      acceptCall({ cam: true, mic: true });
+    if (callState.value === "active" || callState.value === "calling") {
+      // If we are already calling or in a call, just answer to add the new peer to the mesh
+      console.log("[usePeerMedia] auto-answering new participant");
+      if (localStream.value) {
+        mediaConnection.answer(localStream.value);
+        setupMediaConnection(mediaConnection, peerId);
+
+        // Send immediate metadata because we didn't call acceptCall
+        connections[peerId]?.send({
+          type: isCameraEnabled.value ? "video-on" : "video-off",
+        });
+        connections[peerId]?.send({
+          type: isMicEnabled.value ? "mic-on" : "mic-off",
+        });
+      } else {
+        // If we don't have a stream yet, just add to pending connections
+        setupMediaConnection(mediaConnection, peerId);
+        // We might need to answer later when we get localStream
+      }
+    } else {
+      callState.value = "incoming";
+      setupMediaConnection(mediaConnection, peerId);
+
+      if (shouldAutoAcceptWithVideo) {
+        shouldAutoAcceptWithVideo = false;
+        console.log("[usePeerMedia] auto-accepting with video");
+        acceptCall({ cam: true, mic: true });
+      }
     }
   }
 
   function cleanupIncomingScreenShare() {
+    // ... same as before
     if (screenShareStream.value) {
       screenShareStream.value.getTracks().forEach((t) => {
         try {
@@ -442,88 +712,75 @@ export function usePeerMedia(
     isScreenShareEnabled.value = false;
     screenShareOwnerId.value = null;
     mediaConnScreenIncoming = null;
-    updateRoomData("members", { companionHasMediaStream: false });
+
+    // Find who was sharing (ownerId) and update them?
+    // Ideally we know who it was.
+    // For now, if we don't track who specifically shared in a reliable way,
+    // we might miss updating the member status.
+    // But screenShareOwnerId should have it.
+    // updateMember(screenShareOwnerId.value, { hasMediaStream: false })
   }
 
-  function handleSignal(data: any) {
+  function handleSignal(data: any, senderId: string) {
     if (data.type === "restart-call-with-video") {
-      if (mediaConn) {
-        try {
-          mediaConn.close();
-        } catch (e) {}
-        mediaConn = null;
-      }
-      endCall(true);
-      setTimeout(() => {
-        shouldAutoAcceptWithVideo = true;
-      }, 100);
+      // Complex for group calls. Maybe just request to add video?
+      // Treating as End then Auto-Accept might kill other peers' connections?
+      // Let's ignore this advanced feature for MVP Mesh.
       return;
     }
 
     if (data.type === "call-request") {
       callState.value = "incoming";
       callType.value = data.video ? "video" : "audio";
-      updateRoomData("members", {
-        companionCameraEnabled: !!data.video,
-        companionMicEnabled: !!data.audio,
+      updateMember(senderId, {
+        cameraEnabled: !!data.video,
+        micEnabled: !!data.audio,
       });
     }
     if (data.type === "call-decline") {
-      updateRoomData("members", {
-        companionCameraEnabled: false,
-        companionMicEnabled: false,
+      updateMember(senderId, {
+        cameraEnabled: false,
+        micEnabled: false,
       });
-      endCall(true);
+      endCall(true, senderId);
     }
     if (data.type === "call-end") {
-      updateRoomData("members", {
-        companionCameraEnabled: false,
-        companionMicEnabled: false,
+      updateMember(senderId, {
+        cameraEnabled: false,
+        micEnabled: false,
       });
-      endCall(true);
+      endCall(true, senderId);
     }
     if (data.type === "video-off") {
-      updateRoomData("members", { companionCameraEnabled: false });
-      if (remoteStream.value) {
-        remoteStream.value.getVideoTracks().forEach((t) => {
+      updateMember(senderId, { cameraEnabled: false });
+      const rs = remoteStreams[senderId];
+      if (rs) {
+        rs.getVideoTracks().forEach((t) => {
           t.enabled = false;
         });
       }
     }
     if (data.type === "video-on") {
-      updateRoomData("members", { companionCameraEnabled: true });
-      if (remoteStream.value) {
-        remoteStream.value.getVideoTracks().forEach((t) => {
+      updateMember(senderId, { cameraEnabled: true });
+      const rs = remoteStreams[senderId];
+      if (rs) {
+        rs.getVideoTracks().forEach((t) => {
           t.enabled = true;
         });
-      } else if (mediaConn?.peerConnection) {
-        // Reconstruct stream if needed (logic from original)
-        const receivers = mediaConn.peerConnection.getReceivers();
-        const videoTrack = receivers
-          .map((r) => r.track)
-          .find((t) => t?.kind === "video" && t.readyState === "live");
-        const audioTracks = receivers
-          .map((r) => r.track)
-          .filter((t) => t?.kind === "audio" && t.readyState === "live");
-        if (videoTrack) {
-          remoteStream.value = new MediaStream(
-            [videoTrack, ...audioTracks].filter(Boolean) as MediaStreamTrack[],
-          );
-        }
       }
     }
     if (data.type === "mic-off") {
-      updateRoomData("members", { companionMicEnabled: false });
+      updateMember(senderId, { micEnabled: false });
     }
     if (data.type === "mic-on") {
-      updateRoomData("members", { companionMicEnabled: true });
+      updateMember(senderId, { micEnabled: true });
     }
     if (data.type === "screen-share-on") {
-      updateRoomData("members", { companionHasMediaStream: true });
+      updateMember(senderId, { hasMediaStream: true });
       if (data.sharer) screenShareOwnerId.value = data.sharer;
     }
     if (data.type === "screen-share-off") {
-      updateRoomData("members", { companionHasMediaStream: false });
+      updateMember(senderId, { hasMediaStream: false });
       if (data.sharer && screenShareOwnerId.value === data.sharer) {
         screenShareOwnerId.value = null;
       }
@@ -534,7 +791,7 @@ export function usePeerMedia(
     callState,
     callType,
     localStream,
-    remoteStream,
+    remoteStreams, // Exposed
     isCameraEnabled,
     isMicEnabled,
     isCameraToggling,

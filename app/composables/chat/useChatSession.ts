@@ -14,7 +14,6 @@ export function useChatSession(
   messages: Ref<any[]>,
   initPeer: (opts?: { reconnect?: boolean }) => void,
   isConnectionEstablished: Ref<boolean>,
-  conn: Ref<any>,
 ) {
   const step = shallowRef<"waiting" | "chat">("waiting");
   const consoleLogs = ref<string[]>([]);
@@ -48,7 +47,7 @@ export function useChatSession(
     const tick = () => {
       if (loadingStopped) return;
       if (idx < LOADING_MESSAGES.length) {
-        consoleLogs.value.push(LOADING_MESSAGES[idx++]);
+        consoleLogs.value.push(LOADING_MESSAGES[idx++] || "");
         setTimeout(tick, 800);
       } else {
         setTimeout(() => {
@@ -144,19 +143,9 @@ export function useChatSession(
         }
       };
       showCountdown();
-      const t0 = Date.now();
-      if (conn.value) {
-        conn.value.send({ type: "ping", t0 });
-        conn.value.on("data", (data: any) => {
-          if (data.type === "ping") {
-            const latency = Date.now() - t0;
-            consoleLogs.value.push(`PING: ${latency} ms`);
-          }
-        });
-      }
+      // removed ping logic that used conn.value
     }
   });
-
   // Persistence Logic
   watch(
     messages as any,
