@@ -11,21 +11,28 @@
       <span class="chat-message__sender">{{ isMe ? "Вы" : "Собеседник" }}</span>
       <div class="chat-message__time-read-container">
         <div v-if="isMe" class="chat-message__read-status">
-          <NuxtImg
-            :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
-            width="20px"
-          ></NuxtImg>
-          <CHint force-center="right" top-offset="-8px">
-            <ul class="chat-message__hint-read-status-list">
-              <li>
-                <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение
-                отправлено
-              </li>
-              <li>
-                <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
-                прочитано
-              </li>
-            </ul>
+          <CHint
+            custom-content
+            position="bottom"
+            secondary-horizontal-placement="right"
+            :horizontal-offset="20"
+          >
+            <NuxtImg
+              :src="message.read ? '/icons/chat/double_check.svg' : '/icons/chat/check.svg'"
+              width="20px"
+            ></NuxtImg>
+            <template #content>
+              <ul class="chat-message__hint-read-status-list">
+                <li>
+                  <NuxtImg :src="'/icons/chat/check.svg'" width="20px"></NuxtImg> - сообщение
+                  отправлено
+                </li>
+                <li>
+                  <NuxtImg :src="'/icons/chat/double_check.svg'" width="20px"></NuxtImg> - сообщение
+                  прочитано
+                </li>
+              </ul>
+            </template>
           </CHint>
         </div>
         <time class="chat-message__time">{{ formattedTime }}</time>
@@ -351,10 +358,13 @@ $app-narrow-mobile: 364px;
 
 .chat-message {
   max-width: 50%;
-  width: 50%;
+  width: fit-content;
   padding: 12px;
   margin-right: auto;
   overflow: visible;
+  &:has(.file-attachment--audio) {
+    width: 100%;
+  }
   @media screen and (max-width: $app-mobile) {
     max-width: 100%;
   }
@@ -388,10 +398,11 @@ $app-narrow-mobile: 364px;
         }
       }
       .chat-message__menu {
-        background: var(--color-neutral-on-fill);
-        border: 1px solid var(--color-neutral-on-outline);
+        overflow: hidden;
         display: flex;
         flex-direction: column;
+        border-radius: var(--radius-md);
+        background-color: var(--color-neutral-on-fill);
         .chat-message__menu-item {
           cursor: pointer;
           display: flex;
@@ -427,6 +438,7 @@ $app-narrow-mobile: 364px;
     padding: 8px 16px;
     cursor: pointer;
     transition: background 0.3s ease;
+    border-radius: var(--radius-sm);
     color: var(--color-neutral-on-text);
     &:hover {
       background: var(--app-blue-100);
@@ -459,10 +471,13 @@ $app-narrow-mobile: 364px;
   &__bubble {
     background: var(--color-bg-on-secondary-light);
     color: var(--color-neutral-on-text);
-    padding: 16px;
+    padding: 12px 16px;
+    border-radius: var(--radius-lg);
+    border-bottom-left-radius: 4px;
     overflow-wrap: anywhere;
     width: 100%;
     .image-preview {
+      width: 100%;
       position: relative;
       .download-icon {
         top: 4px;
@@ -473,7 +488,7 @@ $app-narrow-mobile: 364px;
 
   &__transcription {
     background: var(--color-neutral-on-fill);
-    border: 1px solid var(--color-neutral-on-outline);
+    border-radius: var(--radius-md);
     padding: 12px;
     margin: 4px 8px;
     &-label {
@@ -536,29 +551,32 @@ $app-narrow-mobile: 364px;
     .chat-message__bubble {
       color: var(--color-neutral-on-text);
       position: relative;
+      border-bottom-left-radius: var(--radius-lg);
+      border-bottom-right-radius: 4px;
     }
     .chat-message__group-text {
       color: var(--color-neutral-on-text);
     }
   }
-  &__hint-read-status-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 12px;
-    color: var(--app-text-primary-white);
-    li {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      img {
-        filter: var(--app-filter-pink-500);
-      }
+}
+.chat-message__hint-read-status-list {
+  padding: 8px;
+  list-style: none;
+  font-size: 12px;
+  color: var(--color-neutral-on-text);
+  li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    img {
+      filter: var(--filter-primary-on-text);
     }
   }
 }
 .chat-message__image {
-  max-width: 100%;
+  max-width: 300px;
+  width: 100%;
+  border-radius: var(--radius-md);
   margin: 8px 0;
   display: block;
 }
@@ -579,6 +597,7 @@ $app-narrow-mobile: 364px;
     flex: 1 1 calc(50% - 8px);
     position: relative;
     background: var(--color-neutral-on-fill);
+    border-radius: var(--radius-md);
     padding: 6px 36px 6px 8px;
     margin: 2px 0;
     &--audio {
@@ -595,6 +614,7 @@ $app-narrow-mobile: 364px;
         display: block;
         object-fit: cover;
         width: calc(100% - 8px);
+        border-radius: var(--radius-sm);
       }
     }
     &__file-type-icon {
@@ -627,6 +647,7 @@ $app-narrow-mobile: 364px;
   transition: opacity 0.2s;
   z-index: 2;
   transition: background 0.3s;
+  border-radius: 50%;
   img {
     filter: var(--filter-primary-on-text);
   }

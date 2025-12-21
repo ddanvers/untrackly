@@ -86,7 +86,7 @@
             </div>
           </div>
         </div>
-        <div>
+        <div class="snake-game__stats-controls-wrapper">
           <!-- Virtual controls - Always visible, positioned below game board -->
           <div class="snake-game__virtual-controls">
             <div class="snake-game__dpad">
@@ -197,7 +197,7 @@ const food = ref<Position>({ x: 0, y: 0 });
 const direction = ref<Direction>(Direction.Right);
 const pendingDirection = ref<Direction>(Direction.Right); // Fix for rapid direction changes
 const gameBoard = ref<HTMLElement>();
-const gameLoopTimeoutId = ref<NodeJS.Timeout | null>(null);
+const gameLoopTimeoutId = ref<ReturnType<typeof setTimeout> | null>(null);
 
 // Computed properties for derived state
 const gameGrid = computed<CellType[]>(() => {
@@ -333,6 +333,7 @@ const endGame = (): void => {
 
   if (gameState.score > gameState.highScore) {
     gameState.highScore = gameState.score;
+    localStorage.setItem("snakeHighScore", gameState.highScore.toString());
   }
 };
 
@@ -348,6 +349,8 @@ const gameLoop = (): void => {
   direction.value = pendingDirection.value;
 
   const currentHead = snake.value[0];
+  if (!currentHead) return;
+
   const newHead = getNextPosition(currentHead, direction.value);
 
   if (hasCollision(newHead)) {
@@ -408,7 +411,16 @@ const handleKeyPress = (event: KeyboardEvent): void => {
 // Lifecycle hooks
 onMounted(() => {
   resetGameState();
-  gameState.highScore = 0;
+  const storedHighScore = localStorage.getItem("snakeHighScore");
+  if (storedHighScore) {
+    gameState.highScore = Number.parseInt(storedHighScore, 10);
+  } else {
+    gameState.highScore = 0;
+  }
+
+  if (gameBoard.value) {
+    gameBoard.value.focus();
+  }
 });
 
 onUnmounted(() => {
@@ -445,25 +457,41 @@ $spacing-lg: 24px;
 $spacing-xl: 32px;
 $spacing-xxl: 48px;
 
-$font-family-mono: "Courier New", "Monaco", "Lucida Console", monospace;
-$font-family-display: "Arial", "Helvetica", sans-serif;
+$font-family-mono: "Tektur", "Courier New", "Monaco", monospace;
+$font-family-display: "Tektur", "Montserrat", sans-serif;
 
+// Modern Soulful Snake Container
 .snake-game {
   padding: $spacing-xl;
   font-family: $font-family-display;
-  background: var(--color-bg-on-primary);
-  border: 2px solid var(--color-neutral-on-outline);
+  // Frosted Cyber-Glass background
+  background: linear-gradient(145deg, rgba(20, 20, 25, 0.6) 0%, rgba(30, 30, 35, 0.4) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 32px;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   color: var(--color-neutral-on-text);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 64px;
+  gap: $spacing-xxl;
   max-width: 100%;
   height: 100%;
   @media screen and (max-height: $app-medium-height) {
     .snake-game__board-container,
     .snake-game__virtual-controls {
       display: none;
+    }
+    @media screen and (min-width: $app-narrow-mobile) and (min-height: $app-small-height) {
+      .snake-game__board {
+        width: 350px;
+        height: 350px;
+      }
+    }
+    & {
+      height: max-content;
     }
   }
   &--in-game {
@@ -489,34 +517,42 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: $spacing-xl;
     padding-bottom: $spacing-md;
-    border-bottom: 1px solid var(--color-neutral-on-outline);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
   }
 
   &__title {
     font-size: 2rem;
-    font-weight: bold;
-    font-family: $font-family-mono;
+    font-weight: 700;
+    font-family: $font-family-display;
     color: var(--color-primary-on-text);
+    text-shadow: 0 0 20px rgba(var(--color-primary-on-text), 0.4);
     margin: 0;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   &__score {
     font-size: 1.5rem;
     font-family: $font-family-mono;
-    font-weight: bold;
+    font-weight: 700;
     color: var(--color-primary-on-text);
-    background: var(--color-bg-on-secondary);
-    padding: $spacing-sm $spacing-md;
-    border: 1px solid var(--color-neutral-on-outline);
+    background: rgba(0, 0, 0, 0.2);
+    padding: $spacing-sm $spacing-lg;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    min-width: 100px;
+    text-align: center;
+    text-shadow: 0 0 10px rgba(var(--color-primary-on-text), 0.5);
   }
 
   // Controls section
   &__controls {
     text-align: center;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-lg;
   }
 
   &__instructions {
@@ -536,10 +572,24 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
   &__board-stats-controls-wrapper {
     display: flex;
     flex-direction: column;
-    @media screen and (max-height: 932px) and (min-width: $app-desktop) {
+    @media screen and (max-height: 932px) and (min-width: $app-laptop) {
       flex-direction: row;
       align-items: center;
       gap: 64px;
+      .snake-game__board-container {
+        margin-bottom: 0;
+      }
+    }
+  }
+  @media screen and (max-height: $app-medium-height) and (min-width: $app-mobile) and (max-width: 932px) {
+    &__board-stats-controls-wrapper {
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
+    }
+    & {
+      padding: $spacing-md;
+      border-radius: var(--radius-md);
     }
   }
   // Game board container
@@ -547,20 +597,29 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-lg;
     flex: 1;
   }
 
+  // Game Board - Frosted Glass & Dot Grid
   &__board {
     position: relative;
     width: 400px;
     height: 400px;
-    background: var(--color-bg-on-secondary);
-    border: 2px solid var(--color-neutral-on-outline);
+    background: rgba(10, 10, 15, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
     outline: none;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.4),
+      inset 0 0 60px rgba(0, 0, 0, 0.2);
 
     &:focus {
-      border-color: var(--color-primary-on-outline);
+      border-color: var(--color-primary-on-hover);
+      box-shadow:
+        0 0 0 2px rgba(var(--color-primary-on-hover), 0.3),
+        0 10px 40px rgba(0, 0, 0, 0.4);
     }
 
     &--loading,
@@ -572,7 +631,8 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
 
     &--game-over {
       .snake-game__grid {
-        opacity: 0.3;
+        opacity: 0.2;
+        filter: blur(4px);
       }
     }
   }
@@ -590,18 +650,19 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     gap: $spacing-sm;
 
     span {
-      width: 8px;
-      height: 8px;
+      width: 12px;
+      height: 12px;
       background: var(--color-primary-on-text);
       border-radius: 50%;
-      animation: dot-blink 1.5s infinite;
+      animation: pulse-dot 1.2s ease-in-out infinite;
+      box-shadow: 0 0 10px var(--color-primary-on-text);
 
       &:nth-child(2) {
-        animation-delay: 0.5s;
+        animation-delay: 0.2s;
       }
 
       &:nth-child(3) {
-        animation-delay: 1s;
+        animation-delay: 0.4s;
       }
     }
   }
@@ -614,17 +675,21 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     margin: 0;
   }
 
-  // Game over overlay
+  // Game Over Overlay
   &__game-over {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--color-bg-on-primary);
-    border: 2px solid var(--color-primary-on-outline);
-    padding: $spacing-xl;
+    background: rgba(5, 5, 10, 0.9);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: $spacing-xl $spacing-xxl;
     text-align: center;
     z-index: 10;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    min-width: 240px;
   }
 
   &__game-over-title {
@@ -642,38 +707,65 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     margin: 0 0 $spacing-lg 0;
   }
 
-  // Game grid - simple 2D grid
+  // Game Grid - Dot Pattern (Visible Grid)
   &__grid {
     display: grid;
     width: 100%;
     height: 100%;
-    gap: 1px;
-    background: var(--color-neutral-on-outline);
-    padding: 1px;
+    gap: 0;
+    padding: 0;
+    // Dot Grid Pattern
+    background-image: radial-gradient(rgba(255, 255, 255, 0.1) 15%, transparent 16%);
+    background-size: 20px 20px; // Matches cell size
+    background-position: 0 0;
   }
 
-  // Cell styling - flat 90s design
+  // Cell styling - Clean, distinct
   &__cell {
-    background: var(--color-bg-on-secondary);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
 
     &--empty {
-      background: var(--color-bg-on-secondary);
+      background: transparent;
     }
 
     &--snake {
       background: var(--color-primary-on-text);
+      border-radius: 6px;
+      transform: scale(0.9); // Distinct cells
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        0 0 4px rgba(var(--color-primary-on-text), 0.3);
     }
 
     &--snake-head {
       background: var(--color-primary-on-hover);
+      border-radius: 8px;
+      transform: scale(0.95);
+      z-index: 2;
+      box-shadow:
+        0 0 15px var(--color-primary-on-text),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
     &--food {
-      background: var(--blue-5);
+      position: relative;
+      background: transparent;
+
+      &::after {
+        content: "";
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--blue-4);
+        box-shadow:
+          0 0 10px var(--blue-5),
+          0 0 20px var(--blue-5);
+        animation: neon-pulse 1.5s ease-in-out infinite;
+      }
     }
   }
 
@@ -722,7 +814,6 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
   &__virtual-controls {
     display: flex;
     justify-content: center;
-    margin-top: $spacing-lg;
   }
 
   &__dpad {
@@ -739,37 +830,48 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
   }
 
   &__dpad-center {
-    width: 40px;
-    height: 40px;
-    background: var(--color-bg-on-secondary);
-    border: 1px solid var(--color-neutral-on-outline);
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
   }
 
   &__dpad-button {
-    width: 40px;
-    height: 40px;
-    background: var(--color-bg-on-secondary);
-    border: 2px solid var(--color-neutral-on-outline);
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
     color: var(--color-neutral-on-text);
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.1s ease;
+    transition: all 0.15s ease;
     user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      5px 5px 10px rgba(0, 0, 0, 0.2),
+      -2px -2px 6px rgba(255, 255, 255, 0.05);
 
     &:hover:not(:disabled) {
-      background: var(--color-neutral-on-hover);
-      border-color: var(--color-primary-on-text);
+      color: var(--color-primary-on-text);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+      transform: translateY(-1px);
     }
 
     &:active:not(:disabled) {
-      border-style: inset;
-      transform: translate(1px, 1px);
+      transform: translateY(1px);
+      box-shadow:
+        inset 2px 2px 5px rgba(0, 0, 0, 0.3),
+        inset -2px -2px 5px rgba(255, 255, 255, 0.05);
     }
 
     &:disabled {
       opacity: 0.3;
       cursor: not-allowed;
+      box-shadow: none;
     }
   }
 
@@ -778,47 +880,68 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     display: flex;
     justify-content: space-between;
     gap: $spacing-lg;
-    margin-top: $spacing-xl;
+    margin-top: $spacing-lg;
     padding-top: $spacing-md;
-    border-top: 1px solid var(--color-neutral-on-outline);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   &__stat {
     text-align: center;
-    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    padding: $spacing-sm $spacing-lg;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    width: 152px;
+    height: max-content;
   }
 
   &__stat-label {
     display: block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--color-neutral-on-muted);
     margin-bottom: $spacing-xs;
-    font-family: $font-family-mono;
+    font-family: $font-family-display;
     text-transform: uppercase;
-    min-width: max-content;
+    letter-spacing: 1px;
+    opacity: 0.8;
   }
 
   &__stat-value {
     display: block;
     font-size: 1.25rem;
-    font-weight: bold;
+    font-weight: 700;
     color: var(--color-primary-on-text);
     font-family: $font-family-mono;
+    text-shadow: 0 0 10px rgba(var(--color-primary-on-text), 0.3);
   }
 }
 
 // Animations
-@keyframes dot-blink {
+@keyframes pulse-dot {
   0%,
-  20% {
-    opacity: 0;
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
   }
   50% {
+    transform: scale(1.3);
     opacity: 1;
   }
-  80%,
+}
+
+@keyframes neon-pulse {
+  0%,
   100% {
-    opacity: 0;
+    transform: scale(1);
+    box-shadow:
+      0 0 10px var(--blue-5),
+      0 0 20px var(--blue-5);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow:
+      0 0 15px var(--blue-5),
+      0 0 30px var(--blue-4);
   }
 }
 
@@ -859,6 +982,10 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
       margin-top: $spacing-lg;
     }
 
+    &__stat {
+      padding: $spacing-sm;
+    }
+
     &__virtual-controls {
       margin-top: $spacing-md;
     }
@@ -871,11 +998,48 @@ $font-family-display: "Arial", "Helvetica", sans-serif;
     }
   }
 }
-
-@media (max-width: $app-narrow-mobile) {
+@media screen and (max-height: 932px) and (min-height: $app-medium-height) and (max-width: $app-laptop) {
+  .snake-game {
+    &__board {
+      width: 350px;
+      height: 350px;
+    }
+    &__controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    &__instructions {
+      width: 220px;
+      overflow-wrap: anywhere;
+      margin-bottom: 0;
+      text-wrap: balance;
+    }
+    &__stats-controls-wrapper {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: space-between;
+      height: 100%;
+    }
+    &__stats {
+      border-top: 0;
+      gap: $spacing-md;
+      flex-direction: column;
+      margin-top: 0;
+      padding-top: 0;
+    }
+    &__stat {
+      width: 100%;
+      padding: $spacing-sm;
+      border-radius: var(--radius-sm);
+    }
+  }
+}
+@media (max-width: $app-narrow-mobile) or (max-height: $app-small-height) {
   .snake-game {
     padding: $spacing-sm;
-
+    border-radius: var(--radius-sm);
     &__board {
       width: min(85vw, 280px);
       height: min(85vw, 280px);

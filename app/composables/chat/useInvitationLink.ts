@@ -1,6 +1,6 @@
 import { computed } from "vue";
 
-export function useInvitationLink(sessionId: string) {
+export function useInvitationLink(_sessionId: string) {
   const inviteLink = computed(() => {
     if (!import.meta.client || !window) {
       return "Генерируем ссылку...";

@@ -23,8 +23,8 @@
 </template>
 
 <script setup lang="ts">
-import CContentDropdown from "@/components/CContentDropdown.vue";
 import { ref, watch } from "vue";
+import CContentDropdown from "@/components/CContentDropdown.vue";
 
 interface Props {
   width?: string;
@@ -85,7 +85,7 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   user-select: none;
   transition: background 0.3s ease;

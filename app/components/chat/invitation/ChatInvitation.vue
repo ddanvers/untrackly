@@ -227,23 +227,28 @@ $app-small-height: 520px;
     max-width: 100%;
     justify-content: center;
     padding: 24px 32px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
     width: 320px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(4px);
+
+    /* Liquid Glass Effect */
+    background: var(--liquid-glass-bg);
+    box-shadow: var(--liquid-glass-shadow);
+    backdrop-filter: var(--liquid-glass-backdrop);
+    -webkit-backdrop-filter: var(--liquid-glass-backdrop);
+    border-radius: var(--radius-lg);
+
     color: var(--color-neutral-on-text);
     font-size: 18px;
     font-weight: 500;
     text-align: center;
     word-break: break-word;
     transition:
-      background-color 0.3s ease,
+      background 0.3s ease,
       box-shadow 0.3s ease,
-      border-color 0.3s ease;
+      transform 0.2s ease;
+
     &:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+      transform: translateY(-2px);
     }
     @media screen and (max-width: $app-mobile) {
       font-size: 16px;

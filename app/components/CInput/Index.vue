@@ -20,6 +20,7 @@
           class="main-input main-textarea"
           :rows="rows"
           v-bind="sharedInputAttrs"
+          @input="resizeTextarea"
         />
         <div tabindex="1" class="input-append">
           <div v-if="showClearButton" class="append-icon" @click.stop="clearValue">
@@ -109,6 +110,7 @@ const props = withDefaults(defineProps<Props>(), {
   trimValue: true,
   dataMaska: "",
   maskaValue: "",
+  rows: 1,
 });
 
 const emit = defineEmits<Emits>();
@@ -236,16 +238,35 @@ function checkValid(): boolean {
   return true;
 }
 
-watch(
-  () => props.modelValue,
-  () => hideErrorMessage(),
-);
-
 onMounted(() => {
   if (inputRef.value) {
     inputRef.value.onsubmit = checkValid;
+    if (isTextarea.value) {
+      resizeTextarea();
+    }
   }
 });
+
+function resizeTextarea() {
+  if (!inputRef.value || !isTextarea.value) return;
+
+  const target = inputRef.value as HTMLTextAreaElement;
+  target.style.height = "auto";
+  target.style.height = `${target.scrollHeight}px`;
+  target.style.margin = "12px 0px";
+  target.style.maxHeight = "150px";
+  target.style.minHeight = "24px";
+}
+
+watch(
+  () => props.modelValue,
+  () => {
+    hideErrorMessage();
+    if (isTextarea.value) {
+      nextTick(resizeTextarea);
+    }
+  },
+);
 
 const input_ref = inputRef;
 
@@ -267,10 +288,6 @@ defineExpose({
     font-weight: 400;
     color: var(--color-neutral-on-text);
     user-select: none;
-
-    span {
-      color: var(--app-red-500);
-    }
   }
 
   .input-main {
@@ -283,7 +300,7 @@ defineExpose({
     overflow-x: hidden;
     border: 2px solid var(--color-neutral-on-outline);
     transition: border-color 0.3s ease;
-
+    border-radius: var(--radius-pill);
     &--textarea {
       height: auto;
       padding: 10px;
@@ -304,7 +321,7 @@ defineExpose({
       background: transparent;
       border: none;
       outline: none;
-
+      overscroll-behavior: contain;
       &::placeholder {
         color: var(--color-neutral-on-muted);
       }
@@ -336,10 +353,6 @@ defineExpose({
     }
   }
 
-  .error {
-    border-color: var(--app-red-500);
-  }
-
   .input-text {
     display: flex;
     align-items: center;
@@ -347,10 +360,6 @@ defineExpose({
     height: 20px;
     padding: 4px 0;
     font-size: 12px;
-
-    .error-text {
-      color: var(--app-red-500);
-    }
   }
 
   .input-hint {
