@@ -23,8 +23,8 @@
 </template>
 
 <script setup lang="ts">
-import CContentDropdown from "@/components/CContentDropdown.vue";
 import { ref, watch } from "vue";
+import CContentDropdown from "@/components/CContentDropdown.vue";
 
 interface Props {
   width?: string;

@@ -1,5 +1,4 @@
-import type { MediaConnection, Peer } from "peerjs";
-import type { DataConnection } from "peerjs";
+import type { DataConnection, MediaConnection, Peer } from "peerjs";
 import { type Ref, ref } from "vue";
 import { useDebounce } from "~/composables/useDebounce";
 import type { RoomData } from "./types";
@@ -194,11 +193,15 @@ export function usePeerMedia(
     }
 
     if (localStream.value) {
-      localStream.value.getTracks().forEach((t) => t.stop());
+      localStream.value.getTracks().forEach((t) => {
+        t.stop();
+      });
       localStream.value = null;
     }
     if (remoteStream.value) {
-      remoteStream.value.getTracks().forEach((t) => t.stop());
+      remoteStream.value.getTracks().forEach((t) => {
+        t.stop();
+      });
       remoteStream.value = null;
     }
 
@@ -302,7 +305,7 @@ export function usePeerMedia(
             mediaConnScreenOutgoing.on("close", () => {
               cleanupLocalScreenShare(false);
             });
-            mediaConnScreenOutgoing.on("error", (e: any) => {
+            mediaConnScreenOutgoing.on("error", (_e: any) => {
               cleanupLocalScreenShare(true);
             });
           } catch (e) {
@@ -311,14 +314,14 @@ export function usePeerMedia(
         }
 
         const stopHandler = () => {
-          dispStream
-            .getTracks()
-            .forEach((t) => t.removeEventListener("ended", stopHandler));
+          dispStream.getTracks().forEach((t) => {
+            t.removeEventListener("ended", stopHandler);
+          });
           toggleScreenShare(false);
         };
-        dispStream
-          .getTracks()
-          .forEach((t) => t.addEventListener("ended", stopHandler));
+        dispStream.getTracks().forEach((t) => {
+          t.addEventListener("ended", stopHandler);
+        });
       } catch (err) {
         console.warn("[usePeerMedia] toggleScreenShare failed", err);
       }
@@ -403,7 +406,7 @@ export function usePeerMedia(
         cleanupIncomingScreenShare();
       });
 
-      mediaConnScreenIncoming.on("error", (e: any) => {
+      mediaConnScreenIncoming.on("error", (_e: any) => {
         cleanupIncomingScreenShare();
       });
       return;

@@ -2,7 +2,7 @@
   <ClientOnly>
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="modelValue" class="c-dialog-backdrop" @click="closeDialog">
+        <div v-if="modelValue" class="c-dialog-backdrop" @mousedown="closeDialog">
           <div class="c-dialog">
             <div class="dialog-title">
               <slot name="title">
@@ -76,7 +76,7 @@ function secondaryAction() {
 function primaryAction() {
   emits("primaryButtonAction", closeDialog);
 }
-function closeDialog(event?: Event) {
+function closeDialog(_event?: Event) {
   emits("update:modelValue", false);
 }
 </script>

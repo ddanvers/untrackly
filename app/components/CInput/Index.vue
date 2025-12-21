@@ -288,10 +288,6 @@ defineExpose({
     font-weight: 400;
     color: var(--color-neutral-on-text);
     user-select: none;
-
-    span {
-      color: var(--app-red-500);
-    }
   }
 
   .input-main {
@@ -357,10 +353,6 @@ defineExpose({
     }
   }
 
-  .error {
-    border-color: var(--app-red-500);
-  }
-
   .input-text {
     display: flex;
     align-items: center;
@@ -368,10 +360,6 @@ defineExpose({
     height: 20px;
     padding: 4px 0;
     font-size: 12px;
-
-    .error-text {
-      color: var(--app-red-500);
-    }
   }
 
   .input-hint {

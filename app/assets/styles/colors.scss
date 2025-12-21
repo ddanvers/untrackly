@@ -54,22 +54,16 @@
   --green-600: #13ce2f;
   --red-700: #c31b1b;
 
-  /* radius */
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
   --radius-pill: 999px;
 
-  /* glass */
   --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-  --glass-border-glow: 1px solid rgba(255, 255, 255, 0.2);
   --glass-blur: blur(16px);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 
-  /* liquid glass */
   --liquid-glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.01));
-  --liquid-glass-border: 1px solid rgba(255, 255, 255, 0.3);
   --liquid-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
   --liquid-glass-backdrop: blur(20px) saturate(160%);
 }

@@ -1073,6 +1073,7 @@ $app-narrow-mobile: 364px;
     position: absolute;
     left: 50%;
     top: 50%;
+    border-radius: 12px;
     transform: translate(-50%, -50%);
     background: var(--color-bg-on-secondary-light);
     padding: 32px 48px;

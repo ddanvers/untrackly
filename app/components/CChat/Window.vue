@@ -222,6 +222,7 @@ $app-narrow-mobile: 364px;
     }
     .chat__message {
       &--highlight {
+        border-radius: 16px;
         animation: pulse-highlight 2s ease both;
       }
     }

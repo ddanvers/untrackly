@@ -235,7 +235,6 @@ $app-small-height: 520px;
   max-width: 100%;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--radius-lg);
   &__title {
@@ -275,7 +274,6 @@ $app-small-height: 520px;
   justify-content: center;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--radius-lg);
   transition:
@@ -287,7 +285,6 @@ $app-small-height: 520px;
     box-shadow:
       0 16px 48px 0 rgba(0, 0, 0, 0.25),
       inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
   }
   img {
     height: 72px;

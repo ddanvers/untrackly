@@ -111,6 +111,7 @@ async function createWaveSurferInstance(colors: {
     waveColor: colors.waveColor,
     progressColor: colors.progressColor,
     cursorColor: colors.cursorColor,
+    dragToSeek: true,
     barWidth: 3,
     barRadius: 3,
     barGap: 2,

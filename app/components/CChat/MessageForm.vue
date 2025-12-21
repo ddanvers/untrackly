@@ -296,6 +296,7 @@ async function startRecording() {
     audioChunks.value = [];
     recordingTime.value = 0;
     isRecording.value = true;
+    isRecordingCancelled.value = false;
 
     recordingTimer.value = setInterval(() => {
       recordingTime.value++;
@@ -352,7 +353,9 @@ async function startRecording() {
 function stopRecording() {
   if (mediaRecorder.value && isRecording.value) {
     mediaRecorder.value.stop();
-    mediaRecorder.value.stream.getTracks().forEach((track) => track.stop());
+    mediaRecorder.value.stream.getTracks().forEach((track) => {
+      track.stop();
+    });
   }
 }
 
@@ -360,7 +363,9 @@ function cancelRecording() {
   isRecordingCancelled.value = true;
   if (mediaRecorder.value && isRecording.value) {
     mediaRecorder.value.stop();
-    mediaRecorder.value.stream.getTracks().forEach((track) => track.stop());
+    mediaRecorder.value.stream.getTracks().forEach((track) => {
+      track.stop();
+    });
   }
   cleanupRecording();
 }
@@ -402,6 +407,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .message-form {
+  position: relative;
   display: flex;
   flex-direction: column;
   /* Floating layout: Remove border-top, add padding */
@@ -571,8 +577,6 @@ onUnmounted(() => {
       }
     }
   }
-
-  position: relative;
 
   &__drop-zone {
     transition:

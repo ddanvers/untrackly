@@ -488,7 +488,6 @@ $app-narrow-mobile: 364px;
 
   &__transcription {
     background: var(--color-neutral-on-fill);
-    border: 1px solid var(--color-neutral-on-outline);
     border-radius: var(--radius-md);
     padding: 12px;
     margin: 4px 8px;

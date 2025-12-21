@@ -65,6 +65,7 @@ $app-mobile: 600px;
       padding: 16px;
       height: 400px;
       overflow-y: auto;
+      border-radius: 16px;
     }
     .console-line {
       font-family: "Courier New", monospace;

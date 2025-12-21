@@ -340,7 +340,9 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
         padding-left: var(--content-padding-left);
         padding-right: 24px;
         margin-left: 48px;
-
+        @media screen and (max-width: $app-desktop) {
+          margin-left: 0;
+        }
         .room-data__block-item {
           display: flex;
           justify-content: space-between;

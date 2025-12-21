@@ -1,5 +1,5 @@
-import Peer from "peerjs";
 import type { DataConnection } from "peerjs";
+import Peer from "peerjs";
 import { type Ref, ref } from "vue";
 import type { RoomData } from "./types";
 
