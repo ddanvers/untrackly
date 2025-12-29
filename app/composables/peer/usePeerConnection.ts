@@ -1,5 +1,7 @@
 import type { DataConnection, Peer } from "peerjs";
-import { type Ref, reactive, ref, shallowRef } from "vue";
+import { reactive, ref, shallowRef } from "vue";
+import { useAlert } from "~/composables/useAlert";
+import { useDeviceId } from "~/composables/useDeviceId";
 import type { Member, RoomData } from "./types";
 import { useFunnyNames } from "./useFunnyNames";
 
@@ -17,9 +19,13 @@ export function usePeerConnection(
   // Record of active data connections: peerId -> DataConnection
   const connections = reactive<Record<string, DataConnection>>({});
   const isConnectionEstablished = ref(false); // True if at least one connection is open
+  const isInitializing = ref(false);
+  const reinitAttempts = ref(0);
+  const maxReinitAttempts = 5;
 
   const { generateName } = useFunnyNames();
-  const myName = ref(generateName()); // We might want to persist this or allow editing later
+  const { showError, showWarning, showSuccess } = useAlert();
+  const myName = ref(generateName(useDeviceId())); // We might want to persist this or allow editing later
 
   // Reconnection logic (for specific peers)
   const retryStates = reactive(
@@ -50,6 +56,7 @@ export function usePeerConnection(
       // Peer sent their info
       updateMember(conn.peer, {
         name: data.name,
+        deviceId: data.deviceId,
         status: "online",
         lastSeen: Date.now(),
       });
@@ -98,9 +105,34 @@ export function usePeerConnection(
   function setupConnection(conn: DataConnection) {
     connections[conn.peer] = conn;
 
+    // Timeout logic for anchor connection
+    let openTimeout: any = null;
+    if (!isInitiator && conn.peer === sessionId) {
+      const timeoutDurations = [30000, 60000, 120000, 120000, 120000];
+      const duration = timeoutDurations[reinitAttempts.value] || 120000;
+
+      openTimeout = setTimeout(() => {
+        if (!conn.open) {
+          console.warn(
+            `[usePeerConnection] Connection to anchor ${sessionId} timed out after ${duration}ms`,
+          );
+          conn.close();
+          handleInitError({
+            type: "timeout",
+            message: "Anchor connection timed out",
+          });
+        }
+      }, duration);
+    }
+
     conn.on("open", () => {
+      if (openTimeout) clearTimeout(openTimeout);
       console.log("[usePeerConnection] Connection open with:", conn.peer);
       isConnectionEstablished.value = true;
+
+      if (!isInitiator && conn.peer === sessionId) {
+        reinitAttempts.value = 0; // Reset on successful anchor connection
+      }
 
       retryStates.delete(conn.peer);
 
@@ -108,6 +140,7 @@ export function usePeerConnection(
       conn.send({
         type: "hello",
         name: myName.value,
+        deviceId: useDeviceId(),
       });
 
       updateMember(conn.peer, {
@@ -126,6 +159,7 @@ export function usePeerConnection(
     });
 
     conn.on("close", () => {
+      if (openTimeout) clearTimeout(openTimeout);
       console.log("[usePeerConnection] Connection closed with:", conn.peer);
       delete connections[conn.peer];
 
@@ -133,6 +167,16 @@ export function usePeerConnection(
         status: "offline",
         lastSeen: Date.now(),
       });
+
+      // If we lost the anchor, try to reconnect
+      if (!isInitiator && conn.peer === sessionId) {
+        console.log("[usePeerConnection] Anchor connection lost, retrying...");
+        setTimeout(() => {
+          if (!connections[sessionId]) {
+            connectToPeer(sessionId);
+          }
+        }, 3000);
+      }
 
       if (Object.keys(connections).length === 0) {
         isConnectionEstablished.value = false;
@@ -143,105 +187,142 @@ export function usePeerConnection(
     });
 
     conn.on("error", (err) => {
+      if (openTimeout) clearTimeout(openTimeout);
       console.error(
         "[usePeerConnection] Connection error with",
         conn.peer,
         err,
       );
+      showWarning(`Ошибка соединения с участником: ${err.type || "unknown"}`);
     });
   }
 
   async function initPeer(opts?: { reconnect?: boolean }) {
+    if (isInitializing.value) return;
     if (peer.value && !opts?.reconnect) return;
     if (!import.meta.client) return;
 
-    // Dynamic import to avoid SSR errors
-    const PeerClass = (await import("peerjs")).default;
+    isInitializing.value = true;
+    try {
+      // Dynamic import to avoid SSR errors
+      const PeerClass = (await import("peerjs")).default;
 
-    const options = {
-      host: "peerjs-server-gims.onrender.com",
-      path: "/",
-      secure: true,
-      debug: 1,
-    };
+      const options = {
+        host: "peerjs-server-gims.onrender.com",
+        path: "/",
+        secure: true,
+        debug: 1,
+      };
 
-    if (isInitiator) {
-      console.log(
-        "[usePeerConnection] Initializing as initiator with ID:",
-        sessionId,
-      );
-      peer.value = new PeerClass(sessionId, options);
-    } else {
-      console.log("[usePeerConnection] Initializing as joiner with random ID");
-      peer.value = new PeerClass(options);
-    }
-
-    if (!peer.value) return;
-
-    peer.value.on("open", (id) => {
-      console.log("[usePeerConnection] My Peer ID generated:", id);
-
-      // Register ourselves in the member list
-      updateMember(id, {
-        name: myName.value,
-        isSelf: true,
-        status: "online",
-        lastSeen: Date.now(),
-      });
-
-      if (!isInitiator || id !== sessionId) {
-        // If we tried to be initiator but got a different ID (handle by fallback)
-        // or if we are explicitly not initiator, connect to the session anchor.
+      if (isInitiator) {
         console.log(
-          "[usePeerConnection] Connecting to session anchor:",
+          "[usePeerConnection] Initializing as initiator with ID:",
           sessionId,
         );
-        connectToPeer(sessionId);
-      }
-
-      updateRoomData("network", { connectionStatus: "connecting" });
-    });
-
-    peer.value.on("connection", (conn) => {
-      console.log("[usePeerConnection] Incoming connection from:", conn.peer);
-      setupConnection(conn);
-    });
-
-    peer.value.on("error", (err: any) => {
-      console.error("[usePeerConnection] Peer error:", err);
-
-      if (err.type === "id-taken" && isInitiator) {
-        console.warn(
-          "[usePeerConnection] ID taken. Trying again with random ID to join existing room.",
+        peer.value = new PeerClass(sessionId, options);
+      } else {
+        console.log(
+          "[usePeerConnection] Initializing as joiner with random ID",
         );
-        // We cannot just call initPeer again immediately because the 'peer' object might be in a bad state.
-        // We'll mark as non-initiator for the next attempt or just use a random ID.
-        destroyPeer();
-        // Force random ID on next attempt
-        setTimeout(() => {
-          // Create a new peer with random ID but still pointing to the same sessionId as anchor
-          const p = new PeerClass(options);
-          peer.value = p;
-          p.on("open", (id) => {
-            console.log("[usePeerConnection] Fallback Peer opened:", id);
-            connectToPeer(sessionId);
-          });
-          p.on("connection", (c) => setupConnection(c));
-          p.on("error", (e) =>
-            console.error("[usePeerConnection] Fallback Peer error:", e),
-          );
-        }, 500);
-        return;
+        peer.value = new PeerClass(options);
       }
 
+      if (!peer.value) return;
+
+      peer.value.on("open", (id) => {
+        console.log("[usePeerConnection] My Peer ID generated:", id);
+
+        // Register ourselves in the member list
+        updateMember(id, {
+          name: myName.value,
+          deviceId: useDeviceId(),
+          isSelf: true,
+          status: "online",
+          lastSeen: Date.now(),
+        });
+
+        if (!isInitiator || id !== sessionId) {
+          console.log(
+            "[usePeerConnection] Connecting to session anchor:",
+            sessionId,
+          );
+          connectToPeer(sessionId);
+        }
+
+        updateRoomData("network", { connectionStatus: "connecting" });
+      });
+
+      peer.value.on("connection", (conn) => {
+        console.log("[usePeerConnection] Incoming connection from:", conn.peer);
+        setupConnection(conn);
+      });
+
+      peer.value.on("error", (err: any) => {
+        console.error("[usePeerConnection] Peer error:", err);
+
+        if (err.type === "id-taken" && isInitiator) {
+          console.warn(
+            "[usePeerConnection] ID taken. Trying again with random ID to join existing room.",
+          );
+          destroyPeer();
+          setTimeout(() => {
+            if (peer.value) return;
+            const p = new PeerClass(options);
+            peer.value = p;
+            p.on("open", (id) => {
+              console.log("[usePeerConnection] Fallback Peer opened:", id);
+              connectToPeer(sessionId);
+              updateRoomData("network", { connectionStatus: "connecting" });
+            });
+            p.on("connection", (c) => setupConnection(c));
+            p.on("error", (e) => {
+              console.error("[usePeerConnection] Fallback Peer error:", e);
+              handleInitError(e);
+            });
+          }, 500);
+          return;
+        }
+
+        handleInitError(err);
+      });
+    } catch (e: any) {
+      console.error("[usePeerConnection] Failed to init Peer:", e);
+      handleInitError(e);
+    } finally {
+      isInitializing.value = false;
+    }
+  }
+
+  function handleInitError(err: any) {
+    if (reinitAttempts.value < maxReinitAttempts) {
+      reinitAttempts.value++;
+      const delay = 2 ** reinitAttempts.value * 1000;
+      console.log(
+        `[usePeerConnection] Reinit attempt ${reinitAttempts.value} in ${delay}ms...`,
+      );
+      showWarning(
+        `Проблема с подключением. Попытка ${reinitAttempts.value} из ${maxReinitAttempts}...`,
+      );
+
+      setTimeout(() => {
+        destroyPeer();
+        initPeer({ reconnect: true });
+      }, delay);
+    } else {
+      console.error("[usePeerConnection] Max reinit attempts reached.");
+      showError(
+        "Невозможно подключиться в закрытый чат. Попробуйте обновить страницу, выключить VPN или средства обхода блокировок.",
+        10000,
+      );
       updateRoomData("network", { connectionStatus: "failed" });
-    });
+    }
   }
 
   function destroyPeer() {
     for (const c of Object.values(connections)) c.close();
     for (const k of Object.keys(connections)) delete connections[k];
     peer.value?.destroy();
+    peer.value = null;
   }
 
   return {

@@ -49,9 +49,26 @@ export function useFunnyNames() {
     "Лемур",
   ];
 
-  function generateName() {
-    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  function generateName(seed?: string) {
+    if (!seed) {
+      const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      return `${adj} ${noun}`;
+    }
+
+    // Simple hash function to get a deterministic number from seed
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = (hash << 5) - hash + seed.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+
+    const adjIndex = Math.abs(hash) % adjectives.length;
+    // Offset the hash for the noun to pick a different "randomness"
+    const nounIndex = Math.abs(hash >> 8) % nouns.length;
+
+    const adj = adjectives[adjIndex];
+    const noun = nouns[nounIndex];
     return `${adj} ${noun}`;
   }
 

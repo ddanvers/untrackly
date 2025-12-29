@@ -1,5 +1,6 @@
 export interface Member {
   id: string;
+  deviceId: string;
   name: string;
   isSelf: boolean;
   status: "online" | "offline";
@@ -8,6 +9,7 @@ export interface Member {
   cameraEnabled: boolean;
   micEnabled: boolean;
   hasMediaStream: boolean;
+  callStatus: "idle" | "calling" | "incoming" | "active";
 }
 
 export interface RoomData {
@@ -87,5 +89,6 @@ export interface Message {
   replyMessage?: ReplyMessageData;
   isEdited?: boolean;
   isVoiceMessage?: boolean;
+  transcription?: string;
   existingFileIds?: string[]; // IDs of files to keep during edit
 }

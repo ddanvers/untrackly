@@ -14,6 +14,8 @@ export function useChatSession(
   messages: Ref<any[]>,
   initPeer: (opts?: { reconnect?: boolean }) => void,
   isConnectionEstablished: Ref<boolean>,
+  roomData: Ref<any>,
+  updateMember: (id: string, updates: Partial<any>) => void,
 ) {
   const step = shallowRef<"waiting" | "chat">("waiting");
   const consoleLogs = ref<string[]>([]);
@@ -72,6 +74,13 @@ export function useChatSession(
         try {
           if (messages && typeof (messages as any).value !== "undefined") {
             (messages as any).value = saved.messages || [];
+          }
+          if (saved.meta?.members) {
+            Object.entries(saved.meta.members as Record<string, any>).forEach(
+              ([id, m]) => {
+                updateMember(id, { ...m, status: "offline" });
+              },
+            );
           }
         } catch (err) {}
         step.value = "chat";
@@ -157,6 +166,9 @@ export function useChatSession(
             messages: Array.isArray((messages as any).value)
               ? (messages as any).value
               : [],
+            meta: {
+              members: roomData.value.members,
+            },
           });
         } catch (err) {}
       }
@@ -186,6 +198,9 @@ export function useChatSession(
           messages: Array.isArray((messages as any).value)
             ? (messages as any).value
             : [],
+          meta: {
+            members: roomData.value.members,
+          },
         })
         .catch(() => {});
     }

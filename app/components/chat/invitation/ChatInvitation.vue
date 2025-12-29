@@ -28,10 +28,12 @@
           <span>Скопировать</span>
         </CButton>
         
-        <label class="chat-invitation__checkbox" v-if="!isInvited">
-            <input type="checkbox" v-model="isGroup" class="chat-invitation__checkbox-input">
-            <span class="chat-invitation__checkbox-label">Групповой чат</span>
-        </label>
+        <CCheckbox
+          v-if="!isInvited"
+          v-model="isGroup"
+          label="Групповой чат"
+        />
+
       </div>
     </section>
 
@@ -318,31 +320,6 @@ $app-small-height: 520px;
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-  &__checkbox {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    user-select: none;
-    color: var(--color-neutral-on-text);
-
-    &-input {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-      accent-color: var(--color-primary-on-fill);
-    }
-
-    &-label {
-      font-size: 18px;
-    }
-    
-    @media screen and (max-width: $app-mobile) {
-      &-label {
-        font-size: 16px;
-      }
-    }
   }
 }
 

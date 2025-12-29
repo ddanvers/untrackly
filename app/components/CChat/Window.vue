@@ -1,6 +1,6 @@
 <template>
   <section class="chat">
-    <CChatHeader title="Собеседник">
+    <CChatHeader :title="title">
       <template #buttons>
         <slot name="headerButtons">
           <CButton
@@ -35,6 +35,7 @@
           :message="msg"
           :isMe="msg.sender === meId"
           :meId="meId"
+          :members="members"
           @read="onRead(msg.id)"
           @reply="onReply"
           @delete="onDelete"
@@ -58,10 +59,13 @@
 </template>
 
 <script setup lang="ts">
+import type { Member, Message } from "~/composables/peer/types";
+
 const props = defineProps<{
   title: string;
   meId: string;
   messages: Message[];
+  members: Record<string, Member>;
 }>();
 
 const emit = defineEmits<{

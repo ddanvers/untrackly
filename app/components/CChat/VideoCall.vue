@@ -22,49 +22,73 @@
         class="video-call__videos"
         :class="{ 'video-call__videos--screen-share': props.screenShareEnabled }"
       >
-        <div class="video-call__cameras">
-          <!-- Remote Members (Loop) -->
-          <div
-            v-for="[peerId, stream] in Object.entries(props.remoteStreams)"
-            :key="peerId"
-            class="video-call__member video-call__member--cam-enabled"
-            v-show="!props.incoming || props.accepted"
+        <div class="video-call__cameras" v-show="!isMinimized">
+          <!-- Participants Swiper (Top) -->
+          <swiper-container
+            class="video-call__participants-swiper"
+            :slides-per-view="'auto'"
+            :space-between="12"
+            :grab-cursor="true"
+            v-if="Object.keys(props.remoteStreams).length > 0"
           >
-            <div class="video-call__video-wrapper">
-                <VideoPlayer :stream="stream" class="video-call__remote-video" />
-            </div>
-             <div class="video-call__member-info">
-                 {{ getMemberName(peerId) }}
+            <swiper-slide
+              v-for="[peerId, stream] in Object.entries(props.remoteStreams)"
+              :key="peerId"
+              class="video-call__participant-slide"
+              :class="{ 'video-call__participant-slide--active': activeSpeakerId === peerId }"
+              @click="manualActiveSpeakerId = peerId"
+            >
+              <div class="video-call__member" :class="{ 'video-call__member--cam-off': !getMemberCamStatus(peerId) }">
+                <div class="video-call__video-wrapper">
+                  <VideoPlayer v-if="getMemberCamStatus(peerId)" :stream="stream" />
+                  <div v-else class="video-call__avatar-placeholder">
+                    {{ getMemberName(peerId).charAt(0).toUpperCase() }}
+                  </div>
+                </div>
+                <div class="video-call__member-info">
+                  {{ getMemberName(peerId) }}
+                </div>
+                <div class="video-call__member-controls-state">
+                  <NuxtImg
+                    :src="getMemberMicStatus(peerId) ? '/icons/chat/microphone.svg' : '/icons/chat/microphone-off.svg'"
+                    width="16px"
+                  />
+                </div>
+              </div>
+            </swiper-slide>
+          </swiper-container>
+
+          <!-- Active Speaker / Main Video Area -->
+          <div class="video-call__main-video-area" v-if="Object.keys(props.remoteStreams).length > 0">
+             <div class="video-call__main-member" v-if="currentMainSpeakerId">
+                <VideoPlayer 
+                  v-if="getMemberCamStatus(currentMainSpeakerId)" 
+                  :stream="props.remoteStreams[currentMainSpeakerId]" 
+                  class="video-call__main-video"
+                />
+                <div v-else class="video-call__main-avatar-placeholder">
+                   <div class="avatar-large">{{ getMemberName(currentMainSpeakerId).charAt(0).toUpperCase() }}</div>
+                   <p>{{ getMemberName(currentMainSpeakerId) }}</p>
+                </div>
              </div>
-             <!-- Mic Status Indicator could go here if we tracked audio level or mute state per peer separately -->
-             <!-- For now, we rely on the stream presence or member metadata -->
-             <div class="video-call__member-controls-state">
-              <NuxtImg
-                :src="
-                  getMemberMicStatus(peerId)
-                    ? '/icons/chat/microphone.svg'
-                    : '/icons/chat/microphone-off.svg'
-                "
-                width="24px"
-              ></NuxtImg>
-            </div>
           </div>
 
           <!-- Waiting placeholder if no remote streams -->
-            <div v-if="Object.keys(props.remoteStreams).length === 0 && (!props.incoming || props.accepted)" class="video-call__placeholder">
-                <p>Ожидание участников...</p>
-            </div>
+          <div v-else-if="(!props.incoming || props.accepted)" class="video-call__placeholder">
+            <p>Ожидание участников...</p>
+          </div>
 
-
-          <!-- My Video -->
-          <video
-            v-show="props.camEnabled"
-            ref="myVideo"
-            class="video-call__my-video"
-            autoplay
-            playsinline
-            muted
-          ></video>
+          <!-- My Video (Floating) -->
+          <div class="video-call__my-video-container" v-show="props.camEnabled">
+            <video
+              ref="myVideo"
+              class="video-call__my-video"
+              autoplay
+              playsinline
+              muted
+            ></video>
+            <div class="video-call__my-video-label">Вы</div>
+          </div>
         </div>
 
         <!-- Screen Share Video -->
@@ -246,6 +270,7 @@ interface Props {
   screenShareEnabled: boolean;
   isMeScreenSharing: boolean;
   screenShareStream: MediaStream | null;
+  screenShareOwnerId: string | null;
 }
 
 interface MovedWindowPosition {
@@ -281,6 +306,32 @@ const isScreenShareFullscreen = ref(false);
 const volume = ref(0.5);
 const lastVolume = ref(0.5);
 const showControls = ref(false);
+
+const activeSpeakerId = ref<string | null>(null);
+const manualActiveSpeakerId = ref<string | null>(null);
+const audioAnalysers = new Map<string, AnalyserNode>();
+const speakerDetectionInterval = ref<any>(null);
+
+const currentMainSpeakerId = computed(() => {
+  if (
+    props.screenShareEnabled &&
+    props.screenShareOwnerId &&
+    props.remoteStreams[props.screenShareOwnerId]
+  ) {
+    // If someone is sharing screen and we have their stream, maybe they should be main?
+    // Actually screen share usually has its own big area.
+  }
+  return (
+    manualActiveSpeakerId.value ||
+    activeSpeakerId.value ||
+    Object.keys(props.remoteStreams)[0] ||
+    null
+  );
+});
+
+function getMemberCamStatus(id: string) {
+  return props.members[id]?.cameraEnabled !== false;
+}
 
 const audioContext = ref<AudioContext | null>(null);
 const gainNode = ref<GainNode | null>(null);
@@ -544,20 +595,90 @@ watch(
     }
   },
 );
+function setupSpeakerDetection() {
+  if (speakerDetectionInterval.value) return;
+
+  const AudioContext =
+    window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContext) return;
+
+  const ctx = new AudioContext();
+
+  speakerDetectionInterval.value = setInterval(() => {
+    let maxVolume = -Infinity;
+    let loudestPeer: string | null = activeSpeakerId.value;
+
+    for (const [peerId, stream] of Object.entries(props.remoteStreams)) {
+      if (!stream.getAudioTracks().length) continue;
+
+      let analyser = audioAnalysers.get(peerId);
+      if (!analyser) {
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        const source = ctx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        audioAnalysers.set(peerId, analyser);
+      }
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const avg = sum / dataArray.length;
+
+      if (avg > maxVolume && avg > 10) {
+        // Threshold for "speaking"
+        maxVolume = avg;
+        loudestPeer = peerId;
+      }
+    }
+
+    if (loudestPeer && loudestPeer !== activeSpeakerId.value) {
+      activeSpeakerId.value = loudestPeer;
+    }
+  }, 500);
+}
+
+function stopSpeakerDetection() {
+  if (speakerDetectionInterval.value) {
+    clearInterval(speakerDetectionInterval.value);
+    speakerDetectionInterval.value = null;
+  }
+  audioAnalysers.clear();
+}
+
 onMounted(() => {
   if (myVideo.value) myVideo.value.srcObject = props.localStream || null;
   if (props.screenShareStream) {
     setupAudioContext(props.screenShareStream);
   }
+  setupSpeakerDetection();
   window.addEventListener("resize", adjustOnResize);
   document.addEventListener("fullscreenchange", onFullScreenChange);
 });
 
 onBeforeUnmount(() => {
   cleanupAudioContext();
+  stopSpeakerDetection();
   window.removeEventListener("resize", adjustOnResize);
   document.removeEventListener("fullscreenchange", onFullScreenChange);
 });
+
+watch(
+  () => Object.keys(props.remoteStreams),
+  (newKeys) => {
+    if (newKeys.length === 0) {
+      activeSpeakerId.value = null;
+      manualActiveSpeakerId.value = null;
+    } else if (!currentMainSpeakerId.value) {
+      activeSpeakerId.value = newKeys[0];
+    }
+  },
+  { deep: true },
+);
 </script>
 
 <style scoped lang="scss">
@@ -632,62 +753,78 @@ $app-narrow-mobile: 364px;
       width: 100%;
       position: relative;
       display: flex;
-      align-items: center;
-      justify-content: center;
       flex-direction: column;
-      gap: 32px;
-      padding: 16px;
+      padding: 0;
       overflow: hidden;
 
       &--screen-share {
-        justify-content: flex-start;
-        gap: 16px;
+        .video-call__main-video-area {
+            display: none; // Hide main video area when screen sharing is dominant
+        }
         .video-call__cameras {
-          flex-direction: row;
-          height: 180px;
-          width: 100%;
-          gap: 16px;
-          justify-content: center;
-          flex: 0 0 auto;
-
-          @media screen and (max-width: $app-mobile) {
-            justify-content: flex-start;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            padding-bottom: 0; 
-            scrollbar-width: none;
-            &::-webkit-scrollbar {
-              display: none;
-            }
-          }
+          height: max-content;
+          max-height: 50%;
+          position: static;
+        }
+        .video-call__screen-share-wrapper {
+          height: 50%;
         }
       }
     }
 
     .video-call__cameras {
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
       width: 100%;
       height: 100%;
-      gap: 32px;
       position: relative;
-      flex-wrap: wrap; /* Allow wrapping for grid */
+      background: #0f0f0f;
+    }
+
+    .video-call__participants-swiper {
+      width: 100%;
+      height: 140px;
+      flex: 0 0 auto;
+      padding: 12px;
+
+      @media screen and (max-width: $app-mobile) {
+          height: 120px;
+      }
+    }
+
+    .video-call__participant-slide {
+        width: 180px;
+        height: 100%;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid transparent;
+        transition: border-color 0.3s;
+        
+        &--active {
+            border-color: var(--color-primary-on-text);
+        }
+
+        @media screen and (max-width: $app-mobile) {
+            width: 140px;
+        }
     }
 
     .video-call__member {
         position: relative;
-        width: 320px;
-        aspect-ratio: 16/9;
+        width: 100%;
+        height: 100%;
         background: #222;
-        border-radius: 12px;
-        overflow: hidden;
         display: flex;
         flex-direction: column;
+        cursor: pointer;
         
         .video-call__video-wrapper {
             width: 100%;
             height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
             video {
                 width: 100%;
                 height: 100%;
@@ -695,42 +832,156 @@ $app-narrow-mobile: 364px;
             }
         }
 
+        .video-call__avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            background: linear-gradient(135deg, #444 0%, #222 100%);
+        }
+
         .video-call__member-info {
             position: absolute;
-            top: 8px;
-            left: 8px;
+            top: 4px;
+            left: 4px;
             color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 4px 8px;
+            background: rgba(0,0,0,0.6);
+            padding: 2px 6px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 10px;
+            z-index: 2;
         }
-         .video-call__member-controls-state {
-                position: absolute;
-                bottom: 8px;
-                right: 8px;
-                z-index: 10;
+
+        .video-call__member-controls-state {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            z-index: 2;
+            background: rgba(0,0,0,0.8);
+            border-radius: 50%;
+            padding: 4px;
+            display: flex;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            
+            img {
+                filter: brightness(0) invert(1);
+            }
+        }
+    }
+
+    .video-call__main-video-area {
+        flex: 1;
+        width: 100%;
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+
+        @media screen and (max-width: $app-mobile) {
+            padding: 12px;
+        }
+    }
+
+    .video-call__main-member {
+        width: 100%;
+        height: 100%;
+        max-width: 1000px;
+        aspect-ratio: 16/9;
+        background: #1a1a1a;
+        border-radius: 24px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.05);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+
+        .video-call__main-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-call__main-avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            background: radial-gradient(circle, #333 0%, #111 100%);
+
+            .avatar-large {
+                font-size: 80px;
+                width: 160px;
+                height: 160px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--color-primary-on-text);
+                border-radius: 50%;
+                margin-bottom: 24px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+
+                @media screen and (max-width: $app-mobile) {
+                    width: 100px;
+                    height: 100px;
+                    font-size: 40px;
+                }
+            }
+
+            p {
+                font-size: 24px;
+                font-weight: 500;
+                opacity: 0.8;
+            }
         }
     }
 
     .video-call__placeholder {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: var(--color-neutral-on-muted);
-        font-size: 16px;
+        font-size: 18px;
     }
 
-    .video-call__my-video {
+    .video-call__my-video-container {
         position: absolute;
-        bottom: 16px;
-        right: 16px;
-        width: 200px;
+        bottom: 24px;
+        right: 24px;
+        width: 240px;
         aspect-ratio: 16/9;
-        border-radius: 12px;
-        object-fit: cover;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 20;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        border: 2px solid rgba(255,255,255,0.1);
+        z-index: 30;
 
         @media screen and (max-width: $app-mobile) {
             width: 140px;
+            bottom: 12px;
+            right: 12px;
+        }
+
+        .video-call__my-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-call__my-video-label {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            color: white;
+            background: rgba(0,0,0,0.6);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
         }
     }
 
@@ -807,28 +1058,28 @@ $app-narrow-mobile: 364px;
         z-index: 50;
     }
     
-    .video-call__incoming {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        z-index: 100;
+  &__incoming {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      border-radius: 12px;
+      transform: translate(-50%, -50%);
+      background: var(--color-bg-on-secondary-light);
+      padding: 32px 48px;
+      color: var(--color-neutral-on-text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      z-index: 10001;
+      .video-call__incoming-actions {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        gap: 24px;
-        
-        &-title {
-            font-size: 24px;
-        }
-        &-actions {
-            display: flex;
-            gap: 16px;
-        }
+        gap: 16px;
+      }
+      .video-call__incoming-title {
+        font-size: 18px;
+        font-weight: 400;
+      }
     }
 
 }

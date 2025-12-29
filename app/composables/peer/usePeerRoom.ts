@@ -66,24 +66,51 @@ export function usePeerRoom(sessionId: string) {
   }
 
   function updateMember(memberId: string, updates: Partial<Member>) {
-    const current = roomData.value.members[memberId] || {
+    const members = { ...roomData.value.members };
+
+    // 1. Try to find if this device already exists with a different peerId
+    if (updates.deviceId) {
+      const existingPeerId = Object.keys(members).find(
+        (id) => id !== memberId && members[id]!.deviceId === updates.deviceId,
+      );
+
+      if (existingPeerId) {
+        // If it exists, merge data and remove the old entry
+        const oldData = members[existingPeerId]!;
+        delete members[existingPeerId];
+
+        members[memberId] = {
+          ...oldData,
+          ...updates,
+          id: memberId, // Keep newest Peer ID
+        } as Member;
+
+        roomData.value.members = members;
+        return;
+      }
+    }
+
+    // 2. Standard update or create
+    const current = members[memberId] || {
       id: memberId,
-      name: "Пользователь", // Default name, should be updated via handshake
-      isSelf: memberId === useDeviceId(),
+      deviceId: updates.deviceId || "",
+      name: "Пользователь",
+      isSelf: updates.deviceId === useDeviceId(),
       status: "offline",
       lastSeen: 0,
       isTyping: false,
       cameraEnabled: false,
       micEnabled: false,
       hasMediaStream: false,
+      callStatus: "idle",
     };
-    roomData.value.members = {
-      ...roomData.value.members,
-      [memberId]: {
-        ...current,
-        ...updates,
-      },
+
+    members[memberId] = {
+      ...current,
+      ...updates,
     };
+
+    roomData.value.members = members;
   }
 
   const roomStatistics = computed(() => ({

@@ -82,6 +82,12 @@ export function usePeerMedia(
       // If we are already connected media-wise, skip
       if (mediaConnections[peerId]) continue;
 
+      // Skip if they are idle (not participating in current call)
+      const neighbor = roomData.value.members[peerId];
+      if (!neighbor || neighbor.callStatus === "idle") {
+        continue;
+      }
+
       // If data connection is not open, we can't negotiate yet.
       // In a real app, we'd hook into conn.on('open'), but here we poll/watch.
       if (!conn.open) continue;
@@ -164,6 +170,14 @@ export function usePeerMedia(
     isCameraEnabled.value = !!withVideo;
     isMicEnabled.value = !!withAudio;
 
+    if (peer.value?.id) {
+      updateMember(peer.value.id, { callStatus: "calling" });
+      broadcast({
+        type: "member-update",
+        updates: { callStatus: "calling" },
+      });
+    }
+
     try {
       let stream = localStream.value;
       if (!stream) {
@@ -240,10 +254,14 @@ export function usePeerMedia(
   async function acceptCall(opts?: { cam?: boolean; mic?: boolean }) {
     callState.value = "active";
     callType.value = opts?.cam ? "video" : "audio";
-    console.log("[usePeerMedia] acceptCall: called", {
-      opts,
-      callState: callState.value,
-    });
+
+    if (peer.value?.id) {
+      updateMember(peer.value.id, { callStatus: "active" });
+      broadcast({
+        type: "member-update",
+        updates: { callStatus: "active" },
+      });
+    }
     isCameraEnabled.value = false;
     isMicEnabled.value = false;
 
@@ -331,7 +349,17 @@ export function usePeerMedia(
       remoteStreams[peerId] = remote;
       updateMember(peerId, { hasMediaStream: true }); // Ensure UI knows
 
-      callState.value = "active";
+      if (callState.value === "calling" || callState.value === "incoming") {
+        callState.value = "active";
+        if (peer.value?.id) {
+          updateMember(peer.value.id, { callStatus: "active" });
+          broadcast({
+            type: "member-update",
+            updates: { callStatus: "active" },
+          });
+        }
+      }
+
       clearTimeout(callTimeout);
       console.log("[usePeerMedia] got remote stream from", peerId);
 
@@ -464,6 +492,22 @@ export function usePeerMedia(
           } catch (e) {}
         }
       }
+    }
+
+    if (peer.value?.id) {
+      updateMember(peer.value.id, {
+        callStatus: "idle",
+        cameraEnabled: false,
+        micEnabled: false,
+      });
+      broadcast({
+        type: "member-update",
+        updates: {
+          callStatus: "idle",
+          cameraEnabled: false,
+          micEnabled: false,
+        },
+      });
     }
 
     setTimeout(() => {
@@ -688,7 +732,8 @@ export function usePeerMedia(
         // We might need to answer later when we get localStream
       }
     } else {
-      callState.value = "incoming";
+      // Mesh healing while we are idle? Just store it, don't trigger UI.
+      // Real calls arrive with a "call-request" signal.
       setupMediaConnection(mediaConnection, peerId);
 
       if (shouldAutoAcceptWithVideo) {
@@ -730,17 +775,28 @@ export function usePeerMedia(
     }
 
     if (data.type === "call-request") {
-      callState.value = "incoming";
-      callType.value = data.video ? "video" : "audio";
+      if (callState.value === "idle" || callState.value === "ended") {
+        callState.value = "incoming";
+        callType.value = data.video ? "video" : "audio";
+        if (peer.value?.id) {
+          updateMember(peer.value.id, { callStatus: "incoming" });
+          broadcast({
+            type: "member-update",
+            updates: { callStatus: "incoming" },
+          });
+        }
+      }
       updateMember(senderId, {
         cameraEnabled: !!data.video,
         micEnabled: !!data.audio,
+        callStatus: "active", // The one who requests is active or at least calling
       });
     }
     if (data.type === "call-decline") {
       updateMember(senderId, {
         cameraEnabled: false,
         micEnabled: false,
+        callStatus: "idle",
       });
       endCall(true, senderId);
     }
@@ -748,6 +804,7 @@ export function usePeerMedia(
       updateMember(senderId, {
         cameraEnabled: false,
         micEnabled: false,
+        callStatus: "idle",
       });
       endCall(true, senderId);
     }

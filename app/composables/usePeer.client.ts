@@ -147,10 +147,6 @@ export function usePeer(options: UsePeerOptions) {
     { immediate: true },
   );
 
-  onMounted(() => {
-    initPeer();
-  });
-
   onUnmounted(() => {
     destroyPeer();
     endCall(); // Helper to cleanup media
@@ -159,6 +155,7 @@ export function usePeer(options: UsePeerOptions) {
   return {
     // Room Data
     roomData,
+    updateMember, // Exposed
     roomStatistics,
     myName,
 

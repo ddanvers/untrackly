@@ -39,6 +39,7 @@
           :cam-enabled="isCameraEnabled"
           :mic-enabled="isMicEnabled"
           :screen-share-enabled="isScreenShareEnabled"
+          :screen-share-owner-id="screenShareOwnerId"
           :members="roomData.members"
           @accept="onAcceptCall"
           @decline="onDeclineCall"
@@ -64,6 +65,7 @@
         <CChatWindow
           :title="windowTitle"
           :messages="messages"
+          :members="roomData.members"
           :hide-header="false"
           :meId="useDeviceId() || ''"
           @sendMessage="sendMessage"
@@ -122,6 +124,7 @@ const {
   peer,
   connections, // Updated
   roomData,
+  updateMember,
   isConnectionEstablished,
   callState,
   localStream,
@@ -137,15 +140,13 @@ const {
   toggleCamera,
   toggleScreenShare,
   isScreenShareEnabled,
-  // screenShareOwnerId, // Not exposed?
+  screenShareOwnerId,
   toggleMic,
 } = usePeer({ sessionId, isInitiator: !isInvited.value });
 
 // Manually track call type since usePeer simplified media somewhat
 const callType = ref<"audio" | "video">("video");
 
-// Derived screen share owner check - need to re-implement if not in usePeer
-// Simple check: if we are sharing screen, we own it.
 const isMeScreenSharing = computed(() => {
   return isScreenShareEnabled.value; // Simplification, strictly checks if *I* enabled it
 });
@@ -163,6 +164,8 @@ const {
   messages,
   initPeer,
   isConnectionEstablished,
+  roomData,
+  updateMember,
 );
 
 useChatAudio(callState);
