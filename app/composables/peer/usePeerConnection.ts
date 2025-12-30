@@ -202,15 +202,15 @@ export function usePeerConnection(
     if (isInitializing.value) return;
     if (peer.value && !opts?.reconnect) return;
     if (!import.meta.client) return;
+    const response = await fetch(
+      `https://untracklyone.metered.live/api/v1/turn/credentials?apiKey=${useRuntimeConfig().public.turnApiKey}`,
+    );
 
+    const iceServers = await response.json();
     isInitializing.value = true;
     try {
       // Dynamic import to avoid SSR errors
       const PeerClass = (await import("peerjs")).default;
-
-      const {
-        public: { iceServers },
-      } = useRuntimeConfig();
 
       const options = {
         host: "peerjs-server-gims.onrender.com",
@@ -218,10 +218,7 @@ export function usePeerConnection(
         secure: true,
         debug: 1,
         config: {
-          iceServers:
-            typeof iceServers === "string"
-              ? JSON.parse(iceServers)
-              : iceServers,
+          iceServers: iceServers,
         },
       };
 
