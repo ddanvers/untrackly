@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     deepgramApiKey: process.env.DEEPGRAM_API_KEY,
     public: {
-      iceServers: process.env.ICE_SERVERS,
+      turnApiKey: "",
     },
   },
   modules: ["@nuxtjs/i18n", "@nuxt/image", "@nuxtjs/color-mode", "nuxt-swiper"],
