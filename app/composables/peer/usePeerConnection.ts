@@ -225,6 +225,11 @@ export function usePeerConnection(
         },
       };
 
+      console.log(
+        "[usePeerConnection] Initializing with iceServers:",
+        options.config.iceServers,
+      );
+
       if (isInitiator) {
         console.log(
           "[usePeerConnection] Initializing as initiator with ID:",
