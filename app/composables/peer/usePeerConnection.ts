@@ -1,5 +1,6 @@
 import type { DataConnection, Peer } from "peerjs";
 import { reactive, ref, shallowRef } from "vue";
+import { useRuntimeConfig } from "#app";
 import { useAlert } from "~/composables/useAlert";
 import { useDeviceId } from "~/composables/useDeviceId";
 import type { Member, RoomData } from "./types";
@@ -207,11 +208,21 @@ export function usePeerConnection(
       // Dynamic import to avoid SSR errors
       const PeerClass = (await import("peerjs")).default;
 
+      const {
+        public: { iceServers },
+      } = useRuntimeConfig();
+
       const options = {
         host: "peerjs-server-gims.onrender.com",
         path: "/",
         secure: true,
         debug: 1,
+        config: {
+          iceServers:
+            typeof iceServers === "string"
+              ? JSON.parse(iceServers)
+              : iceServers,
+        },
       };
 
       if (isInitiator) {
