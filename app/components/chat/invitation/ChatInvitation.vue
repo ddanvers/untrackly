@@ -27,6 +27,13 @@
         <CButton @click="handleCopy" variant="secondary" :aria-label="'Скопировать ссылку'">
           <span>Скопировать</span>
         </CButton>
+        
+        <!-- <CCheckbox
+          v-if="!isInvited"
+          v-model="isGroup"
+          label="Чат"
+        /> -->
+
       </div>
     </section>
 
@@ -86,13 +93,23 @@ const props = defineProps<{
   isInvited: boolean;
 }>();
 
-const { inviteLink, copyToClipboard } = useInvitationLink(props.sessionId);
+const isGroup = ref(false);
+const { inviteLink, copyToClipboard } = useInvitationLink(
+  props.sessionId,
+  isGroup,
+);
 
 const linkBlock = ref<HTMLElement | null>(null);
 const fixedHeight = ref<number | null>(null);
 const animating = ref(false);
 const displayText = ref(inviteLink.value);
 const copying = ref(false);
+
+watch(inviteLink, (val) => {
+  if (!animating.value) {
+    displayText.value = val;
+  }
+});
 
 async function handleCopy() {
   if (copying.value) return;
@@ -139,7 +156,9 @@ async function handleCopy() {
 function handleGoToChat() {
   navigateTo({
     path: `/chat/${props.sessionId}`,
-    query: { invited: props.isInvited ? "true" : undefined },
+    query: {
+      invited: props.isInvited ? "true" : undefined,
+    },
   });
 }
 

@@ -8,6 +8,7 @@
     <div class="page-content">
       <CDialogImages />
       <CDialogVideo />
+      <CAlert />
       <section class="page-content__header">
         <CHeader v-if="route.meta.header" :menuItems="menuItems"></CHeader>
       </section>

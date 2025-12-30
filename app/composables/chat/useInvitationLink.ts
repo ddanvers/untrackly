@@ -1,12 +1,17 @@
-import { computed } from "vue";
+import { computed, type Ref } from "vue";
 
-export function useInvitationLink(_sessionId: string) {
+export function useInvitationLink(_sessionId: string, isGroup?: Ref<boolean>) {
   const inviteLink = computed(() => {
     if (!import.meta.client || !window) {
       return "Генерируем ссылку...";
     }
     const url = new URL(window.location.href);
     url.searchParams.set("invited", "true");
+    if (isGroup?.value) {
+      url.searchParams.set("group", "true");
+    } else {
+      url.searchParams.delete("group");
+    }
     return url.toString();
   });
 

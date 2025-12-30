@@ -20,6 +20,7 @@
       }"
     >
       <ChatRoomData
+        v-if="windowWidth > 1384"
         :room-data="roomData"
         :expanded="roomDataExpanded"
         @toggleExpand="roomDataExpanded = !roomDataExpanded"
@@ -33,12 +34,13 @@
           :accepted="callState === 'active'"
           :callStatusText="callStatusText"
           :local-stream="localStream"
-          :remote-stream="remoteStream"
+          :remote-streams="remoteStreams"
           :screen-share-stream="screenShareStream"
           :isMeScreenSharing="isMeScreenSharing"
           :cam-enabled="isCameraEnabled"
           :mic-enabled="isMicEnabled"
           :screen-share-enabled="isScreenShareEnabled"
+          :screen-share-owner-id="screenShareOwnerId"
           :members="roomData.members"
           @accept="onAcceptCall"
           @decline="onDeclineCall"
@@ -49,21 +51,31 @@
         >
           <template #headerButtons>
             <CButton
+              @click="swapToRoomData"
+              bgColor="transparent"
+              variant="icon-default"
+              class="form__send"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/room/info.svg" width="48px"></NuxtImg>
+            </CButton>
+            <CButton
               @click="swapToChat"
               bgColor="transparent"
               variant="icon-default"
               class="form__send"
               size="large"
               icon-size="i-large"
-              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg
-            ></CButton>
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg>
+            </CButton>
           </template>
         </CChatVideoCall>
       </div>
       <div v-show="showChat" class="chat-wrapper">
         <CChatWindow
-          title="Собеседник"
+          :title="windowTitle"
           :messages="messages"
+          :members="roomData.members"
           :hide-header="false"
           :meId="useDeviceId() || ''"
           @sendMessage="sendMessage"
@@ -75,19 +87,77 @@
           @call="onCall"
         >
           <template #headerButtons>
-            <div v-if="callState === 'active'" class="chat-header-buttons-wrapper">
+            <div class="chat-header-buttons-wrapper">
               <CButton
+                v-if="windowWidth <= 1384"
+                @click="swapToRoomData"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/room/info.svg" width="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                @click="onCall('video')"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                @click="onCall('audio')"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                v-if="callState === 'active'"
                 @click="swapToCall"
                 bgColor="transparent"
                 variant="icon-default"
                 class="form__send"
                 size="large"
                 icon-size="i-large"
-                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg
-              ></CButton>
+                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg>
+              </CButton>
             </div>
           </template>
         </CChatWindow>
+      </div>
+      <div v-if="showRoomData" class="room-data-wrapper">
+        <CChatHeader title="Данные комнаты">
+          <template #buttons>
+            <CButton
+              v-if="callState === 'active'"
+              @click="swapToCall"
+              bgColor="transparent"
+              variant="icon-default"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg>
+            </CButton>
+            <CButton
+              @click="swapToChat"
+              bgColor="transparent"
+              variant="icon-default"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg>
+            </CButton>
+          </template>
+        </CChatHeader>
+        <ChatRoomData
+          :room-data="roomData"
+          :expanded="true"
+          class="room-data--standalone"
+          @endSession="handleEndSession"
+        />
       </div>
     </section>
   </main>
@@ -110,6 +180,9 @@ const isInvited = shallowRef(route.query.invited === "true");
 const roomDataExpanded = shallowRef(true);
 const showCall = ref(false);
 const showChat = ref(true);
+const showRoomData = ref(false);
+
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
 
 const {
   messages,
@@ -120,12 +193,13 @@ const {
   readMessage,
   replyToMessage,
   peer,
-  conn,
+  connections, // Updated
   roomData,
+  updateMember,
   isConnectionEstablished,
   callState,
   localStream,
-  remoteStream,
+  remoteStreams, // Updated
   screenShareStream,
   isCameraEnabled,
   isMicEnabled,
@@ -133,13 +207,20 @@ const {
   acceptCall,
   declineCall,
   endCall,
-  callType,
+  // callType, // Not exposed in new usePeer? I need to check
   toggleCamera,
   toggleScreenShare,
   isScreenShareEnabled,
   screenShareOwnerId,
   toggleMic,
-} = usePeer(sessionId, !isInvited.value);
+} = usePeer({ sessionId, isInitiator: !isInvited.value });
+
+// Manually track call type since usePeer simplified media somewhat
+const callType = ref<"audio" | "video">("video");
+
+const isMeScreenSharing = computed(() => {
+  return isScreenShareEnabled.value; // Simplification, strictly checks if *I* enabled it
+});
 
 const {
   step,
@@ -154,7 +235,8 @@ const {
   messages,
   initPeer,
   isConnectionEstablished,
-  conn,
+  roomData,
+  updateMember,
 );
 
 useChatAudio(callState);
@@ -163,17 +245,27 @@ const showConnectionLoader = ref(false);
 const connectionLoaderMessage = ref("Пытаемся восстановить соединение...");
 const callStatusText = ref("");
 
-const isMeScreenSharing = computed(() => {
-  return screenShareOwnerId.value === useDeviceId();
+const windowTitle = computed(() => {
+  const count = Object.keys(roomData.value.members).length;
+  if (!count) return "Чат";
+  return `Чат (${count} уч.)`;
 });
 
 function swapToCall() {
   showChat.value = false;
   showCall.value = true;
+  showRoomData.value = false;
 }
 function swapToChat() {
   showChat.value = true;
   showCall.value = false;
+  showRoomData.value = false;
+}
+
+function swapToRoomData() {
+  showChat.value = false;
+  showCall.value = false;
+  showRoomData.value = true;
 }
 
 function startConnectionLoader(
@@ -240,22 +332,13 @@ const transcribeVoiceMessage = async (id: string, audioBinary: ArrayBuffer) => {
 
 function onCall(type: "audio" | "video") {
   showCall.value = true;
-  startCall(type === "video");
   callType.value = type;
+  // Start call to ALL connected peers
+  startCall(type === "video");
 }
 
 function onAcceptCall(opts?: { mic?: boolean; cam?: boolean }) {
-  acceptCall({ cam: callType.value === "video" });
-  setTimeout(() => {
-    if (opts && localStream.value) {
-      localStream.value.getAudioTracks().forEach((t) => {
-        t.enabled = opts.mic !== false;
-      });
-      localStream.value.getVideoTracks().forEach((t) => {
-        t.enabled = opts.cam !== false;
-      });
-    }
-  }, 500);
+  acceptCall(opts);
 }
 
 function onDeclineCall() {
@@ -305,6 +388,7 @@ function checkCallChatVisibilitySwap() {
       showCall.value = true;
     }
     showChat.value = true;
+    showRoomData.value = false;
   }
 }
 
@@ -321,7 +405,7 @@ watch(
   () => callState.value,
   (newVal) => {
     if (newVal === "calling") {
-      callStatusText.value = "Звоним собеседнику...";
+      callStatusText.value = "Звоним...";
       return;
     }
     if (newVal === "incoming") {
@@ -340,24 +424,17 @@ watch(
   { immediate: true },
 );
 
-watch([localStream, remoteStream, showCall], ([my, remote, show]) => {
-  if (!show) return;
-  const videoComp = document.querySelector(".video-call");
-  if (!videoComp) return;
-  const myVideo = videoComp.querySelector(
-    ".video-call__my-video",
-  ) as HTMLVideoElement;
-  const remoteVideo = videoComp.querySelector(
-    ".video-call__remote-video",
-  ) as HTMLVideoElement;
-  if (myVideo && my) myVideo.srcObject = my;
-  if (remoteVideo && remote) remoteVideo.srcObject = remote;
-});
+// We no longer manually map video elements in the parent because VideoCall.vue handles the grid loop.
+// But we might need to handle the screen share or local video?
+// VideoCall.vue handles "myVideo" ref and "remoteStreams" loop internally.
+// So we don't need the big watcher here that sets srcObject.
+// CChatVideoCall component props binding is sufficient.
 
 const handleEndSession = async () => {
-  if (conn.value) {
-    conn.value.close();
-  }
+  Object.values(connections).forEach((conn) => {
+    conn.close();
+  });
+  for (const k of Object.keys(connections)) delete connections[k];
   if (peer.value) {
     peer.value.destroy();
   }
@@ -365,7 +442,10 @@ const handleEndSession = async () => {
 };
 
 onMounted(() => {
-  window.addEventListener("resize", checkCallChatVisibilitySwap);
+  window.addEventListener("resize", () => {
+    windowWidth.value = window.innerWidth;
+    checkCallChatVisibilitySwap();
+  });
   restoreSession();
 });
 
@@ -391,19 +471,19 @@ $app-mobile: 600px;
     width: 100%;
     height: 100%;
     .chat-header-buttons-wrapper {
-      display: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     @media screen and (max-width: $app-desktop) {
       height: 100vh;
       flex-shrink: 0;
-      .chat-header-buttons-wrapper {
-        display: block;
-      }
     }
   }
   @media screen and (max-width: $app-desktop) {
-    height: max-content;
+    height: 100vh;
     flex-direction: column;
+    /* ensure proper stacking/visibility */
   }
 
   @media screen and (max-width: $app-desktop) {
@@ -411,6 +491,22 @@ $app-mobile: 600px;
       .chat-wrapper {
         display: none;
       }
+    }
+  }
+
+  .room-data-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    .room-data--standalone {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
+      padding: 24px;
+      overflow-y: auto;
     }
   }
 }

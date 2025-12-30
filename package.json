@@ -2,7 +2,7 @@
   "name": "untrackly",
   "private": true,
   "type": "module",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",

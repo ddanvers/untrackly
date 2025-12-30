@@ -1,102 +1,61 @@
-export type ConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "reconnecting"
-  | "failed";
-
-export type UserStatus = "online" | "away" | "busy" | "offline";
-export type NetworkQuality =
-  | "excellent"
-  | "good"
-  | "poor"
-  | "unstable"
-  | "critical";
-export type DataTransferStatus =
-  | "idle"
-  | "transmitting"
-  | "receiving"
-  | "bidirectional";
-
-export type CallStatus =
-  | "idle"
-  | "calling"
-  | "incoming"
-  | "active"
-  | "ended"
-  | "declined"
-  | "failed";
-
-export interface NetworkMetrics {
-  connectionStatus: ConnectionStatus;
-  quality: NetworkQuality;
-  dataTransferStatus: DataTransferStatus;
-  sentBytes: number;
-  receivedBytes: number;
-  roundTripTime: number;
-  packetLossPercentage: number;
-  estimatedBandwidth: number;
-  lastPingTimestamp: number;
-  connectionUptime: number;
-  jitterMs: number;
-  retryAttempts: number;
-}
-
-export interface RoomMetadata {
+export interface Member {
   id: string;
-  dateCreated: string;
-  dateUpdated: string;
-  sessionDuration: number;
-  name?: string;
-}
-
-export interface CallMetrics {
-  status: CallStatus;
-  type: "audio" | "video" | null;
-  startTime: number | null;
-  duration: number;
-  totalCalls: number;
-  quality: {
-    videoResolution: string | null;
-    audioQuality: "excellent" | "good" | "poor" | null;
-    frameRate: number | null;
-  };
-}
-
-export interface MessageMetrics {
-  messagesSent: number;
-  messagesReceived: number;
-  unreadCount: number;
-  filesShared: number;
-  lastMessageTimestamp: number;
-}
-
-export interface MemberStatus {
-  yourStatus: UserStatus;
-  companionStatus: UserStatus;
-  companionLastSeen: number;
-  isCompanionTyping: boolean;
-  lastActivityTimestamp: number;
-  companionCameraEnabled: boolean;
-  companionMicEnabled: boolean;
-  companionHasMediaStream: boolean;
+  deviceId: string;
+  name: string;
+  isSelf: boolean;
+  status: "online" | "offline";
+  lastSeen: number;
+  isTyping: boolean;
+  cameraEnabled: boolean;
+  micEnabled: boolean;
+  hasMediaStream: boolean;
+  callStatus: "idle" | "calling" | "incoming" | "active";
 }
 
 export interface RoomData {
-  room: RoomMetadata;
-  members: MemberStatus;
-  network: NetworkMetrics;
-  call: CallMetrics;
-  messages: MessageMetrics;
+  room: {
+    id: string;
+    isGroup?: boolean;
+    dateCreated: string;
+    dateUpdated: string;
+    sessionDuration: number;
+  };
+  members: Record<string, Member>;
+  network: {
+    connectionStatus: "connecting" | "connected" | "disconnected" | "failed";
+    quality: "good" | "poor" | "bad";
+    dataTransferStatus: "idle" | "sending" | "receiving";
+    sentBytes: number;
+    receivedBytes: number;
+    roundTripTime: number;
+    packetLossPercentage: number;
+    estimatedBandwidth: number;
+    lastPingTimestamp: number;
+    connectionUptime: number;
+    jitterMs: number;
+    retryAttempts: number;
+  };
+  call: {
+    status: "idle" | "calling" | "incoming" | "active" | "ended";
+    type: "audio" | "video" | null;
+    startTime: number | null;
+    duration: number;
+    totalCalls: number;
+    quality: {
+      videoResolution: string | null;
+      audioQuality: string | null;
+      frameRate: number | null;
+    };
+  };
+  messages: {
+    messagesSent: number;
+    messagesReceived: number;
+    unreadCount: number;
+    filesShared: number;
+    lastMessageTimestamp: number;
+  };
 }
 
-export interface ReplyMessageData {
-  id: string;
-  text: string;
-  sender: string;
-}
-
-// Message types from original file (inferred or need to be copied)
 export interface MessageFile {
   id: string;
   preview?: string;
@@ -105,20 +64,31 @@ export interface MessageFile {
     size: number;
     type: string;
     fileData: ArrayBuffer;
-    fileUrl?: string;
+    fileUrl?: string; // Created locally for display
+  };
+}
+
+export interface ReplyMessageData {
+  id: string;
+  text: string;
+  sender: string;
+  file?: {
+    type: string;
+    name: string;
   };
 }
 
 export interface Message {
   id: string;
   type: "message";
-  sender: string;
-  isVoiceMessage?: boolean;
+  sender: string; // Peer ID
   text: string;
   timestamp: number;
   files: MessageFile[];
-  replyMessage?: ReplyMessageData;
   read: boolean;
+  replyMessage?: ReplyMessageData;
   isEdited?: boolean;
-  existingFileIds?: string[];
+  isVoiceMessage?: boolean;
+  transcription?: string;
+  existingFileIds?: string[]; // IDs of files to keep during edit
 }

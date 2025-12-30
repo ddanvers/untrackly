@@ -8,7 +8,7 @@
     ref="elRef"
   >
     <div class="chat-message__meta">
-      <span class="chat-message__sender">{{ isMe ? "Вы" : "Собеседник" }}</span>
+      <span class="chat-message__sender">{{ senderName }}</span>
       <div class="chat-message__time-read-container">
         <div v-if="isMe" class="chat-message__read-status">
           <CHint
@@ -74,7 +74,7 @@
       <div class="message-form__reply">
         <div class="message-form__reply-content">
           <span class="message-form__reply-author">
-            {{ message.replyMessage.sender === meId ? "Вы" : "Собеседник" }}
+            {{ replyAuthorName }}
           </span>
           <p class="message-form__reply-text">
             {{ message.replyMessage.text || "Файл" }}
@@ -222,11 +222,14 @@ const FILE_ICONS = {
   mp4: "mp4.svg",
 };
 
+import type { Member, Message } from "~/composables/peer/types";
+
 const props = defineProps<{
   message: Message;
   isMe: boolean;
   meId: string;
   parentContainer: HTMLElement;
+  members: Record<string, Member>;
 }>();
 
 const emit = defineEmits<{
@@ -244,6 +247,23 @@ const elRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 const menuOpened = ref(false);
 const isTranscribing = ref(false);
+
+const senderName = computed(() => {
+  if (props.isMe) return "Вы";
+  const member = Object.values(props.members).find(
+    (m) => m.deviceId === props.message.sender,
+  );
+  return member?.name || "Собеседник";
+});
+
+const replyAuthorName = computed(() => {
+  if (!props.message.replyMessage) return "";
+  if (props.message.replyMessage.sender === props.meId) return "Вы";
+  const member = Object.values(props.members).find(
+    (m) => m.deviceId === props.message.replyMessage?.sender,
+  );
+  return member?.name || "Собеседник";
+});
 
 const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
