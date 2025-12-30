@@ -254,6 +254,9 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
     gap: 16px;
     height: 80px;
     margin-bottom: 12px;
+    @media screen and (max-width: $app-desktop) {
+      display: none;
+    }
     .room-data__title {
       color: var(--color-primary-on-text);
       font-size: 28px;

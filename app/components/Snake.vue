@@ -985,15 +985,11 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     &__stat {
       padding: $spacing-sm;
     }
-
-    &__virtual-controls {
-      margin-top: $spacing-md;
-    }
-
+    
     &__dpad-button,
     &__dpad-center {
-      width: 35px;
-      height: 35px;
+      width: 48px;
+      height: 48px;
       font-size: 1rem;
     }
   }

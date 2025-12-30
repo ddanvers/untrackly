@@ -8,7 +8,7 @@
     :style="movedWindowPosition"
     ref="videoCallEl"
   >
-    <CChatHeader class="video-call__header" title="Групповой звонок">
+    <CChatHeader class="video-call__header" title="Звонок">
       <template #buttons>
         <slot name="headerButtons"> </slot>
       </template>

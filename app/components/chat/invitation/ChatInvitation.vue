@@ -28,11 +28,11 @@
           <span>Скопировать</span>
         </CButton>
         
-        <CCheckbox
+        <!-- <CCheckbox
           v-if="!isInvited"
           v-model="isGroup"
-          label="Групповой чат"
-        />
+          label="Чат"
+        /> -->
 
       </div>
     </section>

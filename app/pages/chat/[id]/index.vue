@@ -20,6 +20,7 @@
       }"
     >
       <ChatRoomData
+        v-if="windowWidth > 1384"
         :room-data="roomData"
         :expanded="roomDataExpanded"
         @toggleExpand="roomDataExpanded = !roomDataExpanded"
@@ -50,14 +51,23 @@
         >
           <template #headerButtons>
             <CButton
+              @click="swapToRoomData"
+              bgColor="transparent"
+              variant="icon-default"
+              class="form__send"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/room/info.svg" width="48px"></NuxtImg>
+            </CButton>
+            <CButton
               @click="swapToChat"
               bgColor="transparent"
               variant="icon-default"
               class="form__send"
               size="large"
               icon-size="i-large"
-              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg
-            ></CButton>
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg>
+            </CButton>
           </template>
         </CChatVideoCall>
       </div>
@@ -77,19 +87,77 @@
           @call="onCall"
         >
           <template #headerButtons>
-            <div v-if="callState === 'active'" class="chat-header-buttons-wrapper">
+            <div class="chat-header-buttons-wrapper">
               <CButton
+                v-if="windowWidth <= 1384"
+                @click="swapToRoomData"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/room/info.svg" width="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                @click="onCall('video')"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                @click="onCall('audio')"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/phone.svg" width="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                v-if="callState === 'active'"
                 @click="swapToCall"
                 bgColor="transparent"
                 variant="icon-default"
                 class="form__send"
                 size="large"
                 icon-size="i-large"
-                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg
-              ></CButton>
+                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg>
+              </CButton>
             </div>
           </template>
         </CChatWindow>
+      </div>
+      <div v-if="showRoomData" class="room-data-wrapper">
+        <CChatHeader title="Данные комнаты">
+          <template #buttons>
+            <CButton
+              v-if="callState === 'active'"
+              @click="swapToCall"
+              bgColor="transparent"
+              variant="icon-default"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg>
+            </CButton>
+            <CButton
+              @click="swapToChat"
+              bgColor="transparent"
+              variant="icon-default"
+              size="large"
+              icon-size="i-large"
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg>
+            </CButton>
+          </template>
+        </CChatHeader>
+        <ChatRoomData
+          :room-data="roomData"
+          :expanded="true"
+          class="room-data--standalone"
+          @endSession="handleEndSession"
+        />
       </div>
     </section>
   </main>
@@ -112,6 +180,9 @@ const isInvited = shallowRef(route.query.invited === "true");
 const roomDataExpanded = shallowRef(true);
 const showCall = ref(false);
 const showChat = ref(true);
+const showRoomData = ref(false);
+
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
 
 const {
   messages,
@@ -176,17 +247,25 @@ const callStatusText = ref("");
 
 const windowTitle = computed(() => {
   const count = Object.keys(roomData.value.members).length;
-  if (!count) return "Групповой чат";
-  return `Групповой чат (${count} уч.)`;
+  if (!count) return "Чат";
+  return `Чат (${count} уч.)`;
 });
 
 function swapToCall() {
   showChat.value = false;
   showCall.value = true;
+  showRoomData.value = false;
 }
 function swapToChat() {
   showChat.value = true;
   showCall.value = false;
+  showRoomData.value = false;
+}
+
+function swapToRoomData() {
+  showChat.value = false;
+  showCall.value = false;
+  showRoomData.value = true;
 }
 
 function startConnectionLoader(
@@ -309,6 +388,7 @@ function checkCallChatVisibilitySwap() {
       showCall.value = true;
     }
     showChat.value = true;
+    showRoomData.value = false;
   }
 }
 
@@ -362,7 +442,10 @@ const handleEndSession = async () => {
 };
 
 onMounted(() => {
-  window.addEventListener("resize", checkCallChatVisibilitySwap);
+  window.addEventListener("resize", () => {
+    windowWidth.value = window.innerWidth;
+    checkCallChatVisibilitySwap();
+  });
   restoreSession();
 });
 
@@ -388,18 +471,17 @@ $app-mobile: 600px;
     width: 100%;
     height: 100%;
     .chat-header-buttons-wrapper {
-      display: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     @media screen and (max-width: $app-desktop) {
       height: 100vh;
       flex-shrink: 0;
-      .chat-header-buttons-wrapper {
-        display: block;
-      }
     }
   }
   @media screen and (max-width: $app-desktop) {
-    height: max-content;
+    height: 100vh;
     flex-direction: column;
     /* ensure proper stacking/visibility */
   }
@@ -410,10 +492,22 @@ $app-mobile: 600px;
         display: none;
       }
     }
-    /* If chat is shown, hide call? or just stack? 
-       Previous logic had conditional classes.
-       We'll keep existing behavior. 
-    */
+  }
+
+  .room-data-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    .room-data--standalone {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
+      padding: 24px;
+      overflow-y: auto;
+    }
   }
 }
 </style>
