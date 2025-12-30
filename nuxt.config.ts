@@ -3,7 +3,23 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   runtimeConfig: {
     deepgramApiKey: process.env.DEEPGRAM_API_KEY,
-    public: {},
+    public: {
+      iceServers:
+        process.env.ICE_SERVERS ||
+        JSON.stringify([
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun.l.google.com:5349" },
+          { urls: "stun:stun1.l.google.com:3478" },
+          { urls: "stun:stun1.l.google.com:5349" },
+          { urls: "stun:stun2.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:5349" },
+          { urls: "stun:stun3.l.google.com:3478" },
+          { urls: "stun:stun3.l.google.com:5349" },
+          { urls: "stun:stun4.l.google.com:19302" },
+          { urls: "stun:stun4.l.google.com:5349" },
+        ]),
+    },
   },
   modules: ["@nuxtjs/i18n", "@nuxt/image", "@nuxtjs/color-mode", "nuxt-swiper"],
   css: [
