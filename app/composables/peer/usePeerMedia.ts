@@ -180,28 +180,50 @@ export function usePeerMedia(
 
     try {
       let stream = localStream.value;
-      if (!stream) {
+
+      // If we don't have a stream, or if we need video but current stream has none
+      // we need to get a new stream.
+      // But for startCall, it's usually the first time, so we request exactly what we need.
+      // NOTE: "audio: true" is usually required for a call.
+      // If withAudio is false (e.g. muted start), we still need the track but muted.
+      // BUT if the user explicitly wants audio-only, we MUST NOT ask for video permission.
+
+      // Check if we need to get a new stream
+      const needsNewStream =
+        !stream ||
+        (withVideo && stream.getVideoTracks().length === 0) ||
+        (withAudio && stream.getAudioTracks().length === 0);
+
+      if (needsNewStream) {
+        // If we are starting with video=false, DO NOT request video permission
         stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: withVideo ? true : false,
+          audio: true, // Always get audio track for a call, we mute it if !withAudio
         });
         localStream.value = stream;
       }
 
-      stream.getVideoTracks().forEach((t) => {
-        t.enabled = !!withVideo;
-      });
-      stream.getAudioTracks().forEach((t) => {
-        t.enabled = !!withAudio;
-      });
+      if (stream) {
+        stream.getVideoTracks().forEach((t) => {
+          t.enabled = !!withVideo;
+        });
+        stream.getAudioTracks().forEach((t) => {
+          t.enabled = !!withAudio;
+        });
+      }
+
       // Keep only live tracks
-      const liveTracks = stream
-        .getTracks()
-        .filter((t) => t.readyState === "live");
+      // (This filtering might be redundant if we just got a fresh stream, but safe)
+      const tracks = stream?.getTracks() || [];
+      const liveTracks = tracks.filter((t) => t.readyState === "live");
+
+      // If we have no tracks (e.g. user denied everything?), we can't really call.
+      // But usually audio:true ensures at least one track.
+      if (liveTracks.length === 0) {
+        console.warn("[usePeerMedia] No live tracks to stream");
+      }
+
       const liveStream = new MediaStream(liveTracks);
-      // We don't overwrite localStream.value with a new MediaStream usually,
-      // but PeerJS might like the wrapper.
-      // Actually, let's just use the original stream for PeerJS calls.
 
       // Call each peer
       if (peer.value) {
@@ -267,15 +289,22 @@ export function usePeerMedia(
 
     try {
       let stream = localStream.value;
-      if (!stream) {
+
+      const needsVideo = !!opts?.cam;
+      const needsAudio = true; // Always need audio capability
+
+      // If we need video but don't have it, or don't have stream at all
+      const currentHasVideo = stream && stream.getVideoTracks().length > 0;
+
+      if (!stream || (needsVideo && !currentHasVideo)) {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: needsVideo,
+          audio: needsAudio,
         });
         localStream.value = stream;
       }
 
-      // Initially set tracks based on opts, BUT we need to answer calls.
+      // Set enable state
       stream.getVideoTracks().forEach((t) => {
         t.enabled = !!opts?.cam;
       });
@@ -283,17 +312,10 @@ export function usePeerMedia(
         t.enabled = !!opts?.mic;
       });
 
+      isCameraEnabled.value = !!opts?.cam;
+      isMicEnabled.value = !!opts?.mic;
+
       // Answer all incoming pending calls?
-      // Or just answer calls as they come?
-      // With Mesh, we might receive calls from A, B, C.
-      // Usually we answer them when they arrive.
-      // If we are 'accepting' a call, it implies we just got a request.
-
-      // Logic: Iterate over existing media connections that are not open/answered?
-      // PeerJS doesn't easily expose "pending answer" state.
-      // BUT, `handleIncomingCall` sets `mediaConn`.
-
-      // We need to answer ALL current media connections?
       for (const [peerId, mc] of Object.entries(mediaConnections)) {
         if (!mc.open) {
           // simplistic check
@@ -305,12 +327,8 @@ export function usePeerMedia(
         }
       }
 
-      // Also enable our tracks if requested
-      if (opts?.cam) await toggleCamera(true);
-      else await toggleCamera(false);
-
-      if (opts?.mic) toggleMic(true);
-      else toggleMic(false);
+      // Also enable our tracks if requested - already done above on stream tracks
+      // But sending signals:
 
       if (peer.value?.id) {
         updateMember(peer.value.id, {
@@ -327,8 +345,6 @@ export function usePeerMedia(
         console.warn(
           "[usePeerMedia] Camera or Microphone is already in use by another tab or application.",
         );
-        // Don't necessarily end the whole call if we just can't open our cam
-        // Maybe just mark as "active" without local stream?
         callState.value = "active";
         return;
       }
@@ -552,18 +568,66 @@ export function usePeerMedia(
   }
 
   async function toggleCamera(enabled: boolean) {
-    if (!localStream.value || isCameraToggling.value) return;
+    if (isCameraToggling.value) return;
     isCameraToggling.value = true;
     try {
-      const track = localStream.value.getVideoTracks()[0];
-      if (!track) return;
-      track.enabled = enabled;
-      isCameraEnabled.value = enabled;
+      let stream = localStream.value;
+      const hasVideoTrack = stream && stream.getVideoTracks().length > 0;
 
-      for (const conn of Object.values(connections)) {
+      // Case 1: We are ENABLING camera, but we have NO video track
+      if (enabled && !hasVideoTrack) {
+        console.log("[usePeerMedia] toggleCamera: upgrading to video...");
         try {
-          conn.send({ type: enabled ? "video-on" : "video-off" });
-        } catch (e) {}
+          // Request new stream with video
+          const newStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true, // Keep audio
+          });
+
+          // Respect current mic state
+          newStream.getAudioTracks().forEach((t) => {
+            t.enabled = isMicEnabled.value;
+          });
+
+          // Replace local stream
+          // Note: we should stop old tracks?
+          if (localStream.value) {
+            localStream.value.getTracks().forEach((t) => {
+              t.stop();
+            });
+          }
+          localStream.value = newStream;
+          stream = newStream;
+
+          // RENEGOTIATE: Call all peers with new stream
+          if (peer.value) {
+            for (const [peerId, conn] of Object.entries(connections)) {
+              if (conn.open) {
+                const mc = peer.value.call(peerId, newStream);
+                setupMediaConnection(mc, peerId);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[usePeerMedia] Failed to upgrade to video", err);
+          isCameraToggling.value = false;
+          return; // Abort
+        }
+      }
+
+      // Case 2: We have a stream (or just got one), toggle tracks
+      if (stream) {
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          track.enabled = enabled;
+          isCameraEnabled.value = enabled;
+
+          for (const conn of Object.values(connections)) {
+            try {
+              conn.send({ type: enabled ? "video-on" : "video-off" });
+            } catch (e) {}
+          }
+        }
       }
     } finally {
       isCameraToggling.value = false;
