@@ -1,0 +1,12 @@
+.chat-page {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--app-pink-gradient-bg);
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  background-color: var(--color-bg-on-secondary);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

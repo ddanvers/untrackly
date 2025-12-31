@@ -1,0 +1,647 @@
+<template>
+  <section
+    class="message-form"
+    :class="{ 'drag-active': dragActive, 'recording-active': isRecording }"
+    @dragenter.prevent="onSectionDragEnter"
+    @dragover.prevent
+  >
+    <section
+      v-if="props.replyingTo || props.editingMessage"
+      class="message-form__attached-message"
+      @click="goToReply"
+    >
+      <div class="message-form__attached-message-content">
+        <span class="message-form__attached-message-author">{{
+          props.replyingTo ? "В ответ на сообщение" : "Редактирование сообщения"
+        }}</span>
+        <p class="message-form__attached-message-text">
+          {{ props.replyingTo?.text || props.editingMessage?.text || "Файл" }}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="close-btn"
+        @dragstart.prevent
+        @click.stop="removeAttachedMessage"
+      >
+        <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
+      </button>
+    </section>
+    <div
+      class="message-form__drop-zone"
+      @dragenter.prevent
+      @dragover.prevent
+      @dragleave.prevent="onOverlayDragLeave"
+      @drop.prevent="onOverlayDrop"
+    >
+      Перетащите файлы сюда
+    </div>
+    <ul v-if="!isRecording && attachedFiles.length" class="message-form__attachments-list">
+      <li v-for="(item, idx) in attachedFiles" :key="item.file.name" class="form-file-attachment">
+        <template v-if="item.file.type.startsWith('image/')">
+          <img :src="item.preview" class="form-file-attachment__img" />
+        </template>
+        <template v-else>
+          <NuxtImg
+            :src="getIconByType(item.file.name.split('.').pop())"
+            class="mform-file-attachment__type-icon"
+            width="32px"
+          ></NuxtImg>
+          <span class="form-file-attachment__file">{{ item.file.name }}</span>
+        </template>
+        <button type="button" class="close-btn" @click="detachFile(idx)" @dragstart.prevent>
+          <NuxtImg src="/icons/close.svg" width="24px"></NuxtImg>
+        </button>
+      </li>
+    </ul>
+    <form class="message-form__actions" @submit.prevent>
+      <div v-if="isRecording" class="message-form__voice-timer">
+        <NuxtImg src="/icons/chat/record.svg" width="24px" class="message-form__voice-timer-icon" />
+        <span class="message-form__voice-timer-text">{{ formattedRecordingTime }}</span>
+      </div>
+      <CButton
+        v-if="!isRecording"
+        @click="onAttachClick"
+        button-type="button"
+        bgColor="transparent"
+        variant="icon-default"
+        class="message-form__attach"
+        size="large"
+        icon-size="i-large"
+        ><NuxtImg src="/icons/chat/attach_file.svg" width="32px"></NuxtImg
+      ></CButton>
+      <input ref="fileInput" type="file" multiple style="display: none" @change="onFileChange" />
+
+      <div class="message-form__input-wrapper">
+        <CInput
+          v-if="!isRecording"
+          v-model="messageText"
+          class="message-form__input"
+          placeholder="Сообщение"
+          @keyup.enter="sendMessage"
+          @paste="onPaste"
+          type="textarea"
+        />
+        <CButton
+          v-else
+          @click="cancelRecording"
+          button-type="button"
+          bgColor="transparent"
+          textColor="var(--color-negative-on-text)"
+          type="outline"
+          class="message-form__cancel-recording"
+          size="large"
+        >
+          Отменить запись
+        </CButton>
+      </div>
+
+      <CButton
+        bgColor="transparent"
+        variant="icon-default"
+        :class="[shouldShowVoiceButton ? 'message-form__voice' : 'message-form__send']"
+        @click="handleMainButtonClick"
+        size="large"
+        icon-size="i-large"
+      >
+        <NuxtImg
+          v-if="shouldShowVoiceButton"
+          :src="isRecording ? '/icons/chat/send.svg' : '/icons/chat/microphone.svg'"
+          width="32px"
+        />
+        <NuxtImg v-else src="/icons/chat/send.svg" width="32px" />
+      </CButton>
+    </form>
+  </section>
+</template>
+
+<script setup lang="ts">
+const DEFAULT_FILE_ICON = "file.svg";
+const FILE_ICONS = {
+  doc: "doc.svg",
+  docx: "doc.svg",
+  xls: "xls.svg",
+  xlsx: "xls.svg",
+  ppt: "ppt.svg",
+  pptx: "ppt.svg",
+  pdf: "pdf.svg",
+  csv: "csv.svg",
+  txt: "txt.svg",
+  zip: "zip.svg",
+  mp3: "mp3.svg",
+  mp4: "mp4.svg",
+};
+
+const props = defineProps<{
+  replyingTo: Message | null;
+  editingMessage: Message | null;
+}>();
+const emits = defineEmits<{
+  (e: "sendMessage", payload: SendMessageRequest): void;
+  (e: "editMessage", payload: EditMessageRequest): void;
+  (e: "replyToMessage", payload: ReplyMessageRequest): void;
+  (e: "removeAttachedMessage"): void;
+  (e: "goToReply"): void;
+}>();
+
+const messageText = ref("");
+const dragActive = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const attachedFiles = ref<FileAttachment[]>([]);
+
+const isRecording = ref(false);
+const isRecordingCancelled = ref(false);
+const recordingTime = ref(0);
+const mediaRecorder = ref<MediaRecorder | null>(null);
+const recordingTimer = ref<number | null>(null);
+const audioChunks = ref<Blob[]>([]);
+
+const shouldShowVoiceButton = computed(
+  () =>
+    !messageText.value?.trim() &&
+    !attachedFiles.value.length &&
+    !props.editingMessage,
+);
+
+const formattedRecordingTime = computed(() => {
+  const minutes = Math.floor(recordingTime.value / 60);
+  const seconds = recordingTime.value % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+});
+
+const getIconByType = (type?: string) => {
+  return `/icons/file_formats/${
+    type && type in FILE_ICONS
+      ? FILE_ICONS[type as keyof typeof FILE_ICONS]
+      : DEFAULT_FILE_ICON
+  }`;
+};
+
+function removeAttachedMessage() {
+  emits("removeAttachedMessage");
+}
+
+function goToReply() {
+  emits("goToReply");
+}
+
+function sendMessage(event?: KeyboardEvent) {
+  if (event?.shiftKey) return;
+  const trimmedText = messageText.value?.trim();
+  if (!trimmedText && !attachedFiles.value.length) return;
+  if (props.editingMessage) {
+    emits("editMessage", {
+      text: trimmedText,
+      files: attachedFiles.value,
+      editingId: props.editingMessage.id,
+      replyMessage: props.editingMessage.replyMessage,
+      read: props.editingMessage.read,
+    });
+  } else if (props.replyingTo) {
+    emits("replyToMessage", {
+      text: trimmedText,
+      files: attachedFiles.value,
+      replyMessage: {
+        id: props.replyingTo.id,
+        sender: props.replyingTo.sender,
+        text: props.replyingTo.text,
+      },
+    });
+  } else {
+    emits("sendMessage", {
+      text: trimmedText,
+      files: attachedFiles.value,
+    });
+  }
+  messageText.value = "";
+  attachedFiles.value = [];
+}
+
+function onPaste(event: ClipboardEvent) {
+  const items = event.clipboardData?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.kind === "file") {
+      const file = item.getAsFile();
+      if (file?.type.startsWith("image/")) {
+        const preview = URL.createObjectURL(file);
+        attachedFiles.value.push({ id: crypto.randomUUID(), file, preview });
+      }
+    }
+  }
+}
+
+function onSectionDragEnter() {
+  dragActive.value = true;
+}
+
+function onOverlayDragLeave(event: DragEvent) {
+  const to = event.relatedTarget as HTMLElement | null;
+  if (!(event.currentTarget as HTMLElement)?.contains(to!)) {
+    dragActive.value = false;
+  }
+}
+
+function onOverlayDrop(e: DragEvent) {
+  dragActive.value = false;
+  const files = e.dataTransfer?.files;
+  if (files?.length) addFiles(files);
+}
+
+function addFiles(files: FileList) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (!file) continue;
+    let preview: string | undefined;
+    if (file.type.startsWith("image/")) {
+      preview = URL.createObjectURL(file);
+    }
+    attachedFiles.value.push({ id: crypto.randomUUID(), file, preview });
+  }
+}
+
+function onAttachClick() {
+  fileInput.value?.click();
+}
+
+function onFileChange(e: Event) {
+  const files = (e.target as HTMLInputElement).files;
+  if (files?.length) {
+    addFiles(files);
+    (e.target as HTMLInputElement).value = "";
+  }
+}
+
+function detachFile(idx: number) {
+  attachedFiles.value.splice(idx, 1);
+}
+
+function handleMainButtonClick() {
+  if (shouldShowVoiceButton.value) {
+    if (isRecording.value) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  } else {
+    sendMessage();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    mediaRecorder.value = new MediaRecorder(stream);
+    audioChunks.value = [];
+    recordingTime.value = 0;
+    isRecording.value = true;
+    isRecordingCancelled.value = false;
+
+    recordingTimer.value = setInterval(() => {
+      recordingTime.value++;
+    }, 1000);
+
+    mediaRecorder.value.ondataavailable = (event) => {
+      audioChunks.value.push(event.data);
+    };
+
+    mediaRecorder.value.onstop = () => {
+      if (isRecordingCancelled.value) return;
+      const audioBlob = new Blob(audioChunks.value, { type: "audio/webm" });
+      const voiceFile = new File([audioBlob], "Голосовое сообщение", {
+        type: "audio/webm",
+      });
+
+      attachedFiles.value = [];
+
+      const voiceAttachment = {
+        id: crypto.randomUUID(),
+        file: voiceFile,
+        preview: undefined,
+      };
+
+      if (props.replyingTo) {
+        emits("replyToMessage", {
+          text: "",
+          files: [voiceAttachment],
+          isVoiceMessage: true,
+          replyMessage: {
+            id: props.replyingTo.id,
+            sender: props.replyingTo.sender,
+            text: props.replyingTo.text,
+          },
+        });
+      } else {
+        emits("sendMessage", {
+          text: "",
+          isVoiceMessage: true,
+          files: [voiceAttachment],
+        });
+      }
+
+      cleanupRecording();
+    };
+
+    mediaRecorder.value.start();
+  } catch (error) {
+    console.error("Error starting voice recording:", error);
+    isRecording.value = false;
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder.value && isRecording.value) {
+    mediaRecorder.value.stop();
+    mediaRecorder.value.stream.getTracks().forEach((track) => {
+      track.stop();
+    });
+  }
+}
+
+function cancelRecording() {
+  isRecordingCancelled.value = true;
+  if (mediaRecorder.value && isRecording.value) {
+    mediaRecorder.value.stop();
+    mediaRecorder.value.stream.getTracks().forEach((track) => {
+      track.stop();
+    });
+  }
+  cleanupRecording();
+}
+
+function cleanupRecording() {
+  isRecording.value = false;
+  recordingTime.value = 0;
+  mediaRecorder.value = null;
+  audioChunks.value = [];
+
+  if (recordingTimer.value) {
+    clearInterval(recordingTimer.value);
+    recordingTimer.value = null;
+  }
+}
+
+watch(
+  () => props.editingMessage,
+  (newVal) => {
+    if (newVal) {
+      attachedFiles.value =
+        newVal.files?.map((f) => ({
+          id: f.id,
+          file: f.file,
+          preview: (f.file as ModelFile)?.fileUrl,
+        })) || [];
+      messageText.value = newVal.text || "";
+    } else {
+      attachedFiles.value = [];
+      messageText.value = "";
+    }
+  },
+);
+
+onUnmounted(() => {
+  cleanupRecording();
+});
+</script>
+
+<style lang="scss" scoped>
+.message-form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* Floating layout: Remove border-top, add padding */
+  padding: 16px;
+  /* border-top: 1px solid var(--color-neutral-on-outline); <-- REMOVED */
+  background: transparent;
+
+  &.recording-active {
+    width: 100%;
+    .message-form__actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .message-form__input-wrapper {
+      justify-content: center;
+    }
+  }
+
+  &__voice-timer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 12px 16px;
+    border-left: 4px solid var(--color-primary-on-outline);
+    margin-left: 20px;
+    padding-right: 20px;
+    &-icon {
+      filter: invert(25%) sepia(95%) saturate(1742%) hue-rotate(340deg) brightness(95%)
+        contrast(94%);
+      animation: pulse-recording 1.5s ease-in-out infinite;
+    }
+
+    &-text {
+      font-size: 16px;
+      color: var(--color-neutral-on-text);
+      min-width: 50px;
+    }
+  }
+
+  &__attached-message {
+    display: flex;
+    align-items: center;
+    border-left: 4px solid var(--color-primary-on-outline);
+    padding: 8px 16px;
+    /* Floating card style */
+    margin: 0 0 8px 0;
+    position: relative;
+    transition: background 0.3s ease;
+    cursor: pointer;
+    background: var(--color-bg-on-secondary-light); /* Card background */
+    border-radius: var(--radius-md); /* Rounded card */
+    overflow: hidden; /* Ensure left border curves */
+
+    &:hover {
+      background: var(--app-blue-100);
+    }
+    &:active {
+      background: var(--app-blue-200);
+    }
+    &-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    &-author {
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--color-neutral-on-text);
+    }
+
+    &-text {
+      font-size: 14px;
+      color: var(--color-neutral-on-text);
+      max-height: 40px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &-cancel {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      img {
+        filter: var(--app-filter-pink-500);
+      }
+      &:hover img {
+        filter: var(--app-pink-600);
+      }
+      &:active img {
+        filter: var(--app-pink-700);
+      }
+    }
+  }
+
+  &__attachments-list {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    /* Reset left/max-width for floating layout */
+    left: 0;
+    max-width: 100%;
+
+    padding: 12px 4px; /* Slight padding for shadow/scroll */
+    padding-top: 0;
+    overflow: auto;
+  }
+  .form-file-attachment {
+    padding: 8px;
+    background-color: var(--color-neutral-on-fill);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 92px;
+    gap: 8px;
+    border-radius: var(--radius-sm); /* Rounded thumbnails */
+
+    &__img {
+      width: 72px;
+      border-radius: var(--radius-sm);
+    }
+    &__file {
+      color: var(--color-neutral-on-text);
+      font-size: 12px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: flex-end; /* Align bottom */
+    /* Floating Bar Style */
+    padding: 8px 12px;
+    gap: 8px; /* Tighter gap */
+    flex-wrap: wrap;
+    background: var(--color-neutral-on-fill);
+    border-radius: 28px; /* Large pill shape */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Soft lift */
+  }
+
+  &__input-wrapper {
+    display: flex;
+    flex: 1;
+
+    /* Override CInput styles for seamless look */
+    :deep(.c-input) {
+      .input-main {
+        border: none !important; /* Remove separate border */
+        background: transparent !important;
+        box-shadow: none !important;
+        border-radius: 0;
+        padding: 0;
+
+        &:hover,
+        &.main-focus {
+          border-color: transparent;
+        }
+      }
+    }
+  }
+
+  &__drop-zone {
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
+    opacity: 0;
+    transform: scale(0.9);
+
+    position: absolute;
+    inset: 0;
+    background: var(--app-blue-100);
+    border: 2px dashed var(--app-blue-500);
+    border-radius: var(--radius-lg); /* Rounded overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--app-text-primary);
+    z-index: -1;
+    pointer-events: all;
+  }
+
+  &.drag-active &__drop-zone {
+    opacity: 1;
+    transform: scale(1);
+    z-index: 10;
+  }
+}
+
+@keyframes pulse-recording {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.close-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  margin-left: 4px;
+  background-color: var(--color-neutral-on-fill);
+  width: 24px;
+  height: 24px;
+  user-select: none;
+  border-radius: 50%; /* Circular close button */
+
+  img {
+    filter: var(--filter-neutral-on-text);
+  }
+  &:hover {
+    color: var(--app-pink-600);
+  }
+  &:active {
+    color: var(--app-pink-700);
+  }
+}
+</style>

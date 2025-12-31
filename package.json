@@ -1,28 +1,36 @@
 {
-  "name": "nuxt-app",
+  "name": "untrackly",
   "private": true,
   "type": "module",
+  "version": "1.0.4",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev --port 5464",
+    "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "start": "nuxt start",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "lint": "npx biome check",
+    "format": "npx biome format --write .",
+    "lintformat": "npx biome check --write ."
   },
   "dependencies": {
+    "@nuxt/image": "^1.10.0",
+    "@nuxtjs/color-mode": "^3.5.2",
     "@nuxtjs/i18n": "^9.5.5",
-    "@primeuix/themes": "^1.1.1",
-    "@primevue/forms": "^4.3.5",
     "file-saver": "^2.0.5",
-    "nuxt": "^3.17.5",
-    "primeflex": "^4.0.0",
-    "primeicons": "^7.0.0",
-    "primevue": "^4.3.5",
-    "simple-peer": "^9.11.1",
+    "maska": "^3.2.0",
+    "normalize.css": "^8.0.1",
+    "nuxt": "^4.2.2",
+    "nuxt-swiper": "^2.0.1",
+    "peerjs": "^1.5.5",
     "vue": "^3.5.16",
-    "vue-router": "^4.5.1"
+    "vue-router": "^4.5.1",
+    "wavesurfer.js": "^7.10.3"
   },
   "devDependencies": {
-    "@primevue/nuxt-module": "^4.3.5"
+    "@biomejs/biome": "2.3.10",
+    "lefthook": "^1.10.10",
+    "sass-embedded": "^1.89.2"
   }
 }

@@ -1,0 +1,17 @@
+node_modules
+.nuxt
+.output
+.git
+.gitignore
+.dockerignore
+Dockerfile
+README.md
+dist
+*.log
+.env
+.env.*
+!.env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
