@@ -252,7 +252,10 @@ $shadow-menu: rgba(0, 0, 0, 0.1);
   width: 100%;
   height: 72px;
   padding: 0 24px;
-  background-color: var(--color-bg-on-primary);
+  background: var(--liquid-glass-bg);
+  backdrop-filter: var(--liquid-glass-backdrop);
+  box-shadow: var(--liquid-glass-shadow);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 
   &__menu-container {
     display: flex;
@@ -463,7 +466,8 @@ $shadow-menu: rgba(0, 0, 0, 0.1);
   flex-direction: column;
   width: 280px;
   height: 100vh;
-  background-color: var(--color-bg-on-primary);
+  background: var(--liquid-glass-bg);
+  backdrop-filter: var(--liquid-glass-backdrop);
   box-shadow: -4px 0 20px $shadow-menu;
   transition: transform $animation-duration $animation-easing;
   transform: translateX(100%);

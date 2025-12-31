@@ -144,8 +144,10 @@ $app-small-height: 520px;
     gap: 32px;
     padding: 32px;
     padding: 24px 5vw;
-    background:
-      linear-gradient(rgba(4, 0, 66, 0.25), rgba(4, 0, 66, 0.25)), var(--color-bg-on-secondary);
+    background: var(--liquid-glass-bg);
+    backdrop-filter: var(--liquid-glass-backdrop);
+    box-shadow: var(--liquid-glass-shadow);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     @media screen and (max-width: $app-desktop) {
       padding: 24px 64px;
       height: 260px;

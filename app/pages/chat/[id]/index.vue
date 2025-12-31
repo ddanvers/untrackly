@@ -50,24 +50,26 @@
           @toggleScreenShare="onToggleScreenShare"
         >
           <template #headerButtons>
-            <CButton
-              @click="swapToRoomData"
-              bgColor="transparent"
-              variant="icon-default"
-              class="form__send"
-              size="large"
-              icon-size="i-large"
-              ><NuxtImg src="/icons/chat/room/info.svg" width="48px"></NuxtImg>
-            </CButton>
-            <CButton
-              @click="swapToChat"
-              bgColor="transparent"
-              variant="icon-default"
-              class="form__send"
-              size="large"
-              icon-size="i-large"
-              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg>
-            </CButton>
+            <div class="chat-header-buttons-wrapper">
+              <CButton
+                @click="swapToRoomData"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/room/info.svg" width="32px" height="32px"></NuxtImg>
+              </CButton>
+              <CButton
+                @click="swapToChat"
+                bgColor="transparent"
+                variant="icon-default"
+                class="form__send"
+                size="large"
+                icon-size="i-large"
+                ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px" height="32px"></NuxtImg>
+              </CButton>
+            </div>
           </template>
         </CChatVideoCall>
       </div>
@@ -87,7 +89,8 @@
           @call="onCall"
         >
           <template #headerButtons>
-            <div class="chat-header-buttons-wrapper">
+            <div class="chat-header-buttons-wrapper" :class="{
+            'chat-header-buttons-wrapper--active-call': callState === 'active'}">
               <CButton
                 v-if="windowWidth <= 1384"
                 @click="swapToRoomData"
@@ -99,6 +102,7 @@
                 ><NuxtImg src="/icons/chat/room/info.svg" width="32px"></NuxtImg>
               </CButton>
               <CButton
+                v-if="!['active', 'calling', 'incoming'].includes(callState)"
                 @click="onCall('video')"
                 bgColor="transparent"
                 variant="icon-default"
@@ -108,6 +112,7 @@
                 ><NuxtImg src="/icons/chat/video.svg" width="32px"></NuxtImg>
               </CButton>
               <CButton
+                v-if="!['active', 'calling', 'incoming'].includes(callState)"
                 @click="onCall('audio')"
                 bgColor="transparent"
                 variant="icon-default"
@@ -124,7 +129,7 @@
                 class="form__send"
                 size="large"
                 icon-size="i-large"
-                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg>
+                ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px" height="32px"></NuxtImg>
               </CButton>
             </div>
           </template>
@@ -140,7 +145,7 @@
               variant="icon-default"
               size="large"
               icon-size="i-large"
-              ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px"></NuxtImg>
+              ><NuxtImg src="/icons/chat/swap_to_call.svg" width="48px" height="32px"></NuxtImg>
             </CButton>
             <CButton
               @click="swapToChat"
@@ -148,7 +153,7 @@
               variant="icon-default"
               size="large"
               icon-size="i-large"
-              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px"></NuxtImg>
+              ><NuxtImg src="/icons/chat/swap_to_chat.svg" width="48px" height="32px"></NuxtImg>
             </CButton>
           </template>
         </CChatHeader>
@@ -473,7 +478,11 @@ $app-mobile: 600px;
     .chat-header-buttons-wrapper {
       display: flex;
       align-items: center;
-      gap: 8px;
+      &--active-call {
+        @media screen and (min-width: $app-desktop) {
+          display: none;
+        }
+      }
     }
     @media screen and (max-width: $app-desktop) {
       height: 100vh;

@@ -14,9 +14,14 @@
       </template>
     </CChatHeader>
     <div class="video-call__content">
-      <header class="video-call__header">
-        <h2 class="video-call__title" v-show="!isMinimized">{{ callStatusText }}</h2>
-      </header>
+      <!-- Hidden Audio Layer: Ensures audio plays regardless of camera status or UI visibility -->
+      <div class="video-call__audio-layer" style="display: none;">
+        <AudioPlayer
+          v-for="[peerId, stream] in Object.entries(props.remoteStreams)"
+          :key="peerId"
+          :stream="stream"
+        />
+      </div>
       
       <div
         class="video-call__videos"
@@ -40,7 +45,7 @@
             >
               <div class="video-call__member" :class="{ 'video-call__member--cam-off': !getMemberCamStatus(peerId) }">
                 <div class="video-call__video-wrapper">
-                  <VideoPlayer v-if="getMemberCamStatus(peerId)" :stream="stream" />
+                  <VideoPlayer v-if="getMemberCamStatus(peerId)" :stream="stream" :muted="true" />
                   <div v-else class="video-call__avatar-placeholder">
                     {{ getMemberName(peerId).charAt(0).toUpperCase() }}
                   </div>
@@ -64,6 +69,7 @@
                 <VideoPlayer 
                   v-if="getMemberCamStatus(currentMainSpeakerId)" 
                   :stream="props.remoteStreams[currentMainSpeakerId]" 
+                  :muted="true"
                   class="video-call__main-video"
                 />
                 <div v-else class="video-call__main-avatar-placeholder">
@@ -214,8 +220,8 @@ import type { Member } from "~/composables/peer/types";
 
 // Simple sub-component for video to handle srcObject binding easily
 const VideoPlayer = {
-  props: ["stream"],
-  setup(props: { stream: MediaStream | null }) {
+  props: ["stream", "muted"],
+  setup(props: { stream: MediaStream | null; muted?: boolean }) {
     const el = ref<HTMLVideoElement | null>(null);
     watch(
       () => props.stream,
@@ -250,9 +256,52 @@ const VideoPlayer = {
         ref: el,
         autoplay: true,
         playsinline: true,
-        muted: false,
+        muted: props.muted ?? false,
         class: "video-call__remote-video",
         style: { width: "100%", height: "100%", objectFit: "cover" },
+      });
+  },
+};
+
+const AudioPlayer = {
+  props: ["stream"],
+  setup(props: { stream: MediaStream | null }) {
+    const el = ref<HTMLAudioElement | null>(null);
+    watch(
+      () => props.stream,
+      (val) => {
+        if (el.value) {
+          el.value.srcObject = val;
+          if (val) {
+            el.value
+              .play()
+              .catch((e) =>
+                console.warn("[AudioPlayer] Autoplay blocked or failed", e),
+              );
+          }
+        }
+      },
+      { immediate: true },
+    );
+
+    onMounted(() => {
+      if (el.value && props.stream) {
+        el.value.srcObject = props.stream;
+        el.value
+          .play()
+          .catch((e) =>
+            console.warn("[AudioPlayer] Autoplay blocked (onMounted)", e),
+          );
+      }
+    });
+
+    return () =>
+      h("audio", {
+        ref: el,
+        autoplay: true,
+        playsinline: true, // often needed for consistency
+        controls: false,
+        style: { display: "none" },
       });
   },
 };
@@ -727,25 +776,6 @@ $app-narrow-mobile: 364px;
       border: 0;
       border-radius: 0;
       box-shadow: none;
-    }
-    .video-call__header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      color: var(--color-neutral-on-text);
-      font-size: 22px;
-      margin: 24px 0px;
-      @media screen and (max-width: $app-narrow-mobile) {
-        margin: 12px 0px;
-      }
-      .video-call__title {
-        font-size: 24px;
-        font-weight: 400;
-        @media screen and (max-width: $app-mobile) {
-          font-size: 20px;
-        }
-      }
     }
 
     .video-call__videos {
