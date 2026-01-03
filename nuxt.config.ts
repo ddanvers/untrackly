@@ -3,6 +3,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   runtimeConfig: {
     deepgramApiKey: process.env.DEEPGRAM_API_KEY,
+    registerSecretKey: process.env.REGISTER_SECRET_KEY,
     public: {
       turnApiKey: "",
     },

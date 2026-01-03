@@ -37,7 +37,6 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Create signed JWT token
   const token = await signToken({
     userId: user.id,
     username: user.username,
@@ -46,8 +45,8 @@ export default defineEventHandler(async (event) => {
 
   setCookie(event, "auth_token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    secure: true,
+    maxAge: 60 * 60 * 24,
     sameSite: "strict",
   });
 

@@ -6,11 +6,11 @@
           <Logo class="logo-icon" :isClosed="isLogoClosed" />
         </div>
         
-        <h2 class="login-title">Авторизация</h2>
+        <h2 class="login-title">{{ mode === 'login' ? 'Авторизация' : 'Регистрация' }}</h2>
         
         <CForm ref="form" @submit.prevent="handleLogin" class="login-form">
           <CInput
-            v-model="username"
+            v-model="authData.username"
             label="Логин"
             placeholder="Введите логин"
             valid
@@ -18,9 +18,8 @@
             :errorMessage="error"
             @update:modelValue="error = ''"
           />
-
           <CInput
-            v-model="password"
+            v-model="authData.password"
             label="Пароль"
             type="password"
             placeholder="Введите пароль"
@@ -30,33 +29,60 @@
              @update:modelValue="error = ''"
              @toggle-visibility="(visible) => isLogoClosed = visible"
           />
-
+          <CInput
+            v-if="mode === 'register'"
+            v-model="authData.displayName"
+            label="Имя"
+            placeholder="Введите ваше имя"
+            valid
+            errorShow
+            :errorMessage="error"
+            @update:modelValue="error = ''"
+          />
+          <CInput
+            v-if="mode === 'register'"
+            v-model="authData.secretKey"
+            label="Секретный ключ"
+            placeholder="Введите ключ"
+            valid
+            errorShow
+            :errorMessage="error"
+            @update:modelValue="error = ''"
+          />
           <CButton 
             type="submit" 
             fill 
             :loading="isLoading"
             @click="handleLogin"
           >
-            Войти
+            {{ mode === 'login' ? 'Войти' : 'Зарегистрироваться' }}
           </CButton>
         </CForm>
+        <section class="change-mode">
+          <p v-if="mode === 'login'">Нет аккаунта? <span @click="changeMode">Зарегистрироваться</span></p>
+          <p v-else>Есть аккаунт? <span @click="mode = 'login'">Войти</span></p>
+        </section>
       </div>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
-const { login } = useAuth();
+const { login, register } = useAuth();
 const route = useRoute();
 const { showAlert } = useAlert();
 
 const formBlock = useTemplateRef("form");
-
-const username = ref("");
-const password = ref("");
+const authData = reactive({
+  username: "",
+  password: "",
+  displayName: "",
+  secretKey: "",
+});
 const error = ref("");
 const isLoading = ref(false);
 const isLogoClosed = ref(false);
+const mode = shallowRef<"login" | "register">("login");
 
 const handleLogin = async () => {
   error.value = "";
@@ -67,17 +93,37 @@ const handleLogin = async () => {
 
   isLoading.value = true;
   try {
-    const success = await login(username.value, password.value);
-    if (success) {
-      const redirect = (route.query.redirect as string) || "/";
-      navigateTo(redirect);
+    if (mode.value === "login") {
+      const success = await login(authData.username, authData.password);
+      if (success) {
+        const redirect = (route.query.redirect as string) || "/";
+        navigateTo(redirect);
+      } else {
+        showAlert("Неверные данные", "error");
+      }
     } else {
-      showAlert("Неверные данные", "error");
+      const success = await register(authData);
+      if (success) {
+        const redirect = (route.query.redirect as string) || "/";
+        navigateTo(redirect);
+      } else {
+        showAlert("Произошла ошибка", "error");
+      }
     }
   } catch (e) {
     showAlert("Произошла ошибка", "error");
   } finally {
     isLoading.value = false;
+  }
+};
+
+const changeMode = () => {
+  mode.value = mode.value === "login" ? "register" : "login";
+  if (mode.value === "register") {
+    authData.displayName = "";
+    authData.secretKey = "";
+    authData.password = "";
+    authData.username = "";
   }
 };
 </script>
@@ -159,13 +205,16 @@ const handleLogin = async () => {
   flex-direction: column;
   gap: 4px;
 }
-
-.error-text {
-  color: #ef4444;
-  font-size: 14px;
-  text-align: center;
-  padding: 8px;
-  background-color: rgba(239, 68, 68, 0.1);
-  border-radius: 8px;
+.change-mode {
+  color: var(--color-neutral-on-text);
+  p {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    span {
+      cursor: pointer;
+      color: var(--color-primary-on-text);
+    }
+  }
 }
 </style>

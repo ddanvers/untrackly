@@ -15,6 +15,25 @@ export const useAuth = () => {
     }
   };
 
+  const register = async (body: {
+    username: string;
+    password: string;
+    displayName: string;
+    secretKey: string;
+  }) => {
+    try {
+      const { user: loggedInUser } = await $fetch("/api/auth/register", {
+        method: "POST",
+        body,
+      });
+      user.value = loggedInUser;
+      return true;
+    } catch (error) {
+      console.error("Register failed", error);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       await $fetch("/api/auth/logout", { method: "POST" });
@@ -37,6 +56,7 @@ export const useAuth = () => {
   return {
     user,
     login,
+    register,
     logout,
     fetchUser,
   };
