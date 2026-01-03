@@ -7,7 +7,7 @@ export default defineNuxtConfig({
       turnApiKey: "",
     },
   },
-  modules: ["@nuxtjs/i18n", "@nuxt/image", "@nuxtjs/color-mode", "nuxt-swiper"],
+  modules: ["@nuxt/image", "nuxt-swiper"],
   css: [
     "normalize.css/normalize.css",
     "@/assets/styles/main.scss",
@@ -16,22 +16,4 @@ export default defineNuxtConfig({
     "@/assets/styles/colors.scss",
     "@/assets/styles/spacing.scss",
   ],
-  colorMode: {
-    preference: "dark",
-    fallback: "dark",
-    hid: "nuxt-color-mode-script",
-    globalName: "__NUXT_COLOR_MODE__",
-    componentName: "ColorScheme",
-    classPrefix: "",
-    classSuffix: "",
-    storage: "cookie",
-    storageKey: "nuxt-color-mode",
-  },
-  i18n: {
-    locales: [
-      { code: "en", language: "en-US" },
-      { code: "fr", language: "fr-FR" },
-    ],
-    defaultLocale: "en",
-  },
 });

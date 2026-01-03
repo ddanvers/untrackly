@@ -1,14 +1,11 @@
 import type { DataConnection, Peer } from "peerjs";
-import { reactive, ref, shallowRef } from "vue";
-import { useRuntimeConfig } from "#app";
-import { useAlert } from "~/composables/useAlert";
-import { useDeviceId } from "~/composables/useDeviceId";
 import type { Member, RoomData } from "./types";
 import { useFunnyNames } from "./useFunnyNames";
 
 export function usePeerConnection(
   sessionId: string,
   isInitiator: boolean,
+  roomData: Ref<RoomData>,
   updateRoomData: <T extends keyof RoomData>(
     section: T,
     updates: Partial<RoomData[T]>,
@@ -17,6 +14,9 @@ export function usePeerConnection(
   onMessageReceived: (data: any, senderId: string) => void,
 ) {
   const peer = shallowRef<Peer | null>(null);
+  const { user } = useAuth();
+  const { encryptForUser, decryptFromUser } = useE2EE();
+
   // Record of active data connections: peerId -> DataConnection
   const connections = reactive<Record<string, DataConnection>>({});
   const isConnectionEstablished = ref(false); // True if at least one connection is open
@@ -40,10 +40,54 @@ export function usePeerConnection(
     // If we are 'Persistent' (host), maybe we try to reconnect?
   }
 
-  function broadcast(data: any) {
+  async function broadcast(data: any) {
     for (const conn of Object.values(connections)) {
       if (conn.open) {
         try {
+          // Encrypt if message and user known
+          if (
+            data?.type === "message" ||
+            data?.type === "edit-message" ||
+            data?.type === "delete-message"
+          ) {
+            // Look up member
+            const member = roomData.value.members[conn.peer];
+            if (member?.userId) {
+              try {
+                const content = JSON.stringify(data);
+                const aad = `session:${sessionId}|sender:${user.value?.id}|recipient:${member.userId}|type:${data.type}`;
+
+                const { ciphertext, iv } = await encryptForUser(
+                  member.userId,
+                  content,
+                  aad,
+                );
+
+                conn.send({
+                  type: "encrypted",
+                  payload: ciphertext,
+                  senderId: user.value?.id,
+                  iv,
+                  originalType: data.type,
+                });
+                console.log(
+                  `[E2EE] 🔒 Sending Encrypted Message to ${conn.peer} (User ${member.userId})`,
+                );
+                console.log(`[E2EE] Ciphertext Payload:`, ciphertext);
+                continue;
+              } catch (encErr) {
+                console.error(
+                  `[usePeerConnection] Encryption failed for ${conn.peer} (User ${member.userId})`,
+                  encErr,
+                );
+                // Fallback? NO. Secure by default.
+                // maybe send error or skip?
+                // sending plain text is A SECURITY RISK.
+                continue;
+              }
+            }
+          }
+
           conn.send(data);
         } catch (e) {
           console.warn("[usePeerConnection] Broadcast failed to", conn.peer, e);
@@ -52,15 +96,44 @@ export function usePeerConnection(
     }
   }
 
-  function handleIncomingData(conn: DataConnection, data: any) {
+  async function handleIncomingData(conn: DataConnection, data: any) {
+    // Decrypt if needed
+    if (data?.type === "encrypted") {
+      try {
+        if (data.senderId && data.payload && data.iv) {
+          const aad = `session:${sessionId}|sender:${data.senderId}|recipient:${user.value?.id}|type:${data.originalType}`;
+          const decryptedJson = await decryptFromUser(
+            data.senderId,
+            data.payload,
+            data.iv,
+            aad,
+          );
+          const decryptedData = JSON.parse(decryptedJson);
+          console.log(
+            `[E2EE] 🔓 Received Encrypted Message from ${conn.peer} (User ${data.senderId})`,
+          );
+          console.log(`[E2EE] Decrypted Content:`, decryptedData);
+          // Recursively handle the decrypted data
+          handleIncomingData(conn, decryptedData);
+          // Also notify listener
+          onMessageReceived(decryptedData, conn.peer);
+          return;
+        }
+      } catch (decErr) {
+        console.error("[usePeerConnection] Decryption failed", decErr);
+        return;
+      }
+    }
+
     if (data?.type === "hello") {
       // Peer sent their info
       updateMember(conn.peer, {
         name: data.name,
         deviceId: data.deviceId,
+        userId: data.userId, // Store User ID
         status: "online",
         lastSeen: Date.now(),
-      });
+      }); // ... rest of function unchanged
 
       // Discovery: Send known peers to the new joiner
       const knownPeers = Object.keys(connections).filter(
@@ -142,6 +215,7 @@ export function usePeerConnection(
         type: "hello",
         name: myName.value,
         deviceId: useDeviceId(),
+        userId: user.value?.id, // Send my User ID
       });
 
       updateMember(conn.peer, {
@@ -249,6 +323,7 @@ export function usePeerConnection(
         updateMember(id, {
           name: myName.value,
           deviceId: useDeviceId(),
+          userId: user.value?.id,
           isSelf: true,
           status: "online",
           lastSeen: Date.now(),
@@ -306,7 +381,7 @@ export function usePeerConnection(
     }
   }
 
-  function handleInitError(err: any) {
+  function handleInitError(_err: any) {
     if (reinitAttempts.value < maxReinitAttempts) {
       reinitAttempts.value++;
       const delay = 2 ** reinitAttempts.value * 1000;

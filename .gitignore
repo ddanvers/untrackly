@@ -22,3 +22,10 @@ logs
 .env
 .env.*
 !.env.example
+
+server/database/migrations/meta
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3

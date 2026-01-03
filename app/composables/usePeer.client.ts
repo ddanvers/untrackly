@@ -38,6 +38,7 @@ export function usePeer(options: UsePeerOptions) {
   } = usePeerConnection(
     sessionId,
     isInitiator,
+    roomData,
     updateRoomData,
     updateMember,
     onMessageReceived,

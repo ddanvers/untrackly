@@ -251,11 +251,11 @@ $spinner-size: 18px;
   }
 
   &.loading {
-    background: var(--app-pink-500);
+    background: var(--color-primary-on-fill);
 
     .c-button__loading {
       z-index: 3;
-      color: var(--app-grey-050);
+      color: var(--color-neutral-on-text);
     }
   }
 }
@@ -285,10 +285,10 @@ $spinner-size: 18px;
   }
 
   &.loading {
-    background: var(--app-pink-50);
+    background: var(--color-neutral-on-fill);
 
     .c-button__loading {
-      color: var(--app-grey-700);
+      color: var(--color-neutral-on-text);
     }
   }
 }
@@ -328,10 +328,10 @@ $spinner-size: 18px;
   }
 
   &.loading {
-    border-color: var(--app-pink-500);
+    border-color: var(--color-neutral-on-fill);
 
     .c-button__loading {
-      color: var(--app-pink-500);
+      color: var(--color-neutral-on-text);
     }
   }
 }
@@ -366,7 +366,7 @@ $spinner-size: 18px;
 
   &.loading {
     .c-button__loading {
-      color: var(--app-pink-400);
+      color: var(--color-neutral-on-text);
     }
   }
 }

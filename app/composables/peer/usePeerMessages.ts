@@ -24,7 +24,7 @@ export interface ReplyMessageRequest {
 }
 
 export function usePeerMessages(
-  broadcast: (data: any) => void,
+  broadcast: (data: any) => Promise<void>,
   roomData: Ref<RoomData>,
   updateRoomData: <T extends keyof RoomData>(
     section: T,
@@ -82,7 +82,7 @@ export function usePeerMessages(
     };
 
     console.log("[usePeerMessages] sendMessage: message", message);
-    broadcast(message);
+    await broadcast(message);
 
     const messageSize = calculateDataSize(message);
     updateBytesTransferred(messageSize, 0);
@@ -135,7 +135,7 @@ export function usePeerMessages(
     };
 
     console.log("[usePeerMessages] editMessage: message", message);
-    broadcast(message);
+    await broadcast(message);
 
     const messageSize = calculateDataSize(message);
     updateBytesTransferred(messageSize, 0);
