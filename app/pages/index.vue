@@ -98,7 +98,8 @@ $app-narrow-mobile: 364px;
 $app-medium-height: 750px;
 $app-small-height: 520px;
 .page-hero {
-  height: calc(100vh - 72px);
+  min-height: calc(100vh - 72px);
+  height: max-content;
   width: 100%;
   background: var(--color-bg-on-secondary);
   position: relative;

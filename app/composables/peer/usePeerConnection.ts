@@ -1,5 +1,6 @@
 import type { DataConnection, Peer } from "peerjs";
 import type { Member, RoomData } from "./types";
+import { useDoubleRatchet } from "./useDoubleRatchet";
 import { useFunnyNames } from "./useFunnyNames";
 
 export function usePeerConnection(
@@ -40,6 +41,11 @@ export function usePeerConnection(
     // If we are 'Persistent' (host), maybe we try to reconnect?
   }
 
+  /* Double Ratchet Integration */
+  const { initRatchetSession, encryptRatchet, decryptRatchet, hasSession } =
+    useDoubleRatchet();
+  const { getSharedKey, getRemotePublicKey } = useE2EE();
+
   async function broadcast(data: any) {
     for (const conn of Object.values(connections)) {
       if (conn.open) {
@@ -54,35 +60,85 @@ export function usePeerConnection(
             const member = roomData.value.members[conn.peer];
             if (member?.userId) {
               try {
+                // Ensure Ratchet Session Exists
+                if (!hasSession(conn.peer)) {
+                  console.warn(
+                    `[DoubleRatchet] No session for ${conn.peer}, trying to init...`,
+                  );
+                  // Try to init if we have the info, otherwise skip (wait for hello)
+                  const sharedKey = await getSharedKey(member.userId);
+                  const remoteKey = await getRemotePublicKey(member.userId);
+                  const myKeyPair = await getStoredKeyPair();
+
+                  if (sharedKey && remoteKey && user.value?.id && myKeyPair) {
+                    const role =
+                      user.value.id < member.userId ? "alice" : "bob";
+                    await initRatchetSession(
+                      conn.peer,
+                      role,
+                      sharedKey,
+                      remoteKey,
+                      myKeyPair,
+                    );
+
+                    // If we are Alice, we MUST prime the connection so Bob gets our Ratchet Key
+                    // and can initialize his sending chain.
+                    if (role === "alice") {
+                      console.log(
+                        `[DoubleRatchet] Alice pruning connection with handshake to ${conn.peer}`,
+                      );
+                      const handshakeData = {
+                        type: "handshake",
+                        timestamp: Date.now(),
+                      };
+                      const content = JSON.stringify(handshakeData);
+                      const aad = `session:${sessionId}|sender:${user.value?.id}|recipient:${member.userId}|type:handshake`;
+
+                      const { header, ciphertext, iv } = await encryptRatchet(
+                        conn.peer,
+                        content,
+                        aad,
+                      );
+
+                      conn.send({
+                        type: "encrypted-ratchet",
+                        payload: { header, ciphertext, iv },
+                        senderId: user.value?.id,
+                        originalType: "handshake",
+                      });
+                    }
+                  } else {
+                    console.error(
+                      `[DoubleRatchet] proper keys missing for ${conn.peer}`,
+                    );
+                    continue;
+                  }
+                }
+
                 const content = JSON.stringify(data);
                 const aad = `session:${sessionId}|sender:${user.value?.id}|recipient:${member.userId}|type:${data.type}`;
 
-                const { ciphertext, iv } = await encryptForUser(
-                  member.userId,
+                const { header, ciphertext, iv } = await encryptRatchet(
+                  conn.peer,
                   content,
                   aad,
                 );
 
                 conn.send({
-                  type: "encrypted",
-                  payload: ciphertext,
+                  type: "encrypted-ratchet", // V2 Protocol
+                  payload: { header, ciphertext, iv },
                   senderId: user.value?.id,
-                  iv,
                   originalType: data.type,
                 });
-                console.log(
-                  `[E2EE] 🔒 Sending Encrypted Message to ${conn.peer} (User ${member.userId})`,
-                );
-                console.log(`[E2EE] Ciphertext Payload:`, ciphertext);
+                // console.log(
+                //   `[Ratchet] 🔒 Sending to ${conn.peer} (User ${member.userId})`,
+                // );
                 continue;
               } catch (encErr) {
                 console.error(
                   `[usePeerConnection] Encryption failed for ${conn.peer} (User ${member.userId})`,
                   encErr,
                 );
-                // Fallback? NO. Secure by default.
-                // maybe send error or skip?
-                // sending plain text is A SECURITY RISK.
                 continue;
               }
             }
@@ -97,11 +153,61 @@ export function usePeerConnection(
   }
 
   async function handleIncomingData(conn: DataConnection, data: any) {
-    // Decrypt if needed
+    // Double Ratchet Decryption
+    if (data?.type === "encrypted-ratchet") {
+      try {
+        if (data.senderId && data.payload) {
+          const aad = `session:${sessionId}|sender:${data.senderId}|recipient:${user.value?.id}|type:${data.originalType}`;
+
+          // Ensure Session (if we missed Hello or it's out of order - tough, but try)
+          if (!hasSession(conn.peer)) {
+            const member = roomData.value.members[conn.peer];
+            if (member?.userId) {
+              // We knew them?
+              const sharedKey = await getSharedKey(member.userId);
+              const remoteKey = await getRemotePublicKey(member.userId);
+              const myKeyPair = await getStoredKeyPair();
+              if (sharedKey && remoteKey && user.value?.id && myKeyPair) {
+                const role = user.value.id < member.userId ? "alice" : "bob";
+                await initRatchetSession(
+                  conn.peer,
+                  role,
+                  sharedKey,
+                  remoteKey,
+                  myKeyPair,
+                );
+              }
+            }
+          }
+
+          const decryptedJson = await decryptRatchet(
+            conn.peer,
+            data.payload, // { header, ciphertext, iv }
+            aad,
+          );
+
+          const decryptedData = JSON.parse(decryptedJson);
+          // console.log(
+          //     `[Ratchet] 🔓 Received from ${conn.peer}`
+          // );
+
+          // Recursively handle
+          handleIncomingData(conn, decryptedData);
+          onMessageReceived(decryptedData, conn.peer);
+          return;
+        }
+      } catch (decErr) {
+        console.error("[usePeerConnection] Ratchet Decryption failed", decErr);
+        return;
+      }
+    }
+
+    // Legacy E2EE fallback (optional, remove if we want forced upgrade)
     if (data?.type === "encrypted") {
       try {
         if (data.senderId && data.payload && data.iv) {
           const aad = `session:${sessionId}|sender:${data.senderId}|recipient:${user.value?.id}|type:${data.originalType}`;
+          const { decryptFromUser } = useE2EE(); // Grab legacy
           const decryptedJson = await decryptFromUser(
             data.senderId,
             data.payload,
@@ -109,13 +215,7 @@ export function usePeerConnection(
             aad,
           );
           const decryptedData = JSON.parse(decryptedJson);
-          console.log(
-            `[E2EE] 🔓 Received Encrypted Message from ${conn.peer} (User ${data.senderId})`,
-          );
-          console.log(`[E2EE] Decrypted Content:`, decryptedData);
-          // Recursively handle the decrypted data
           handleIncomingData(conn, decryptedData);
-          // Also notify listener
           onMessageReceived(decryptedData, conn.peer);
           return;
         }
@@ -145,6 +245,57 @@ export function usePeerConnection(
           peers: knownPeers,
         });
       }
+
+      // Initialize Double Ratchet Session
+      if (data.userId && user.value?.id) {
+        if (data.userId === user.value.id) {
+          // Self-connect loopback? Ignore.
+        } else {
+          Promise.all([
+            getSharedKey(data.userId),
+            getRemotePublicKey(data.userId),
+            getStoredKeyPair(),
+          ]).then(([sharedKey, remoteKey, myKeyPair]) => {
+            if (sharedKey && remoteKey && myKeyPair) {
+              const role = user.value!.id < data.userId ? "alice" : "bob";
+              initRatchetSession(
+                conn.peer,
+                role,
+                sharedKey,
+                remoteKey,
+                myKeyPair,
+              ).then(async () => {
+                console.log(`[DoubleRatchet] Session ready with ${conn.peer}`);
+                if (role === "alice") {
+                  console.log(
+                    `[DoubleRatchet] Alice pruning connection with handshake to ${conn.peer} (via hello)`,
+                  );
+                  const handshakeData = {
+                    type: "handshake",
+                    timestamp: Date.now(),
+                  };
+                  const content = JSON.stringify(handshakeData);
+                  const aad = `session:${sessionId}|sender:${user.value?.id}|recipient:${data.userId}|type:handshake`;
+
+                  const { header, ciphertext, iv } = await encryptRatchet(
+                    conn.peer,
+                    content,
+                    aad,
+                  );
+
+                  conn.send({
+                    type: "encrypted-ratchet",
+                    payload: { header, ciphertext, iv },
+                    senderId: user.value?.id,
+                    originalType: "handshake",
+                  });
+                }
+              });
+            }
+          });
+        }
+      }
+
       return;
     }
 

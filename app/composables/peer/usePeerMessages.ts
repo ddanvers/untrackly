@@ -1,5 +1,6 @@
 import { type Ref, ref } from "vue";
 import { useDeviceId } from "~/composables/useDeviceId";
+import { arrayBufferToBase64, base64ToArrayBuffer } from "~/utils/crypto";
 import type { Message, MessageFile, ReplyMessageData, RoomData } from "./types";
 import { calculateDataSize } from "./utils";
 
@@ -61,7 +62,7 @@ export function usePeerMessages(
             name: file.name,
             size: file.size,
             type: file.type,
-            fileData: arrayBuffer,
+            fileData: arrayBufferToBase64(arrayBuffer),
             fileUrl,
           },
         };
@@ -112,7 +113,7 @@ export function usePeerMessages(
             name: f.file.name,
             size: f.file.size,
             type: f.file.type,
-            fileData: arrayBuffer,
+            fileData: arrayBufferToBase64(arrayBuffer),
             fileUrl,
           },
         });
@@ -156,7 +157,9 @@ export function usePeerMessages(
               fileUrl:
                 f.file.fileUrl ||
                 URL.createObjectURL(
-                  new Blob([f.file.fileData], { type: f.file.type }),
+                  new Blob([base64ToArrayBuffer(f.file.fileData)], {
+                    type: f.file.type,
+                  }),
                 ),
             },
           })),
@@ -222,7 +225,9 @@ export function usePeerMessages(
         .filter((f) => f)
         .map((f) => {
           const fileData = f.file.fileData;
-          const blob = new Blob([fileData], { type: f.file.type });
+          // Convert from Base64 string back to ArrayBuffer
+          const buffer = base64ToArrayBuffer(fileData);
+          const blob = new Blob([buffer], { type: f.file.type });
           return {
             ...f,
             file: {

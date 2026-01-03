@@ -104,5 +104,8 @@ export const useE2EE = () => {
     myPublicKey,
     encryptForUser,
     decryptFromUser,
+    getSharedKey,
+    getRemotePublicKey,
+    getStoredKeyPair, // Expose for Ratchet init
   };
 };

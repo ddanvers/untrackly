@@ -42,7 +42,8 @@ $app-narrow-mobile: 364px;
 .page-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
+  height: max-content;
   width: 100%;
   background-color: var(--color-bg-on-secondary);
   padding-top: 72px;
