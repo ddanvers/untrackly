@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  const secret = config.turnSecret;
+  const secret = config.turnSecret || process.env.TURN_SECRET;
   const turnUrls = config.public.turnUrl
     ? (config.public.turnUrl as string).split(",")
     : [];
