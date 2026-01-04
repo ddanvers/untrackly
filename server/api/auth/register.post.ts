@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
       statusMessage: "Имя, логин, пароль и секретный ключ обязательны",
     });
   }
-
+  console.log("keys for reg", registerSecretKey, secretKey);
   if (secretKey !== registerSecretKey) {
     throw createError({
       statusCode: 401,

@@ -43,15 +43,6 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Prune dev dependencies to keep image small
-# Re-running install with --production and removing lockfile to ensure clean slate
-# Note: simple 'npm prune' might fail if lockfile is out of sync, 
-# so we manually reinstall production deps if needed, or just trust the build output.
-# Nuxt build output is standalone, so we actually don't need node_modules for runtime
-# EXCEPT for better-sqlite3 if it's externalized.
-# Nuxt bundles most things. Let's check if better-sqlite3 is bundled.
-# Usually native modules are NOT bundled by Nitro/Rollup and need to be in node_modules.
-
 # -----------------------------------------------------------------------------
 # Stage 4: Production
 # -----------------------------------------------------------------------------
