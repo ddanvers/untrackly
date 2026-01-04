@@ -23,6 +23,15 @@
           </li>
         </ul>
       </nav>
+      <CButton
+        v-if="user"
+        variant="secondary"
+        size="small"
+        class="logout-button"
+        @click="logout"
+      >
+        Выйти
+      </CButton>
     </div>
     <button
       v-if="isMobile"
@@ -64,6 +73,11 @@
           </li>
         </ul>
       </nav>
+      <div v-if="user" class="mobile-menu__footer">
+        <CButton variant="quaternary" fill size="large" @click="logout">
+          Выйти
+        </CButton>
+      </div>
     </aside>
   </header>
 </template>
@@ -84,6 +98,7 @@ const RESIZE_DEBOUNCE_MS = 100;
 
 const props = defineProps<Props>();
 const router = useRouter();
+const { user, logout } = useAuth();
 
 const isMenuOpen = ref(false);
 const isMobile = ref(false);

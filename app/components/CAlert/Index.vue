@@ -16,7 +16,7 @@
         </div>
         <div class="c-alert__message">{{ alert.message }}</div>
         <button class="c-alert__close" @click.stop="removeAlert(alert.id)">
-          <div class="i-close"></div>
+          <NuxtImg src="/icons/close.svg" />
         </button>
       </div>
     </TransitionGroup>
@@ -91,7 +91,10 @@ const { alerts, removeAlert } = useAlert();
     display: flex;
     align-items: center;
     justify-content: center;
-
+    cursor: pointer;
+    img {
+      filter: var(--filter-neutral-on-text);
+    }
     &:hover {
       opacity: 1;
     }
@@ -107,10 +110,16 @@ const { alerts, removeAlert } = useAlert();
 
   &--success {
     border-left: 4px solid var(--color-positive-on-fill);
+    .c-alert__icon {
+        filter: var(--filter-positive-on-fill);
+    }
   }
 
   &--warning {
     border-left: 4px solid var(--orange-5);
+    .c-alert__icon {
+        filter: var(--filter-warning-on-fill);
+    }
   }
 
   &--info {
@@ -132,13 +141,5 @@ const { alerts, removeAlert } = useAlert();
 .alert-leave-to {
   opacity: 0;
   transform: translateX(30px) scale(0.9);
-}
-
-.i-close {
-  width: 12px;
-  height: 12px;
-  background-color: var(--color-neutral-on-text);
-  mask: url("/icons/close.svg") no-repeat center / contain;
-  -webkit-mask: url("/icons/close.svg") no-repeat center / contain;
 }
 </style>

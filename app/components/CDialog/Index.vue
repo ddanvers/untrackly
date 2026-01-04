@@ -106,6 +106,12 @@ $dialog-padding: 16px;
     align-items: center;
     width: fit-content;
     height: fit-content;
+    max-width: calc(100vw - 32px); // Mobile constraint
+
+    @media (min-width: 768px) {
+      max-width: 600px; // Desktop constraint
+    }
+
     .dialog-title {
       display: flex;
       justify-content: space-between;

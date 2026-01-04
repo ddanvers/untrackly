@@ -1,5 +1,6 @@
 export interface Member {
   id: string;
+  userId?: number;
   deviceId: string;
   name: string;
   isSelf: boolean;
@@ -63,7 +64,7 @@ export interface MessageFile {
     name: string;
     size: number;
     type: string;
-    fileData: ArrayBuffer;
+    fileData: string; // Base64
     fileUrl?: string; // Created locally for display
   };
 }

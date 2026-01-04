@@ -197,8 +197,8 @@ export function usePeerMedia(
       if (needsNewStream) {
         // If we are starting with video=false, DO NOT request video permission
         stream = await navigator.mediaDevices.getUserMedia({
-          video: withVideo ? true : false,
-          audio: true, // Always get audio track for a call, we mute it if !withAudio
+          video: !!withVideo,
+          audio: true,
         });
         localStream.value = stream;
       }

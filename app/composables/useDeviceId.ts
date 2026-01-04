@@ -7,7 +7,7 @@ export function useDeviceId() {
     if (import.meta.client && window.crypto?.randomUUID) {
       id.value = window.crypto.randomUUID();
     } else {
-      id.value = "dev-" + Math.random().toString(36).substring(2, 15);
+      id.value = `dev-${Math.random().toString(36).substring(2, 15)}`;
     }
   }
   return id.value;
