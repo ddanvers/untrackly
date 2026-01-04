@@ -5,8 +5,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
     await fetchUser();
   }
 
-  if (to.path === "/login") {
-    if (user.value) {
+  const publicPages = ["/login", "/terms", "/privacy"];
+
+  if (publicPages.includes(to.path)) {
+    if (user.value && to.path === "/login") {
       const redirect = to.query.redirect as string;
       return navigateTo(redirect || "/");
     }

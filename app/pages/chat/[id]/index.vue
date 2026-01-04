@@ -187,7 +187,7 @@ const showCall = ref(false);
 const showChat = ref(true);
 const showRoomData = ref(false);
 
-const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
+const windowWidth = ref(0);
 
 const {
   messages,

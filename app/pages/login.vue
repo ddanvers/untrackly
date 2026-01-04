@@ -49,11 +49,29 @@
             :errorMessage="error"
             @update:modelValue="error = ''"
           />
+          <div         v-if="mode === 'register'" class="agreement-checkbox-wrapper">
+          <CCheckbox
+            v-model="isAgreed"
+            class="agreement-checkbox mt-2"
+            :class="{ 'agreement-checkbox--error': showAgreementError }"
+          >
+            <span class="agreement-text">
+              Я согласен с 
+              <NuxtLink to="/terms" target="_blank">правилами пользования</NuxtLink> 
+              и 
+              <NuxtLink to="/privacy" target="_blank">политикой конфиденциальности</NuxtLink>
+            </span>
+          </CCheckbox>  
+          <Transition name="message-slide">
+            <span v-if="showAgreementError" class="agreement-error">Обязательно к заполнению</span>
+          </Transition>
+          </div>
           <CButton 
             type="submit" 
             fill 
             :loading="isLoading"
             @click="handleLogin"
+            :class="mode === 'register' ? 'mt-6' : 'mt-2'"
           >
             {{ mode === 'login' ? 'Войти' : 'Зарегистрироваться' }}
           </CButton>
@@ -68,6 +86,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  header: false,
+});
+
 const { login, register } = useAuth();
 const route = useRoute();
 const { showAlert } = useAlert();
@@ -83,11 +105,21 @@ const error = ref("");
 const isLoading = ref(false);
 const isLogoClosed = ref(false);
 const mode = shallowRef<"login" | "register">("login");
+const isAgreed = ref(false);
+const showAgreementError = ref(false);
+
+watch(isAgreed, (val) => {
+  if (val) showAgreementError.value = false;
+});
 
 const handleLogin = async () => {
   error.value = "";
-  if (!formBlock.value?.validate()) {
-    error.value = "Обязательно к заполнению";
+  showAgreementError.value = !isAgreed.value;
+
+  const isFormValid = formBlock.value?.validate();
+
+  if (!isFormValid || (!isAgreed.value && mode.value === "register")) {
+    if (!isFormValid) error.value = "Обязательно к заполнению";
     return;
   }
 
@@ -205,6 +237,52 @@ const changeMode = () => {
   flex-direction: column;
   gap: 4px;
 }
+.agreement-checkbox-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.agreement-checkbox {
+  align-items: flex-start;
+  &--error {
+    :deep(.c-checkbox__box) {
+      border-color: var(--color-negative-on-text);
+    }
+  }
+}
+
+.agreement-text {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-neutral-on-text);
+  
+  a {
+    color: var(--color-primary-on-text);
+    transition: opacity 0.2s;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+}
+
+.agreement-error {
+  color: var(--color-negative-on-text);
+  font-size: 12px;
+  position: absolute;
+  top: calc(100%);
+}
+
+.message-slide-enter-active,
+.message-slide-leave-active {
+  transition: all 0.2s ease;
+}
+
+.message-slide-enter-from,
+.message-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
 .change-mode {
   color: var(--color-neutral-on-text);
   p {
@@ -214,6 +292,10 @@ const changeMode = () => {
     span {
       cursor: pointer;
       color: var(--color-primary-on-text);
+      transition: opacity 0.2s ease;
+      &:hover {
+        opacity: 0.8;
+      }
     }
   }
 }

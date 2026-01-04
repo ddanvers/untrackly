@@ -12,7 +12,7 @@
       <section class="page-content__header">
         <CHeader v-if="route.meta.header" :menuItems="menuItems"></CHeader>
       </section>
-      <NuxtPage />
+      <slot />
     </div>
   </div>
 </template>
@@ -27,7 +27,7 @@ const menuItems = [
   {
     label: "О проекте",
     link: "/about",
-    disabled: true,
+    disabled: false,
   },
 ];
 function goBack() {
