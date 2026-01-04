@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
@@ -9,8 +10,8 @@ export const db = drizzle(sqlite, { schema });
 
 const migrationsFolder =
   process.env.NODE_ENV === "production"
-    ? "./migrations"
-    : "./server/database/migrations";
+    ? resolve(process.cwd(), "./migrations")
+    : resolve(process.cwd(), "./server/database/migrations");
 
 try {
   migrate(db, { migrationsFolder });
