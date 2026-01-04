@@ -8,7 +8,8 @@ export interface TokenPayload extends JWTPayload {
 }
 
 const getSecret = () => {
-  const secret = useRuntimeConfig().jwtSecret;
+  const config = useRuntimeConfig();
+  const secret = config.jwtSecret || process.env.JWT_SECRET;
   if (!secret) {
     throw new Error("JWT_SECRET environment variable is required");
   }

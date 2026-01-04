@@ -7,19 +7,27 @@ import { signToken } from "~~/server/utils/jwt";
 
 export default defineEventHandler(async (event) => {
   const { username, password, displayName, secretKey } = await readBody(event);
-  const registerSecretKey = useRuntimeConfig().registerSecretKey;
+  const config = useRuntimeConfig();
+  const registerSecretKey =
+    config.registerSecretKey || process.env.REGISTER_SECRET_KEY;
 
   if (!username || !password || !secretKey || !displayName) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Имя, логин, пароль и секретный ключ обязательны",
+      message: "Имя, логин, пароль и секретный ключ обязательны",
     });
   }
-  console.log("keys for reg", registerSecretKey, secretKey);
+
+  // Debug log to trace environment variable availability (masked)
+  const isKeyConfigured = !!registerSecretKey;
+  console.log(
+    `[Register] Secret Key configured: ${isKeyConfigured}. Input key length: ${secretKey.length}`,
+  );
+
   if (secretKey !== registerSecretKey) {
     throw createError({
       statusCode: 401,
-      statusMessage: "Неверный секретный ключ",
+      message: "Неверный секретный ключ",
     });
   }
 
@@ -31,7 +39,7 @@ export default defineEventHandler(async (event) => {
   if (existing) {
     throw createError({
       statusCode: 409,
-      statusMessage: "Пользователь уже существует",
+      message: "Пользователь уже существует",
     });
   }
 
