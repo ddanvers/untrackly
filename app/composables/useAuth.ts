@@ -1,5 +1,6 @@
 export const useAuth = () => {
   const user = useCookie<User | null>("auth-user");
+  const headers = useRequestHeaders(["cookie"]);
 
   const login = async (username: string, password: string) => {
     try {
@@ -34,21 +35,25 @@ export const useAuth = () => {
     }
   };
 
-  const logout = async (redirectPath?: string) => {
+  const logout = async (redirectPath?: string, navigate = true) => {
     try {
       await $fetch("/api/auth/logout", { method: "POST" });
     } catch (error) {
       console.error("Logout failed", error);
     } finally {
       user.value = null;
-      const path = typeof redirectPath === "string" ? redirectPath : "/login";
-      navigateTo(path);
+      if (navigate) {
+        const path = typeof redirectPath === "string" ? redirectPath : "/login";
+        navigateTo(path);
+      }
     }
   };
 
   const fetchUser = async () => {
     try {
-      const { user: fetchedUser } = await $fetch("/api/auth/me");
+      const { user: fetchedUser } = await $fetch("/api/auth/me", {
+        headers,
+      });
       user.value = fetchedUser;
       return fetchedUser;
     } catch (error) {
