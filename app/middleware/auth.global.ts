@@ -1,10 +1,5 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { user, fetchUser } = useAuth();
-
-  if (!user.value) {
-    await fetchUser();
-  }
-
+  const { user, fetchUser, logout } = useAuth();
   const publicPages = ["/login", "/terms", "/privacy"];
 
   if (publicPages.includes(to.path)) {
@@ -15,7 +10,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return;
   }
 
-  if (!user.value) {
-    return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
+  // Always re-validate session on every navigation for non-public pages
+  const fetchedUser = await fetchUser();
+
+  if (!fetchedUser) {
+    return logout(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
   }
 });
