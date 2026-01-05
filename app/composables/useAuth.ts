@@ -41,7 +41,8 @@ export const useAuth = () => {
       console.error("Logout failed", error);
     } finally {
       user.value = null;
-      navigateTo(redirectPath || "/login");
+      const path = typeof redirectPath === "string" ? redirectPath : "/login";
+      navigateTo(path);
     }
   };
 
