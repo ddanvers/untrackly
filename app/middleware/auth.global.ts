@@ -14,6 +14,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const fetchedUser = await fetchUser();
 
   if (!fetchedUser) {
-    return logout(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
+    await logout();
+    return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
   }
 });

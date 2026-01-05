@@ -10,6 +10,9 @@ export default defineNuxtConfig({
       turnUrl: "",
     },
   },
+  experimental: {
+    asyncContext: true,
+  },
   modules: ["@nuxt/image", "nuxt-swiper"],
   css: [
     "normalize.css/normalize.css",
