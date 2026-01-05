@@ -28,7 +28,7 @@
         variant="secondary"
         size="small"
         class="logout-button"
-        @click="logout"
+        @click="() => logout()"
       >
         Выйти
       </CButton>
@@ -74,7 +74,7 @@
         </ul>
       </nav>
       <div v-if="user" class="mobile-menu__footer">
-        <CButton variant="quaternary" fill size="large" @click="logout">
+        <CButton variant="quaternary" fill size="large" @click="() => logout()">
           Выйти
         </CButton>
       </div>
