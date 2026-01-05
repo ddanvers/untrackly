@@ -4,8 +4,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (publicPages.includes(to.path)) {
     if (user.value && to.path === "/login") {
-      const redirect = to.query.redirect as string;
-      return navigateTo(redirect || "/");
+      // Verify validity before bouncing back to prevent infinite loops
+      // if fetchUser fails, it clears user.value, keeping us on /login
+      const validUser = await fetchUser();
+
+      if (validUser) {
+        const redirect = to.query.redirect as string;
+        return navigateTo(redirect || "/");
+      }
     }
     return;
   }
@@ -14,7 +20,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const fetchedUser = await fetchUser();
 
   if (!fetchedUser) {
-    await logout();
+    await logout(undefined, false);
     return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
   }
 });
