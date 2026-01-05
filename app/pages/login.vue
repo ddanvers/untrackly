@@ -62,9 +62,6 @@
               <NuxtLink to="/privacy" target="_blank">политикой конфиденциальности</NuxtLink>
             </span>
           </CCheckbox>  
-          <Transition name="message-slide">
-            <span v-if="showAgreementError" class="agreement-error">Обязательно к заполнению</span>
-          </Transition>
           </div>
           <CButton 
             type="submit" 
@@ -266,23 +263,6 @@ const changeMode = () => {
   }
 }
 
-.agreement-error {
-  color: var(--color-negative-on-text);
-  font-size: 12px;
-  position: absolute;
-  top: calc(100%);
-}
-
-.message-slide-enter-active,
-.message-slide-leave-active {
-  transition: all 0.2s ease;
-}
-
-.message-slide-enter-from,
-.message-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-5px);
-}
 .change-mode {
   color: var(--color-neutral-on-text);
   p {

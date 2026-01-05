@@ -468,7 +468,7 @@ $app-mobile: 600px;
 
 .chat-window {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   width: 100%;
   overflow: hidden;
   .chat-wrapper,
@@ -485,12 +485,12 @@ $app-mobile: 600px;
       }
     }
     @media screen and (max-width: $app-desktop) {
-      height: 100vh;
+      height: 100dvh;
       flex-shrink: 0;
     }
   }
   @media screen and (max-width: $app-desktop) {
-    height: 100vh;
+    height: 100dvh;
     flex-direction: column;
     /* ensure proper stacking/visibility */
   }

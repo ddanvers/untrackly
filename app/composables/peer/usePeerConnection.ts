@@ -459,13 +459,12 @@ export function usePeerConnection(
       const PeerClass = (await import("peerjs")).default;
 
       const options = {
-        host: "peerjs-server-gims.onrender.com",
-        path: "/",
+        host: window.location.hostname,
+        path: "/peerjs",
         secure: true,
         debug: 1,
         config: {
           iceServers: iceServers,
-          iceTransportPolicy: "relay",
         },
       };
 

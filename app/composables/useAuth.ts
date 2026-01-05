@@ -34,13 +34,14 @@ export const useAuth = () => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (redirectPath?: string) => {
     try {
       await $fetch("/api/auth/logout", { method: "POST" });
-      user.value = null;
-      navigateTo("/login");
     } catch (error) {
       console.error("Logout failed", error);
+    } finally {
+      user.value = null;
+      navigateTo(redirectPath || "/login");
     }
   };
 
@@ -48,8 +49,10 @@ export const useAuth = () => {
     try {
       const { user: fetchedUser } = await $fetch("/api/auth/me");
       user.value = fetchedUser;
+      return fetchedUser;
     } catch (error) {
       user.value = null;
+      return null;
     }
   };
 

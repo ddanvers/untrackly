@@ -207,7 +207,7 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   @media screen and (max-width: $app-desktop) {
     order: 3;
     width: 100%;
-    height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     border: none;
   }
@@ -340,9 +340,8 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
           margin-left: 0;
         }
         .room-data__block-item {
-          display: flex;
-          justify-content: space-between;
           align-items: center;
+          gap: 16px;
 
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.04);
