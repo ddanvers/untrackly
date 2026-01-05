@@ -78,9 +78,10 @@
           v-model="messageText"
           class="message-form__input"
           placeholder="Сообщение"
-          @keyup.enter="sendMessage"
+          @keydown.enter="handleEnter"
           @paste="onPaste"
           type="textarea"
+          :trim-value="false"
         />
         <CButton
           v-else
@@ -156,6 +157,20 @@ const mediaRecorder = ref<MediaRecorder | null>(null);
 const recordingTimer = ref<number | null>(null);
 const audioChunks = ref<Blob[]>([]);
 
+const isDesktop = ref(true);
+
+onMounted(() => {
+  const mql = window.matchMedia("(min-width: 960px)");
+  isDesktop.value = mql.matches;
+  const handler = (e: MediaQueryListEvent) => {
+    isDesktop.value = e.matches;
+  };
+  mql.addEventListener("change", handler);
+  onUnmounted(() => {
+    mql.removeEventListener("change", handler);
+  });
+});
+
 const shouldShowVoiceButton = computed(
   () =>
     !messageText.value?.trim() &&
@@ -185,10 +200,37 @@ function goToReply() {
   emits("goToReply");
 }
 
+function handleEnter(event: KeyboardEvent) {
+  if (isDesktop.value) {
+    if (event.shiftKey) {
+      // Default behavior (new line)
+      return;
+    } else {
+      // Send message
+      event.preventDefault();
+      sendMessage();
+    }
+  } else {
+    // Mobile: Default behavior (new line) on Enter
+    return;
+  }
+}
+
 function sendMessage(event?: KeyboardEvent) {
   if (event?.shiftKey) return;
-  const trimmedText = messageText.value?.trim();
-  if (!trimmedText && !attachedFiles.value.length) return;
+
+  // Manual trim to handle preserve-whitespace input
+  const rawText = messageText.value || "";
+  const trimmedText = rawText.trim();
+
+  if (!trimmedText && !attachedFiles.value.length) {
+    // If only whitespace, clear it to show placeholder/fix cursor
+    if (rawText.length > 0) {
+      messageText.value = "";
+    }
+    return;
+  }
+
   if (props.editingMessage) {
     emits("editMessage", {
       text: trimmedText,
@@ -299,7 +341,7 @@ async function startRecording() {
     isRecording.value = true;
     isRecordingCancelled.value = false;
 
-    recordingTimer.value = setInterval(() => {
+    recordingTimer.value = window.setInterval(() => {
       recordingTime.value++;
     }, 1000);
 
@@ -413,6 +455,7 @@ onUnmounted(() => {
   flex-direction: column;
   /* Floating layout: Remove border-top, add padding */
   padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   /* border-top: 1px solid var(--color-neutral-on-outline); <-- REMOVED */
   background: transparent;
 

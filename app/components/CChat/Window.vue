@@ -25,7 +25,7 @@
       </template>
     </CChatHeader>
     <section class="chat__body" ref="bodyRef" @scroll="onScroll">
-      <div v-if="messages.length">
+      <div v-if="messages.length && bodyRef">
         <CChatMessage
           class="chat__message"
           :parentContainer="bodyRef"
@@ -44,7 +44,7 @@
           @scroll-to-message="scrollToMessage"
         />
       </div>
-      <div v-else class="chat__body--empty">Чат пуст. Всё готово к обмену сообщениями</div>
+      <div v-else-if="!messages.length" class="chat__body--empty">Чат пуст. Всё готово к обмену сообщениями</div>
     </section>
     <CChatMessageForm
       @sendMessage="sendMessage"
@@ -147,11 +147,19 @@ function onDelete(id: string) {
 }
 function onTranscribe(message: Message) {
   console.log("[Window.vue] onTranscribe", message.files[0]?.file.fileData);
-  emit("transcribeVoiceMessage", message.id, message.files[0]?.file.fileData);
+  emit(
+    "transcribeVoiceMessage",
+    message.id,
+    message.files[0]?.file.fileData as any,
+  );
 }
 function onRead(id: string) {
-  console.log("[Window.vue] onRead", id);
-  emit("readMessage", id);
+  console.log("[Window.vue] onRead", id, visibility.value);
+  if (visibility.value === "visible") {
+    emit("readMessage", id);
+  } else {
+    pendingReadMessages.add(id);
+  }
 }
 
 watch(
@@ -181,8 +189,9 @@ watch(
   () => props.messages.length,
   (newLen, oldLen) => {
     if (newLen > oldLen) {
-      if (!isAtBottom.value) {
-        const newMsg = props.messages[newLen - 1];
+      const newMsg = props.messages[newLen - 1];
+      // Play sound if not at bottom OR if tab is hidden
+      if ((!isAtBottom.value || visibility.value === "hidden") && newMsg) {
         if (newMsg.sender !== props.meId) {
           if (notificationSound) {
             notificationSound.play().catch(() => {});
@@ -195,6 +204,26 @@ watch(
     }
   },
 );
+
+const visibility = useDocumentVisibility();
+const pendingReadMessages = new Set<string>();
+
+watch(visibility, (val) => {
+  if (val === "visible") {
+    if (pendingReadMessages.size > 0) {
+      pendingReadMessages.forEach((id) => {
+        emit("readMessage", id);
+      });
+      pendingReadMessages.clear();
+    }
+  }
+});
+
+onMounted(() => {
+  // We need to intercept the emit("read", id) from Child components or handle it here.
+  // Wait, Child component `CChatMessage` emits `read`.
+  // We need to change the @read handler in the template.
+});
 </script>
 
 <style lang="scss" scoped>

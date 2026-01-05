@@ -122,6 +122,53 @@ export async function decryptMessage(
   return new TextDecoder().decode(decryptedBuffer);
 }
 
+// Encrypt Binary Data (for files)
+export async function encryptData(
+  key: CryptoKey,
+  data: ArrayBuffer,
+): Promise<{ ciphertext: ArrayBuffer; iv: Uint8Array }> {
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await window.crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv,
+      tagLength: 128,
+    },
+    key,
+    data,
+  );
+  return { ciphertext, iv };
+}
+
+// Decrypt Binary Data (for files)
+export async function decryptData(
+  key: CryptoKey,
+  data: ArrayBuffer,
+  iv: Uint8Array,
+): Promise<ArrayBuffer> {
+  return await window.crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv,
+      tagLength: 128,
+    },
+    key,
+    data,
+  );
+}
+
+// Generate One-Time Key for file encryption
+export async function generateFileKey(): Promise<CryptoKey> {
+  return await window.crypto.subtle.generateKey(
+    {
+      name: "AES-GCM",
+      length: 256,
+    },
+    true,
+    ["encrypt", "decrypt"],
+  );
+}
+
 // Helpers
 export function arrayBufferToBase64(
   buffer: ArrayBuffer | ArrayBufferLike,

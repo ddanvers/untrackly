@@ -42,6 +42,7 @@ export function usePeer(options: UsePeerOptions) {
     updateRoomData,
     updateMember,
     onMessageReceived,
+    updateBytesTransferred,
   );
 
   // 3. Messages
@@ -101,8 +102,10 @@ export function usePeer(options: UsePeerOptions) {
     // Route based on type
     if (
       data?.type === "message" ||
+      data?.type === "edit-message" ||
       data?.type === "delete-message" ||
       data?.type === "read" ||
+      data?.type === "file-chunk" ||
       typeof data === "string"
     ) {
       handleIncomingMessage(data);

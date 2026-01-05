@@ -388,7 +388,7 @@ watch(callState, (val) => {
 });
 
 function checkCallChatVisibilitySwap() {
-  if (window.innerWidth > 1384) {
+  if (window.innerWidth > 960) {
     if (["calling", "incoming", "active"].includes(callState.value)) {
       showCall.value = true;
     }
@@ -447,6 +447,8 @@ const handleEndSession = async () => {
 };
 
 onMounted(() => {
+  windowWidth.value = window.innerWidth;
+  checkCallChatVisibilitySwap();
   window.addEventListener("resize", () => {
     windowWidth.value = window.innerWidth;
     checkCallChatVisibilitySwap();
@@ -514,7 +516,7 @@ $app-mobile: 600px;
       background: transparent;
       backdrop-filter: none;
       box-shadow: none;
-      padding: 24px;
+      padding: 16px;
       overflow-y: auto;
     }
   }

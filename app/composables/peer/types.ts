@@ -64,9 +64,22 @@ export interface MessageFile {
     name: string;
     size: number;
     type: string;
-    fileData: string; // Base64
+    fileData?: string; // Base64 - optional for large files
+    fileId?: string; // For chunked transfer
     fileUrl?: string; // Created locally for display
+    percentLoaded?: number; // 0-100 indicating download progress
+    encryption?: {
+      key: string; // Base64 exported key
+      iv: string; // Base64 iv
+    };
   };
+}
+
+export interface FileChunk {
+  fileId: string;
+  chunkIndex: number;
+  totalChunks: number;
+  data: string; // Base64
 }
 
 export interface ReplyMessageData {
