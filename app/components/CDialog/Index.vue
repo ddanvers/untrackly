@@ -88,7 +88,7 @@ $dialog-padding: 16px;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100svh;
+  height: 100dvh;
   background: #000000ad;
   backdrop-filter: blur(4px);
   z-index: 10001;

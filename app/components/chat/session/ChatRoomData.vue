@@ -166,12 +166,11 @@ defineEmits<{
 const formatUTCDateIntl = (date?: string) => {
   if (!date) return "";
   return new Intl.DateTimeFormat("ru-RU", {
-    year: "numeric",
+    year: "2-digit",
     month: "numeric",
     day: "numeric",
     hour: "numeric",
     minute: "numeric",
-    second: "numeric",
   }).format(new Date(date));
 };
 
@@ -182,14 +181,16 @@ const formatBytesToMB = (bytes?: number) => {
 </script>
 
 <style scoped lang="scss">
-$app-desktop: 1384px;
-$transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+@import "~/assets/styles/responsive_screen_breakpoints";
+
+$transition-smooth: cubic-bezier(0.25, 1, 0.5, 1);
 $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
 .room-data {
   display: flex;
   flex-direction: column;
   width: 582px;
+  height: 100%;
   flex-shrink: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -199,7 +200,7 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: var(--liquid-glass-shadow);
 
   will-change: width;
-  transition: width 0.5s $transition-smooth;
+  transition: width 0.6s $transition-smooth;
   padding-bottom: 24px;
 
   --content-padding-left: 20px;
@@ -212,36 +213,14 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
     border: none;
   }
 
-  /* Compact State Styles */
-  &--compact {
-    width: 74px;
-
-    .room-data__title-wrapper,
-    .room-data__block-title,
-    .room-data__block-content {
-      opacity: 0;
-      transform: translateX(-10px);
-      pointer-events: none;
-    }
-
-    .room-data__footer-expand-wrapper {
-      padding-left: var(--content-padding-left);
-      justify-content: flex-start;
-    }
-
-    .room-data__footer-expand {
-      transform: rotate(-180deg);
-    }
-  }
-
   /* Transition properties */
   &__title-wrapper,
   &__block-title,
   &__block-content,
   &__divider {
     transition:
-      opacity 0.3s $transition-smooth,
-      transform 0.3s $transition-smooth;
+      opacity 0.4s $transition-smooth,
+      transform 0.4s $transition-smooth;
     opacity: 1;
     transform: translateX(0);
   }
@@ -254,6 +233,12 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
     gap: 16px;
     height: 80px;
     margin-bottom: 12px;
+    will-change: height, padding, margin-bottom;
+    transition:
+      height 0.6s $transition-smooth,
+      padding 0.6s $transition-smooth,
+      margin-bottom 0.6s $transition-smooth;
+
     @media screen and (max-width: $app-desktop) {
       display: none;
     }
@@ -281,10 +266,13 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   &__body {
     display: flex;
     gap: 24px;
+    flex: 1;
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 4px;
+    will-change: gap;
+    transition: gap 0.6s $transition-smooth;
 
     &::-webkit-scrollbar {
       width: 4px;
@@ -306,6 +294,7 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
       display: flex;
       flex-direction: column;
       gap: 12px;
+      will-change: gap;
 
       .room-data__block-header {
         display: flex;
@@ -313,7 +302,7 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
         gap: 16px;
         height: 32px;
         padding-left: var(--content-padding-left);
-        transition: all 0.3s $transition-smooth;
+        transition: all 0.4s $transition-smooth;
       }
 
       .room-data__block-title {
@@ -326,7 +315,14 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
       }
 
       .room-data__block-content {
-        /* Wrapper for list */
+        display: grid;
+        grid-template-rows: 1fr;
+        will-change: grid-template-rows;
+        transition:
+          grid-template-rows 0.6s $transition-smooth,
+          opacity 0.4s $transition-smooth,
+          transform 0.4s $transition-smooth,
+          margin-top 0.6s $transition-smooth;
       }
 
       .room-data__block-list {
@@ -334,15 +330,20 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
         flex-direction: column;
         gap: 6px;
         padding-left: var(--content-padding-left);
-        padding-right: 24px;
+        padding-right: 16px;
         margin-left: 48px;
+        min-height: 0;
+        overflow: hidden;
+
         @media screen and (max-width: $app-desktop) {
           margin-left: 0;
         }
         .room-data__block-item {
           align-items: center;
           gap: 16px;
-
+          flex-wrap: wrap;
+          display: flex;
+          justify-content: space-between;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.04);
           border-radius: var(--radius-md);
@@ -359,7 +360,6 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
             border-color: rgba(255, 255, 255, 0.08);
             transform: translateX(4px);
           }
-
           .room-data__block-label {
             font-size: 15px;
             color: var(--color-neutral-on-text);
@@ -372,7 +372,7 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
             align-items: center;
             font-size: 14px;
             color: var(--color-neutral-on-muted);
-
+            
             &--mono {
               font-family: "JetBrains Mono", "Fira Code", monospace;
               font-size: 12px;
@@ -384,6 +384,25 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
               font-weight: 500;
             }
           }
+                    @media screen and (max-width: $app-narrow-mobile) {
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-start;
+            min-width: unset;
+            width: 100%;
+            overflow-wrap: anywhere;
+            padding: 8px 12px;
+            .room-data__block-label {
+              font-size: 13px;
+            }
+            .room-data__block-value {
+              font-size: 12px;
+              &--mono {
+                width: 100%;
+                overflow-wrap: anywhere;
+              }
+            }
+          }
         }
       }
     }
@@ -392,11 +411,15 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   &__footer {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 1 1 auto; // Wait, body has flex: 1. Footer should be auto/shrink? Or explicit height?
+    // Actually, footer should rely on body pushing it.
+    flex: 0 0 auto; // Use 0 0 auto to let it size by content
     justify-content: space-between;
     align-items: center;
     margin-top: 24px;
     gap: 24px;
+    will-change: gap;
+    transition: gap 0.6s $transition-smooth;
   }
 
   &__end-session-wrapper {
@@ -418,6 +441,54 @@ $transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   &__footer-expand {
     transition: transform 0.4s $transition-smooth;
     margin-right: auto;
+  }
+
+  /* Compact State Styles */
+  &--compact {
+    width: 74px;
+
+    .room-data__title-wrapper,
+    .room-data__block-title {
+      opacity: 0;
+      transform: translateX(-10px);
+      pointer-events: none;
+    }
+
+    .room-data__block {
+      gap: 0;
+
+      .room-data__block-content {
+        grid-template-rows: 0fr;
+        opacity: 0;
+        transform: translateX(-10px);
+        pointer-events: none;
+        margin-top: 0;
+      }
+    }
+
+    .room-data__footer-expand-wrapper {
+      padding-left: var(--content-padding-left);
+      justify-content: flex-start;
+    }
+
+    .room-data__footer-expand {
+      transform: rotate(-180deg);
+    }
+
+    .room-data__body {
+      gap: 32px;
+    }
+
+    .room-data__header {
+      height: 56px; // 32 + 24
+      margin-bottom: 32px;
+      padding-top: 24px; // Maintained
+      padding-bottom: 0;
+    }
+
+    .room-data__footer {
+      gap: 32px;
+    }
   }
 }
 

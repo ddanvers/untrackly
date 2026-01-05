@@ -3,6 +3,8 @@ import type { Member, RoomData } from "./types";
 import { useDoubleRatchet } from "./useDoubleRatchet";
 import { useFunnyNames } from "./useFunnyNames";
 
+import { calculateDataSize } from "./utils";
+
 export function usePeerConnection(
   sessionId: string,
   isInitiator: boolean,
@@ -13,6 +15,7 @@ export function usePeerConnection(
   ) => void,
   updateMember: (id: string, updates: Partial<Member>) => void,
   onMessageReceived: (data: any, senderId: string) => void,
+  updateBytesTransferred: (sent: number, received: number) => void,
 ) {
   const peer = shallowRef<Peer | null>(null);
   const { user } = useAuth();
@@ -46,8 +49,29 @@ export function usePeerConnection(
     useDoubleRatchet();
   const { getSharedKey, getRemotePublicKey } = useE2EE();
 
+  // Helper for backpressure
+  async function sendWithBackpressure(conn: DataConnection, data: any) {
+    const MAX_BUFFERED_AMOUNT = 64 * 1024; // 64KB limit before waiting
+    // Check if dataChannel exists and has bufferedAmount
+    // @ts-expect-error - PeerJS types might not expose dataChannel directly on DataConnection interface in some versions
+    const channel = conn.dataChannel;
+
+    if (channel && channel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
+      // Wait for buffer to drain
+      await new Promise<void>((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (channel.bufferedAmount <= MAX_BUFFERED_AMOUNT) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 10); // Check every 10ms
+      });
+    }
+    conn.send(data);
+  }
+
   async function broadcast(data: any) {
-    for (const conn of Object.values(connections)) {
+    const promises = Object.values(connections).map(async (conn) => {
       if (conn.open) {
         try {
           // Encrypt if message and user known
@@ -100,7 +124,7 @@ export function usePeerConnection(
                         aad,
                       );
 
-                      conn.send({
+                      await sendWithBackpressure(conn, {
                         type: "encrypted-ratchet",
                         payload: { header, ciphertext, iv },
                         senderId: user.value?.id,
@@ -111,7 +135,7 @@ export function usePeerConnection(
                     console.error(
                       `[DoubleRatchet] proper keys missing for ${conn.peer}`,
                     );
-                    continue;
+                    return;
                   }
                 }
 
@@ -124,32 +148,52 @@ export function usePeerConnection(
                   aad,
                 );
 
-                conn.send({
+                await sendWithBackpressure(conn, {
                   type: "encrypted-ratchet", // V2 Protocol
                   payload: { header, ciphertext, iv },
                   senderId: user.value?.id,
                   originalType: data.type,
                 });
-                // console.log(
-                //   `[Ratchet] 🔒 Sending to ${conn.peer} (User ${member.userId})`,
-                // );
-                continue;
+                return;
               } catch (encErr) {
                 console.error(
                   `[usePeerConnection] Encryption failed for ${conn.peer} (User ${member.userId})`,
                   encErr,
                 );
-                continue;
+                return;
               }
             }
           }
 
-          conn.send(data);
+          await sendWithBackpressure(conn, data);
         } catch (e) {
           console.warn("[usePeerConnection] Broadcast failed to", conn.peer, e);
         }
       }
-    }
+    });
+
+    await Promise.all(promises);
+  }
+
+  // Queue for sequential processing of incoming messages per connection to avoid Ratchet state race conditions
+  const incomingQueues = new Map<string, Promise<void>>();
+
+  function enqueueIncomingData(conn: DataConnection, data: any) {
+    const peerId = conn.peer;
+    const currentChain = incomingQueues.get(peerId) || Promise.resolve();
+
+    const nextChain = currentChain.then(async () => {
+      try {
+        await handleIncomingData(conn, data);
+      } catch (err) {
+        console.error(
+          `[usePeerConnection] Error processing incoming data from ${peerId}:`,
+          err,
+        );
+      }
+    });
+
+    incomingQueues.set(peerId, nextChain);
   }
 
   async function handleIncomingData(conn: DataConnection, data: any) {
@@ -191,8 +235,14 @@ export function usePeerConnection(
           //     `[Ratchet] 🔓 Received from ${conn.peer}`
           // );
 
-          // Recursively handle
-          handleIncomingData(conn, decryptedData);
+          // Recursively handle (but we are already inside the queue lock, so we can just call directly or recurse)
+          // Note: If recursive payload is ALSO encrypted (nested?), we need to be careful.
+          // But our protocol doesn't nest encrypted-ratchet inside encrypted-ratchet usually.
+          // However, we DO want to pass through the queue again if we want to support nested types,
+          // BUT here we have "decryptedData". If we call handleIncomingData(conn, decryptedData),
+          // it serves to handle "hello", "message", etc. These are synchronous or safe async.
+          // The critical part is the DECRYPTION step which mutates state.
+          await handleIncomingData(conn, decryptedData);
           onMessageReceived(decryptedData, conn.peer);
           return;
         }
@@ -215,7 +265,7 @@ export function usePeerConnection(
             aad,
           );
           const decryptedData = JSON.parse(decryptedJson);
-          handleIncomingData(conn, decryptedData);
+          await handleIncomingData(conn, decryptedData);
           onMessageReceived(decryptedData, conn.peer);
           return;
         }
@@ -283,7 +333,7 @@ export function usePeerConnection(
                     aad,
                   );
 
-                  conn.send({
+                  await sendWithBackpressure(conn, {
                     type: "encrypted-ratchet",
                     payload: { header, ciphertext, iv },
                     senderId: user.value?.id,
@@ -311,7 +361,11 @@ export function usePeerConnection(
 
     if (data?.type === "member-update") {
       updateMember(conn.peer, data.updates);
+      return;
     }
+
+    // Pass any other messages (like unencrypted file-chunk) to application
+    onMessageReceived(data, conn.peer);
   }
 
   function connectToPeer(targetId: string) {
@@ -380,14 +434,16 @@ export function usePeerConnection(
     });
 
     conn.on("data", (data) => {
-      handleIncomingData(conn, data);
-      onMessageReceived(data, conn.peer);
+      const size = calculateDataSize(data);
+      updateBytesTransferred(0, size);
+      enqueueIncomingData(conn, data);
     });
 
     conn.on("close", () => {
       if (openTimeout) clearTimeout(openTimeout);
       console.log("[usePeerConnection] Connection closed with:", conn.peer);
       delete connections[conn.peer];
+      incomingQueues.delete(conn.peer);
 
       updateMember(conn.peer, {
         status: "offline",
@@ -459,7 +515,7 @@ export function usePeerConnection(
       const PeerClass = (await import("peerjs")).default;
 
       const options = {
-        host: window.location.hostname,
+        host: "untrackly.ru",
         path: "/peerjs",
         secure: true,
         debug: 1,
@@ -581,6 +637,7 @@ export function usePeerConnection(
   function destroyPeer() {
     for (const c of Object.values(connections)) c.close();
     for (const k of Object.keys(connections)) delete connections[k];
+    incomingQueues.clear();
     peer.value?.destroy();
     peer.value = null;
   }
