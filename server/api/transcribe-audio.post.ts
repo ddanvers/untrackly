@@ -1,6 +1,6 @@
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-
+  const apiKey = config.deepgramApiKey || process.env.DEEPGRAM_API_KEY;
   try {
     const audioBuffer = await readRawBody(event, false);
 
@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    if (!config.deepgramApiKey) {
+    if (!apiKey) {
       throw createError({
         statusCode: 500,
         statusMessage: "Deepgram API key is not configured",
@@ -20,7 +20,6 @@ export default defineEventHandler(async (event) => {
 
     const url =
       "https://api.deepgram.com/v1/listen?language=ru&model=nova-2-general&smart_format=true&punctuate=true&profanity_filter=false&filler_words=true";
-    const apiKey = config.deepgramApiKey;
 
     console.log(
       "Sending request to Deepgram, audio size:",

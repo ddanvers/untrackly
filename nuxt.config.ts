@@ -5,8 +5,9 @@ export default defineNuxtConfig({
     deepgramApiKey: process.env.DEEPGRAM_API_KEY,
     registerSecretKey: process.env.REGISTER_SECRET_KEY,
     jwtSecret: process.env.JWT_SECRET,
+    turnSecret: process.env.TURN_SECRET,
     public: {
-      turnApiKey: "",
+      turnUrl: "",
     },
   },
   modules: ["@nuxt/image", "nuxt-swiper"],

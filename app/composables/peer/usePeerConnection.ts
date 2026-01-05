@@ -427,11 +427,32 @@ export function usePeerConnection(
     if (isInitializing.value) return;
     if (peer.value && !opts?.reconnect) return;
     if (!import.meta.client) return;
-    const response = await fetch(
-      `https://untracklyone.metered.live/api/v1/turn/credentials?apiKey=${useRuntimeConfig().public.turnApiKey}`,
-    );
+    let iceServers: any[] = [];
+    try {
+      const response = await fetch("/api/get-turn-credentials");
+      if (response.ok) {
+        iceServers = await response.json();
+      } else {
+        console.warn(
+          "[usePeerConnection] API returned error:",
+          response.status,
+        );
+      }
+    } catch (e) {
+      console.warn(
+        "[usePeerConnection] Failed to fetch TURN credentials, using fallback",
+      );
+    }
 
-    const iceServers = await response.json();
+    // Fallback if API returned empty or failed
+    if (!iceServers || iceServers.length === 0) {
+      iceServers = [
+        {
+          urls: "stun:stun.l.google.com:19302",
+        },
+      ];
+    }
+
     isInitializing.value = true;
     try {
       // Dynamic import to avoid SSR errors
@@ -444,6 +465,7 @@ export function usePeerConnection(
         debug: 1,
         config: {
           iceServers: iceServers,
+          iceTransportPolicy: "relay",
         },
       };
 
