@@ -75,5 +75,6 @@ interface User {
   id: number;
   username: string;
   displayName: string;
+  role: "user" | "admin";
   publicKey?: string;
 }
