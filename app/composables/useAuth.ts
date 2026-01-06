@@ -72,7 +72,7 @@ export const useAuth = () => {
 };
 
 interface User {
-  id: number;
+  id: string;
   username: string;
   displayName: string;
   role: "user" | "admin";

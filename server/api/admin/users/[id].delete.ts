@@ -20,7 +20,8 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const userId = Number(id);
+  // const userId = Number(id); // deleted
+  const userId = id;
 
   // Prevent admin from deleting themselves
   if (userId === user.id) {

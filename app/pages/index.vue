@@ -78,8 +78,8 @@ const infoCards = [
     icon: "/icons/main/cards/lock.svg",
   },
   {
-    title: "анонимно",
-    description: "Нет регистрации и хранения персональных данных",
+    title: "приватно",
+    description: "Приватная регистрация с минимальным хранением данных",
     icon: "/icons/main/cards/anon.svg",
   },
   {

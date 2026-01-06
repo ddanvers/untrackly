@@ -2,10 +2,13 @@ import { defineEventHandler } from "h3";
 import { users } from "~~/server/database/schema";
 import { db } from "~~/server/utils/db";
 
-export default defineEventHandler(async (_event) => {
-  // Ideally, this should be protected to authenticated users only.
-  // We will assume authentication middleware handles protection or check here if needed.
-  // For now, let's just return the list.
+export default defineEventHandler(async (event) => {
+  if (!event.context.user) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Unauthorized",
+    });
+  }
 
   const allUsers = await db
     .select({

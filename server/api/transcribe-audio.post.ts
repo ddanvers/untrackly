@@ -2,6 +2,22 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const apiKey = config.deepgramApiKey || process.env.DEEPGRAM_API_KEY;
   try {
+    if (!event.context.user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Unauthorized",
+      });
+    }
+
+    const contentLength = Number(getRequestHeader(event, "content-length"));
+    if (contentLength > 25 * 1024 * 1024) {
+      // 25MB limit
+      throw createError({
+        statusCode: 413,
+        statusMessage: "Payload too large",
+      });
+    }
+
     const audioBuffer = await readRawBody(event, false);
 
     if (!audioBuffer || audioBuffer.length === 0) {
@@ -32,9 +48,9 @@ export default defineEventHandler(async (event) => {
       headers: {
         Accept: "application/json",
         Authorization: `Token ${apiKey}`,
-        "Content-Type": "audio/wav",
+        "Content-Type": getRequestHeader(event, "content-type") || "audio/wav",
       },
-      body: audioBuffer,
+      body: audioBuffer as any,
     });
 
     console.log(
@@ -56,7 +72,7 @@ export default defineEventHandler(async (event) => {
     const data = await response.json();
     console.log("Transcription successful");
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Transcription error details:", error);
 
     if (error.statusCode) {

@@ -2,7 +2,7 @@ import { type JWTPayload, jwtVerify, SignJWT } from "jose";
 
 export interface TokenPayload extends JWTPayload {
   sub: string; // user ID as string (JWT standard)
-  userId: number; // actual numeric user ID
+  userId: string; // actual numeric user ID
   username: string;
   displayName: string;
   role: "user" | "admin";
@@ -23,7 +23,7 @@ const getSecret = () => {
  * @returns Signed JWT string
  */
 export async function signToken(payload: {
-  userId: number;
+  userId: string;
   username: string;
   displayName: string;
   role: "user" | "admin";
