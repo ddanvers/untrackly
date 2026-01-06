@@ -80,7 +80,7 @@ export function usePeerConnection(
   async function sendWithBackpressure(conn: DataConnection, data: any) {
     const MAX_BUFFERED_AMOUNT = 64 * 1024; // 64KB limit before waiting
     // Check if dataChannel exists and has bufferedAmount
-    // @ts-expect-error - PeerJS types might not expose dataChannel directly on DataConnection interface in some versions
+
     const channel = conn.dataChannel;
 
     if (channel && channel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
@@ -317,9 +317,30 @@ export function usePeerConnection(
         (id) => id !== conn.peer,
       );
       if (knownPeers.length > 0) {
+        // 1. Tell the newcomer about everyone else
         conn.send({
           type: "peer-list",
           peers: knownPeers,
+        });
+
+        // 2. Tell everyone else about the newcomer (Gossip / Mesh Fix)
+        // This ensures that if C joined, B gets told to connect to C.
+        // Previously, only C was told to connect to B, which is a single point of failure.
+        knownPeers.forEach((existingPeerId) => {
+          const existingConn = connections[existingPeerId];
+          if (existingConn && existingConn.open) {
+            try {
+              existingConn.send({
+                type: "peer-list",
+                peers: [conn.peer],
+              });
+            } catch (e) {
+              console.warn(
+                "[usePeerConnection] Failed to gossip new peer to",
+                existingPeerId,
+              );
+            }
+          }
         });
       }
 
@@ -435,7 +456,13 @@ export function usePeerConnection(
 
     // Timeout logic for anchor connection
     let openTimeout: any = null;
+
+    // Default timeout for ANY connection to open (15s)
+    // This prevents "stuck" pending connections if NAT traversal fails silently
+    const connectionTimeoutMs = 15000;
+
     if (!isInitiator && conn.peer === sessionId) {
+      // Anchor specific longer/adaptive timeouts
       const timeoutDurations = [30000, 60000, 120000, 120000, 120000];
       const duration = timeoutDurations[reinitAttempts.value] || 120000;
 
@@ -451,6 +478,21 @@ export function usePeerConnection(
           });
         }
       }, duration);
+    } else {
+      // General peer timeout
+      openTimeout = setTimeout(() => {
+        if (!conn.open) {
+          console.warn(
+            `[usePeerConnection] Connection to peer ${conn.peer} timed out after ${connectionTimeoutMs}ms`,
+          );
+          // Just close it so we can maybe retry or clean up UI
+          conn.close();
+          delete connections[conn.peer];
+          // We don't error broadly here, just let it fail silently-ish?
+          // Maybe we should updateMember status?
+          // updateMember(conn.peer, { status: 'offline' }); // done in 'close' handler usually
+        }
+      }, connectionTimeoutMs);
     }
 
     conn.on("open", () => {
