@@ -35,7 +35,7 @@ export const useE2EE = () => {
   };
 
   const getRemotePublicKey = async (
-    userId: number,
+    userId: string,
   ): Promise<CryptoKey | null> => {
     try {
       const data = await $fetch<{ publicKey: string }>(
@@ -52,7 +52,7 @@ export const useE2EE = () => {
   };
 
   const getSharedKey = async (
-    peerUserId: number,
+    peerUserId: string,
   ): Promise<CryptoKey | null> => {
     const cacheKey = String(peerUserId);
     if (sharedKeys.has(cacheKey)) {
@@ -71,7 +71,7 @@ export const useE2EE = () => {
   };
 
   const encryptForUser = async (
-    targetUserId: number,
+    targetUserId: string,
     text: string,
     aadInfo?: string | Uint8Array,
   ) => {
@@ -85,7 +85,7 @@ export const useE2EE = () => {
   };
 
   const decryptFromUser = async (
-    senderUserId: number,
+    senderUserId: string,
     ciphertext: string,
     iv: string,
     aadInfo?: string | Uint8Array,
