@@ -271,13 +271,14 @@ export function usePeerMessages(
     );
     if (indexToEdit !== -1) {
       // Merge existing files + new processed files
-      const currentFiles = messages.value[indexToEdit].files;
+      const currentFiles = messages.value[indexToEdit]?.files || [];
       const keptFiles = currentFiles.filter((f) =>
         existingFileIds.includes(f.id),
       );
 
       messages.value[indexToEdit] = {
-        ...messages.value[indexToEdit],
+        ...messages.value[indexToEdit]!,
+        id: messages.value[indexToEdit]!.id,
         text: payload.text,
         isEdited: true,
         files: [...keptFiles, ...processedNewFiles],
@@ -367,9 +368,19 @@ export function usePeerMessages(
           return decryptData(key, ciphertext.buffer, iv);
         })
         .then((decryptedBuffer) => {
-          const blob = new Blob([decryptedBuffer], { type: fileM.file.type });
+          // SANITIZE: Prevent HTML/Script blobs
+          let safeType = fileM.file.type || "application/octet-stream";
+          if (
+            safeType.includes("html") ||
+            safeType.includes("script") ||
+            safeType.includes("svg")
+          ) {
+            safeType = "application/octet-stream";
+          }
+          const blob = new Blob([decryptedBuffer], { type: safeType });
           const url = URL.createObjectURL(blob);
           fileM.file.fileUrl = url;
+          fileM.file.type = safeType; // Update metadata to match safe type
           fileM.file.percentLoaded = 100;
           // Force update
           messages.value = [...messages.value];
@@ -465,7 +476,17 @@ export function usePeerMessages(
           if (f.file.fileData) {
             try {
               const buffer = base64ToArrayBuffer(f.file.fileData);
-              const blob = new Blob([buffer], { type: f.file.type });
+              // SANITIZE: Prevent HTML/Script blobs
+              let safeType = f.file.type || "application/octet-stream";
+              if (
+                safeType.includes("html") ||
+                safeType.includes("script") ||
+                safeType.includes("svg")
+              ) {
+                safeType = "application/octet-stream";
+              }
+
+              const blob = new Blob([buffer], { type: safeType });
               fileUrl = URL.createObjectURL(blob);
             } catch (e) {
               console.error("Failed to process inline file data", e);
@@ -475,11 +496,26 @@ export function usePeerMessages(
             fileUrl = undefined;
           }
 
+          // Ensure type is updated if we sanitized it
+          let finalType = f.file.type;
+          if (fileUrl && fileUrl.startsWith("blob:")) {
+            // Re-calculate safe type if needed, or just use what we found
+            const sType = f.file.type || "application/octet-stream";
+            if (
+              sType.includes("html") ||
+              sType.includes("script") ||
+              sType.includes("svg")
+            ) {
+              finalType = "application/octet-stream";
+            }
+          }
+
           return {
             ...f,
             file: {
               ...f.file,
               fileUrl,
+              type: finalType,
             },
           };
         });
@@ -535,6 +571,7 @@ export function usePeerMessages(
       if (indexToEdit !== -1) {
         messages.value[indexToEdit] = {
           ...msg,
+          id: messages.value[indexToEdit].id, // Keep original ID if new one undefined
           files: [
             ...messages.value[indexToEdit].files.filter((f) =>
               msg.existingFileIds?.includes(f.id),

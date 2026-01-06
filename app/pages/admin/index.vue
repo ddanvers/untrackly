@@ -51,10 +51,10 @@ definePageMeta({
 const loading = ref(true);
 const error = ref("");
 const users = ref<any[]>([]);
-const deleting = ref<number | null>(null);
+const deleting = ref<string | null>(null);
 
 const headers: TableHeader[] = [
-  { key: "id", label: "ID", width: "60px" },
+  { key: "id", label: "ID", width: "360px" },
   { key: "username", label: "Логин", width: "1.5fr" },
   { key: "displayName", label: "Отображаемое имя", width: "1.5fr" },
   { key: "role", label: "Роль", width: "140px" },
@@ -66,7 +66,7 @@ const fetchUsers = async () => {
     loading.value = true;
     error.value = "";
     const data = await $fetch("/api/admin/users");
-    users.value = [...data.users, ...data.users];
+    users.value = data.users;
   } catch (e: any) {
     error.value =
       "Ошибка загрузки пользователей: " + (e.response?.statusText || e.message);
@@ -76,7 +76,7 @@ const fetchUsers = async () => {
   }
 };
 
-const deleteUser = async (id: number) => {
+const deleteUser = async (id: string) => {
   if (!confirm("Вы уверены, что хотите удалить этого пользователя?")) return;
 
   deleting.value = id;

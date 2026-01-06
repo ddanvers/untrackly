@@ -21,16 +21,17 @@ export default defineEventHandler(async (event) => {
     .where(eq(users.username, username))
     .limit(1);
 
-  if (!user) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: "Invalid credentials",
-    });
+  let isValid = false;
+  if (user) {
+    isValid = await bcrypt.compare(password, user.passwordHash);
+  } else {
+    // Dummy comparison to prevent timing attacks (user enumeration)
+    // Hash of 'password' with same work factor
+    const dummyHash = "$2b$10$X7.G1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.";
+    await bcrypt.compare(password, dummyHash);
   }
 
-  const isValid = await bcrypt.compare(password, user.passwordHash);
-
-  if (!isValid) {
+  if (!isValid || !user) {
     throw createError({
       statusCode: 401,
       statusMessage: "Invalid credentials",

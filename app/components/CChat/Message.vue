@@ -177,7 +177,7 @@
                 class="file-attachment__type-icon"
                 width="32px"
               />
-              <a v-if="file.file.fileUrl" :href="file.file.fileUrl" target="_blank" class="file-attachment__link">{{
+              <a v-if="file.file.fileUrl" :href="file.file.fileUrl" target="_blank" rel="noopener noreferrer" class="file-attachment__link">{{
                 file.file.name
               }}</a>
               <span v-else class="file-attachment__link">{{ file.file.name }}</span>

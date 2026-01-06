@@ -174,6 +174,7 @@ import ChatConsole from "~/components/chat/session/ChatConsole.vue";
 import ChatRoomData from "~/components/chat/session/ChatRoomData.vue";
 import { useChatAudio } from "~/composables/chat/useChatAudio";
 import { useChatSession } from "~/composables/chat/useChatSession";
+import { base64ToArrayBuffer } from "~/utils/crypto";
 
 const route = useRoute();
 definePageMeta({
@@ -312,13 +313,31 @@ function checkConnection(status: string) {
   }
 }
 
-const transcribeVoiceMessage = async (id: string, audioBinary: ArrayBuffer) => {
+const transcribeVoiceMessage = async (
+  id: string,
+  audioData: ArrayBuffer | string | undefined, // Allow undefined
+  mimeType = "audio/wav",
+) => {
+  if (!audioData) {
+    console.error("No audio data provided");
+    return;
+  }
   let transcriptionResult = "";
   try {
-    const audioBlob = new Blob([audioBinary], { type: "audio/wav" });
+    let audioBlob: Blob;
+    if (typeof audioData === "string") {
+      const buffer = base64ToArrayBuffer(audioData);
+      audioBlob = new Blob([buffer], { type: mimeType });
+    } else {
+      audioBlob = new Blob([audioData], { type: mimeType });
+    }
+
     const result = await $fetch("/api/transcribe-audio", {
       method: "POST",
       body: audioBlob,
+      headers: {
+        "Content-Type": mimeType,
+      },
     });
     transcriptionResult =
       (result as any).results?.channels?.[0]?.alternatives?.[0]?.transcript ||

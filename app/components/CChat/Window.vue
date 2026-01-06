@@ -73,7 +73,12 @@ const emit = defineEmits<{
   (e: "editMessage", payload: EditMessageRequest): void;
   (e: "replyToMessage", payload: ReplyMessageRequest): void;
   (e: "deleteMessage", id: string): void;
-  (e: "transcribeVoiceMessage", id: string, audioBinary?: ArrayBuffer): void;
+  (
+    e: "transcribeVoiceMessage",
+    id: string,
+    audioBinary?: ArrayBuffer | string,
+    type?: string,
+  ): void;
   (e: "readMessage", id: string): void;
   (e: "call", type: "audio" | "video"): void;
 }>();
@@ -151,6 +156,7 @@ function onTranscribe(message: Message) {
     "transcribeVoiceMessage",
     message.id,
     message.files[0]?.file.fileData as any,
+    message.files[0]?.file.type,
   );
 }
 function onRead(id: string) {
