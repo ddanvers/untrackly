@@ -27,6 +27,33 @@ export function usePeerConnection(
   const isInitializing = ref(false);
   const reinitAttempts = ref(0);
   const maxReinitAttempts = 5;
+  const pingInterval = ref<any>(null);
+
+  watch(isConnectionEstablished, (connected) => {
+    if (connected) {
+      startPingLoop();
+    } else {
+      stopPingLoop();
+    }
+  });
+
+  function startPingLoop() {
+    if (pingInterval.value) return;
+    pingInterval.value = setInterval(() => {
+      Object.values(connections).forEach((conn) => {
+        if (conn.open) {
+          conn.send({ type: "ping", timestamp: Date.now() });
+        }
+      });
+    }, 5000);
+  }
+
+  function stopPingLoop() {
+    if (pingInterval.value) {
+      clearInterval(pingInterval.value);
+      pingInterval.value = null;
+    }
+  }
 
   const { generateName } = useFunnyNames();
   const { showError, showWarning, showSuccess } = useAlert();
@@ -361,6 +388,28 @@ export function usePeerConnection(
 
     if (data?.type === "member-update") {
       updateMember(conn.peer, data.updates);
+      return;
+    }
+
+    if (data?.type === "ping") {
+      conn.send({ type: "pong", timestamp: data.timestamp });
+      // Also update them as online/seen
+      updateMember(conn.peer, {
+        status: "online",
+        lastSeen: Date.now(),
+      });
+      return;
+    }
+
+    if (data?.type === "pong") {
+      const rtt = Date.now() - data.timestamp;
+      updateRoomData("network", {
+        roundTripTime: rtt,
+      });
+      updateMember(conn.peer, {
+        status: "online",
+        lastSeen: Date.now(),
+      });
       return;
     }
 

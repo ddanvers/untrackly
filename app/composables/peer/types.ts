@@ -1,6 +1,6 @@
 export interface Member {
   id: string;
-  userId?: number;
+  userId?: string;
   deviceId: string;
   name: string;
   isSelf: boolean;

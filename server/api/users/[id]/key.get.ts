@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "ID required" });
   }
 
-  const userId = parseInt(idStr, 10);
+  const userId = idStr;
   const [user] = await db
     .select({ publicKey: users.publicKey })
     .from(users)
