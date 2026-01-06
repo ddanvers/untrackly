@@ -23,4 +23,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
     await logout(undefined, false);
     return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`);
   }
+
+  // Admin routing logic
+  if (fetchedUser.role === "admin") {
+    if (!to.path.startsWith("/admin")) {
+      return navigateTo("/admin");
+    }
+  } else {
+    // Normal user logic
+    if (to.path.startsWith("/admin")) {
+      return navigateTo("/");
+    }
+  }
 });

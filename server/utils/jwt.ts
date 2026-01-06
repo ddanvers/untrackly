@@ -5,6 +5,7 @@ export interface TokenPayload extends JWTPayload {
   userId: number; // actual numeric user ID
   username: string;
   displayName: string;
+  role: "user" | "admin";
 }
 
 const getSecret = () => {
@@ -25,6 +26,7 @@ export async function signToken(payload: {
   userId: number;
   username: string;
   displayName: string;
+  role: "user" | "admin";
 }): Promise<string> {
   const secret = getSecret();
 
@@ -33,6 +35,7 @@ export async function signToken(payload: {
     userId: payload.userId,
     username: payload.username,
     displayName: payload.displayName,
+    role: payload.role,
   } as JWTPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

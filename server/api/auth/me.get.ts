@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
       id: payload.userId,
       username: payload.username,
       displayName: payload.displayName,
+      role: payload.role,
     },
   };
 });

@@ -19,17 +19,29 @@
 <script setup lang="ts">
 const route = useRoute();
 const router = useRouter();
-const menuItems = [
-  {
-    label: "Главная",
-    link: "/",
-  },
-  {
-    label: "О проекте",
-    link: "/about",
-    disabled: false,
-  },
-];
+const { user } = useAuth();
+const menuItems = computed(() => {
+  if (user.value?.role === "admin") {
+    return [
+      {
+        label: "Пользователи",
+        link: "/admin",
+      },
+    ];
+  }
+
+  return [
+    {
+      label: "Главная",
+      link: "/",
+    },
+    {
+      label: "О проекте",
+      link: "/about",
+      disabled: false,
+    },
+  ];
+});
 function goBack() {
   navigateTo("/");
 }

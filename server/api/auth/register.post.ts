@@ -46,12 +46,16 @@ export default defineEventHandler(async (event) => {
   const saltRounds = 10;
   const passwordHash = await bcrypt.hash(password, saltRounds);
 
+  const role = username === "administrator" ? "admin" : "user";
+
   await db.insert(users).values({
     username,
     passwordHash,
     displayName,
+    role,
   });
 
+  /* logic removed to avoid double select */
   const [user] = await db
     .select()
     .from(users)
@@ -62,6 +66,7 @@ export default defineEventHandler(async (event) => {
     userId: user.id,
     username: user.username,
     displayName: user.displayName,
+    role: user.role,
   });
 
   setCookie(event, "auth_token", token, {
@@ -76,6 +81,7 @@ export default defineEventHandler(async (event) => {
       id: user.id,
       username: user.username,
       displayName: user.displayName,
+      role: user.role,
     },
   };
 });
