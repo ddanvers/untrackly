@@ -124,34 +124,19 @@ export function useChatSession(
         waitingInterval = null;
       }
       consoleLogs.value.push("STATUS: connection established");
-      let countdown = 3;
-      const countdownMessages = ["Initializing..."];
-      let countdownIdx = 0;
-      const showCountdown = () => {
-        if (countdownIdx < countdownMessages.length) {
-          consoleLogs.value.push(countdownMessages[countdownIdx++]);
-          setTimeout(showCountdown, 800);
-        } else if (countdown > 0) {
-          consoleLogs.value.push(`Countdown: ${countdown} s.`);
-          countdown--;
-          setTimeout(showCountdown, 1000);
-        } else {
-          consoleLogs.value.push("Connection established!");
-          step.value = "chat";
-          const currentQuery = useRoute().query;
-          if (currentQuery.chatting !== "true") {
-            navigateTo({
-              path: `/chat/${sessionId}`,
-              query: {
-                invited: isInvited ? "true" : undefined,
-                chatting: "true",
-              },
-              replace: true,
-            });
-          }
-        }
-      };
-      showCountdown();
+      consoleLogs.value.push("Initializing...");
+      step.value = "chat";
+      const currentQuery = useRoute().query;
+      if (currentQuery.chatting !== "true") {
+        navigateTo({
+          path: `/chat/${sessionId}`,
+          query: {
+            invited: isInvited ? "true" : undefined,
+            chatting: "true",
+          },
+          replace: true,
+        });
+      }
       // removed ping logic that used conn.value
     }
   });

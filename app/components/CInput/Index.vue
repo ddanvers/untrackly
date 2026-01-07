@@ -87,6 +87,7 @@ interface Emits {
   focus: [];
   clear: [];
   blur: [];
+  "toggle-visibility": [isVisible: boolean];
 }
 
 const INPUT_TYPE = {
@@ -219,6 +220,7 @@ function togglePasswordVisibility(): void {
     currentInputType.value === INPUT_TYPE.PASSWORD
       ? INPUT_TYPE.TEXT
       : INPUT_TYPE.PASSWORD;
+  emit("toggle-visibility", currentInputType.value === INPUT_TYPE.TEXT);
 }
 
 function checkValid(): boolean {
@@ -322,8 +324,19 @@ defineExpose({
       border: none;
       outline: none;
       overscroll-behavior: contain;
+
       &::placeholder {
         color: var(--color-neutral-on-muted);
+      }
+
+      &:-webkit-autofill,
+      &:-webkit-autofill:hover,
+      &:-webkit-autofill:focus,
+      &:-webkit-autofill:active {
+        transition: background-color 5000s ease-in-out 0s, color 5000s ease-in-out 0s, -webkit-text-fill-color 5000s ease-in-out 0s;
+        -webkit-text-fill-color: var(--color-primary-on-text) !important;
+        caret-color: var(--color-primary-on-text);
+        color: var(--color-primary-on-text) !important;
       }
     }
 
@@ -357,9 +370,11 @@ defineExpose({
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    height: 20px;
-    padding: 4px 0;
+    height: 24px;
     font-size: 12px;
+    .error-text {
+      color: var(--color-negative-on-text);
+    }
   }
 
   .input-hint {

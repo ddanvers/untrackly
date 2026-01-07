@@ -12,24 +12,36 @@
       <section class="page-content__header">
         <CHeader v-if="route.meta.header" :menuItems="menuItems"></CHeader>
       </section>
-      <NuxtPage />
+      <slot />
     </div>
   </div>
 </template>
 <script setup lang="ts">
 const route = useRoute();
 const router = useRouter();
-const menuItems = [
-  {
-    label: "Главная",
-    link: "/",
-  },
-  {
-    label: "О проекте",
-    link: "/about",
-    disabled: true,
-  },
-];
+const { user } = useAuth();
+const menuItems = computed(() => {
+  if (user.value?.role === "admin") {
+    return [
+      {
+        label: "Пользователи",
+        link: "/admin",
+      },
+    ];
+  }
+
+  return [
+    {
+      label: "Главная",
+      link: "/",
+    },
+    {
+      label: "О проекте",
+      link: "/about",
+      disabled: false,
+    },
+  ];
+});
 function goBack() {
   navigateTo("/");
 }
@@ -42,7 +54,8 @@ $app-narrow-mobile: 364px;
 .page-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
+  height: max-content;
   width: 100%;
   background-color: var(--color-bg-on-secondary);
   padding-top: 72px;

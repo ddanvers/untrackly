@@ -1,6 +1,10 @@
 <template>
   <header class="layout-header">
-    <div class="layout-header__logo-container">
+    <NuxtLink
+      v-if="!isHomePage"
+      to="/"
+      class="layout-header__logo-container"
+    >
       <NuxtImg src="/icons/logo.svg" width="56px" alt="Web eye logo" />
       <div class="logo-container">
         <div class="logo-container__text">
@@ -8,7 +12,11 @@
           <p class="logo-container__slogan">Your words are only yours</p>
         </div>
       </div>
-    </div>
+    </NuxtLink>
+    <div
+      v-else
+      class="layout-header__logo-container layout-header__logo-container--hidden"
+    />
     <div class="layout-header__menu-container">
       <nav class="nav-menu">
         <ul class="nav-menu__list">
@@ -23,6 +31,24 @@
           </li>
         </ul>
       </nav>
+      <CButton
+        v-if="user"
+        variant="secondary"
+        size="small"
+        class="logout-button"
+        @click="() => logout()"
+      >
+        Выйти
+      </CButton>
+      <CButton
+        v-else
+        variant="secondary"
+        size="small"
+        class="login-button"
+        @click="() => navigateTo('/login')"
+      >
+        Войти
+      </CButton>
     </div>
     <button
       v-if="isMobile"
@@ -64,6 +90,21 @@
           </li>
         </ul>
       </nav>
+      <div v-if="user" class="mobile-menu__footer">
+        <CButton variant="quaternary" fill size="large" @click="() => logout()">
+          Выйти
+        </CButton>
+      </div>
+      <div v-else class="mobile-menu__footer">
+        <CButton
+          variant="primary"
+          fill
+          size="large"
+          @click="() => navigateTo('/login')"
+        >
+          Войти
+        </CButton>
+      </div>
     </aside>
   </header>
 </template>
@@ -84,9 +125,13 @@ const RESIZE_DEBOUNCE_MS = 100;
 
 const props = defineProps<Props>();
 const router = useRouter();
+const route = useRoute();
+const { user, logout } = useAuth();
 
 const isMenuOpen = ref(false);
 const isMobile = ref(false);
+
+const isHomePage = computed(() => route.path === "/");
 
 let resizeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -275,6 +320,12 @@ $shadow-menu: rgba(0, 0, 0, 0.1);
     align-items: center;
     justify-content: flex-start;
     width: 100%;
+    text-decoration: none;
+
+    &--hidden {
+      visibility: hidden;
+      pointer-events: none;
+    }
 
     .logo-container {
       display: none;
@@ -442,7 +493,7 @@ $shadow-menu: rgba(0, 0, 0, 0.1);
   left: 0;
   z-index: 999;
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   visibility: hidden;
   background-color: $overlay-bg;
   opacity: 0;
@@ -465,7 +516,7 @@ $shadow-menu: rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   width: 280px;
-  height: 100vh;
+  height: 100dvh;
   background: var(--liquid-glass-bg);
   backdrop-filter: var(--liquid-glass-backdrop);
   box-shadow: -4px 0 20px $shadow-menu;

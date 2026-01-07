@@ -52,6 +52,8 @@
 definePageMeta({
   header: true,
 });
+const { user } = useAuth();
+const { showWarning } = useAlert();
 const chatRoomId = shallowRef("");
 const isChatRoomIdGenerated = shallowRef(false);
 const isChatRoomIdValid = computed(() => {
@@ -60,9 +62,28 @@ const isChatRoomIdValid = computed(() => {
   return uuidV4Regex.test(chatRoomId.value);
 });
 function launchChat() {
-  navigateTo(`/chat/${chatRoomId.value}/entry`);
+  if (!user.value) {
+    showWarning(
+      "Пожалуйста, войдите или зарегистрируйтесь, чтобы начать общение",
+    );
+    return;
+  }
+  const query: Record<string, string> = {};
+  if (!isChatRoomIdGenerated.value) {
+    query.invited = "true";
+  }
+  navigateTo({
+    path: `/chat/${chatRoomId.value}/entry`,
+    query,
+  });
 }
 function toggleChatRoomIdGeneration() {
+  if (!user.value) {
+    showWarning(
+      "Пожалуйста, войдите или зарегистрируйтесь, чтобы сгенерировать код",
+    );
+    return;
+  }
   if (isChatRoomIdGenerated.value) {
     chatRoomId.value = "";
     isChatRoomIdGenerated.value = false;
@@ -78,8 +99,8 @@ const infoCards = [
     icon: "/icons/main/cards/lock.svg",
   },
   {
-    title: "анонимно",
-    description: "Нет регистрации и хранения персональных данных",
+    title: "приватно",
+    description: "Приватная регистрация с минимальным хранением данных",
     icon: "/icons/main/cards/anon.svg",
   },
   {
@@ -98,7 +119,8 @@ $app-narrow-mobile: 364px;
 $app-medium-height: 750px;
 $app-small-height: 520px;
 .page-hero {
-  height: calc(100vh - 72px);
+  min-height: calc(100vh - 72px);
+  height: max-content;
   width: 100%;
   background: var(--color-bg-on-secondary);
   position: relative;

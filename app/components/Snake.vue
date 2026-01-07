@@ -714,10 +714,6 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     height: 100%;
     gap: 0;
     padding: 0;
-    // Dot Grid Pattern
-    background-image: radial-gradient(rgba(255, 255, 255, 0.1) 15%, transparent 16%);
-    background-size: 20px 20px; // Matches cell size
-    background-position: 0 0;
   }
 
   // Cell styling - Clean, distinct
@@ -726,6 +722,17 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
+
+    // Grid dot
+    &::before {
+      content: "";
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      z-index: 0;
+    }
 
     &--empty {
       background: transparent;
@@ -738,6 +745,10 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
       box-shadow:
         0 2px 8px rgba(0, 0, 0, 0.3),
         0 0 4px rgba(var(--color-primary-on-text), 0.3);
+      
+      &::before {
+        display: none;
+      }
     }
 
     &--snake-head {
@@ -748,6 +759,10 @@ $font-family-display: "Tektur", "Montserrat", sans-serif;
       box-shadow:
         0 0 15px var(--color-primary-on-text),
         inset 0 1px 0 rgba(255, 255, 255, 0.4);
+
+      &::before {
+        display: none;
+      }
     }
 
     &--food {

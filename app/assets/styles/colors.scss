@@ -66,9 +66,9 @@
   --liquid-glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.01));
   --liquid-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
   --liquid-glass-backdrop: blur(20px) saturate(160%);
-}
 
-.dark {
+
+
   --color-primary-on-text: var(--orange-5);
   --color-primary-on-hover: var(--orange-4);
   --color-primary-on-active: var(--orange-3);
@@ -95,6 +95,9 @@
   --color-positive-on-text: var(--green-600);
   --color-positive-on-fill: var(--green-600);
 
+  --color-warning-on-text: var(--orange-5);
+  --color-warning-on-fill: var(--orange-5);
+
   --color-white: #000;
   --color-black: #fff;
 
@@ -108,4 +111,7 @@
     hue-rotate(151deg) brightness(93%) contrast(91%);
   --filter-negative-on-fill: brightness(0) saturate(100%) invert(11%) sepia(84%) saturate(4955%)
     hue-rotate(354deg) brightness(99%) contrast(90%);
+  --filter-positive-on-fill: invert(51%) sepia(96%) saturate(1507%) hue-rotate(87deg) brightness(105%) contrast(90%);
+  --filter-warning-on-fill: invert(58%) sepia(99%) saturate(400%) hue-rotate(2deg) brightness(92%) contrast(96%);
+
 }

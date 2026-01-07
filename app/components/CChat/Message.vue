@@ -114,16 +114,25 @@
               'file-attachment--img': file.file.type && file.file.type.startsWith('image/'),
               'file-attachment--video': file.file.type && file.file.type.startsWith('video/'),
               'file-attachment--audio': file.file.type && file.file.type.startsWith('audio/'),
+              'file-attachment--loading': !file.file.fileUrl
             }"
           >
+            <!-- Loading State -->
+            <div v-if="!file.file.fileUrl" class="file-attachment__loading-overlay">
+                 <span class="loader"></span>
+                 <span v-if="file.file.percentLoaded" class="percent">{{ file.file.percentLoaded }}%</span>
+            </div>
+
             <template v-if="file.file.type && file.file.type.startsWith('image/')">
               <div class="file-attachment__img-wrapper">
                 <img
+                   v-if="file.file.fileUrl" 
                   @click="handleImgClick(message.files, file.file.fileUrl)"
                   :src="file.file.fileUrl"
                   class="file-attachment__img"
                 />
                 <a
+                  v-if="file.file.fileUrl"
                   :href="file.file.fileUrl"
                   :download="file.file.name"
                   class="download-icon"
@@ -139,8 +148,10 @@
                 class="file-attachment__type-icon"
                 width="32px"
               />
-              <span @click="handleVideoClick(file.file.fileUrl)"> {{ file.file.name }}</span>
+              <span v-if="file.file.fileUrl" @click="handleVideoClick(file.file.fileUrl)"> {{ file.file.name }}</span>
+              <span v-else> {{ file.file.name }} </span>
               <a
+                v-if="file.file.fileUrl"
                 :href="file.file.fileUrl"
                 :download="file.file.name"
                 class="download-icon"
@@ -151,10 +162,14 @@
             </template>
             <template v-else-if="file.file.type?.startsWith('audio/')">
               <CAudioPlayer
+                v-if="file.file.fileUrl"
                 :src="file.file.fileUrl"
                 :filename="file.file.name"
                 :file-size="formatBytes(file.file.size || 0)"
               />
+               <div v-else class="audio-placeholder">
+                  {{ file.file.name }}
+               </div>
             </template>
             <template v-else>
               <img
@@ -162,10 +177,12 @@
                 class="file-attachment__type-icon"
                 width="32px"
               />
-              <a :href="file.file.fileUrl" target="_blank" class="file-attachment__link">{{
+              <a v-if="file.file.fileUrl" :href="file.file.fileUrl" target="_blank" rel="noopener noreferrer" class="file-attachment__link">{{
                 file.file.name
               }}</a>
+              <span v-else class="file-attachment__link">{{ file.file.name }}</span>
               <a
+                v-if="file.file.fileUrl"
                 :href="file.file.fileUrl"
                 :download="file.file.name"
                 class="download-icon"
@@ -198,7 +215,7 @@
         </div>
         <p v-else class="chat-message__transcription-text">{{ message.transcription }}</p>
       </div>
-      <template v-else>
+      <template v-else-if="!message.files?.length">
         {{ message.text }}
       </template>
     </div>
@@ -423,6 +440,7 @@ $app-narrow-mobile: 364px;
         flex-direction: column;
         border-radius: var(--radius-md);
         background-color: var(--color-neutral-on-fill);
+        box-shadow: var(--liquid-glass-shadow);
         .chat-message__menu-item {
           cursor: pointer;
           display: flex;
@@ -687,5 +705,55 @@ $app-narrow-mobile: 364px;
     transform: scale(1);
     opacity: 1;
   }
+}
+
+.file-attachment {
+    /* ... existing styles ... */
+    
+    &.file-attachment--loading {
+        background: var(--color-bg-on-secondary);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    &__loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        gap: 8px;
+        z-index: 10;
+        color: white;
+        
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #FFF;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        .percent {
+            font-size: 12px;
+            font-weight: 600;
+        }
+    }
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 </style>

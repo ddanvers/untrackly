@@ -174,6 +174,7 @@ import ChatConsole from "~/components/chat/session/ChatConsole.vue";
 import ChatRoomData from "~/components/chat/session/ChatRoomData.vue";
 import { useChatAudio } from "~/composables/chat/useChatAudio";
 import { useChatSession } from "~/composables/chat/useChatSession";
+import { base64ToArrayBuffer } from "~/utils/crypto";
 
 const route = useRoute();
 definePageMeta({
@@ -187,7 +188,7 @@ const showCall = ref(false);
 const showChat = ref(true);
 const showRoomData = ref(false);
 
-const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
+const windowWidth = ref(0);
 
 const {
   messages,
@@ -312,13 +313,31 @@ function checkConnection(status: string) {
   }
 }
 
-const transcribeVoiceMessage = async (id: string, audioBinary: ArrayBuffer) => {
+const transcribeVoiceMessage = async (
+  id: string,
+  audioData: ArrayBuffer | string | undefined, // Allow undefined
+  mimeType = "audio/wav",
+) => {
+  if (!audioData) {
+    console.error("No audio data provided");
+    return;
+  }
   let transcriptionResult = "";
   try {
-    const audioBlob = new Blob([audioBinary], { type: "audio/wav" });
+    let audioBlob: Blob;
+    if (typeof audioData === "string") {
+      const buffer = base64ToArrayBuffer(audioData);
+      audioBlob = new Blob([buffer], { type: mimeType });
+    } else {
+      audioBlob = new Blob([audioData], { type: mimeType });
+    }
+
     const result = await $fetch("/api/transcribe-audio", {
       method: "POST",
       body: audioBlob,
+      headers: {
+        "Content-Type": mimeType,
+      },
     });
     transcriptionResult =
       (result as any).results?.channels?.[0]?.alternatives?.[0]?.transcript ||
@@ -388,7 +407,7 @@ watch(callState, (val) => {
 });
 
 function checkCallChatVisibilitySwap() {
-  if (window.innerWidth > 1384) {
+  if (window.innerWidth > 960) {
     if (["calling", "incoming", "active"].includes(callState.value)) {
       showCall.value = true;
     }
@@ -447,6 +466,8 @@ const handleEndSession = async () => {
 };
 
 onMounted(() => {
+  windowWidth.value = window.innerWidth;
+  checkCallChatVisibilitySwap();
   window.addEventListener("resize", () => {
     windowWidth.value = window.innerWidth;
     checkCallChatVisibilitySwap();
@@ -468,7 +489,7 @@ $app-mobile: 600px;
 
 .chat-window {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   width: 100%;
   overflow: hidden;
   .chat-wrapper,
@@ -485,12 +506,12 @@ $app-mobile: 600px;
       }
     }
     @media screen and (max-width: $app-desktop) {
-      height: 100vh;
+      height: 100dvh;
       flex-shrink: 0;
     }
   }
   @media screen and (max-width: $app-desktop) {
-    height: 100vh;
+    height: 100dvh;
     flex-direction: column;
     /* ensure proper stacking/visibility */
   }
@@ -514,7 +535,7 @@ $app-mobile: 600px;
       background: transparent;
       backdrop-filter: none;
       box-shadow: none;
-      padding: 24px;
+      padding: 16px;
       overflow-y: auto;
     }
   }
