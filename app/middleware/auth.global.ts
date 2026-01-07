@@ -1,6 +1,6 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const { user, fetchUser, logout } = useAuth();
-  const publicPages = ["/login", "/terms", "/privacy"];
+  const publicPages = ["/login", "/terms", "/privacy", "/", "/about"];
 
   if (publicPages.includes(to.path)) {
     if (user.value && to.path === "/login") {

@@ -57,9 +57,9 @@
           >
             <span class="agreement-text">
               Я согласен с 
-              <NuxtLink to="/terms" target="_blank">правилами пользования</NuxtLink> 
+              <NuxtLink to="/terms">правилами пользования</NuxtLink> 
               и 
-              <NuxtLink to="/privacy" target="_blank">политикой конфиденциальности</NuxtLink>
+              <NuxtLink to="/privacy">политикой конфиденциальности</NuxtLink>
             </span>
           </CCheckbox>  
           </div>
@@ -75,7 +75,7 @@
         </CForm>
         <section class="change-mode">
           <p v-if="mode === 'login'">Нет аккаунта? <span @click="changeMode">Зарегистрироваться</span></p>
-          <p v-else>Есть аккаунт? <span @click="mode = 'login'">Войти</span></p>
+          <p v-else>Есть аккаунт? <span @click="changeMode">Войти</span></p>
         </section>
       </div>
     </div>
@@ -89,6 +89,7 @@ definePageMeta({
 
 const { login, register } = useAuth();
 const route = useRoute();
+const router = useRouter();
 const { showAlert } = useAlert();
 
 const formBlock = useTemplateRef("form");
@@ -101,9 +102,27 @@ const authData = reactive({
 const error = ref("");
 const isLoading = ref(false);
 const isLogoClosed = ref(false);
-const mode = shallowRef<"login" | "register">("login");
+
+const getInitialMode = (): "login" | "register" => {
+  const queryMode = route.query.mode;
+  if (queryMode === "register") return "register";
+  return "login";
+};
+
+const mode = shallowRef<"login" | "register">(getInitialMode());
 const isAgreed = ref(false);
 const showAgreementError = ref(false);
+
+watch(
+  () => route.query.mode,
+  (newMode) => {
+    if (newMode === "register" || newMode === "login") {
+      mode.value = newMode;
+    } else {
+      mode.value = "login";
+    }
+  },
+);
 
 watch(isAgreed, (val) => {
   if (val) showAgreementError.value = false;
@@ -147,8 +166,10 @@ const handleLogin = async () => {
 };
 
 const changeMode = () => {
-  mode.value = mode.value === "login" ? "register" : "login";
-  if (mode.value === "register") {
+  const newMode = mode.value === "login" ? "register" : "login";
+  router.replace({ query: { ...route.query, mode: newMode } });
+
+  if (newMode === "register") {
     authData.displayName = "";
     authData.secretKey = "";
     authData.password = "";

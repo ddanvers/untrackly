@@ -2,7 +2,7 @@
   <main class="page-about">
     <div class="page-about__container">
       <div class="header-section">
-        <h1 class="page-title">Технологии & Безопасность</h1>
+        <h1 class="page-title">Технологии <br/>&<br/> Безопасность</h1>
         <p class="page-subtitle">
           Untrackly использует передовые стандарты шифрования и архитектуру без серверов для обеспечения полной приватности.
         </p>
@@ -285,9 +285,14 @@ $app-mobile: 600px;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
-  
+  br {
+    display: none;
+  }
   @media screen and (max-width: $app-mobile) {
     font-size: 32px;
+    br {
+      display: block;
+    }
   }
 }
 
