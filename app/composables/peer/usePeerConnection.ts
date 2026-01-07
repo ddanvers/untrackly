@@ -536,11 +536,6 @@ export function usePeerConnection(
       delete connections[conn.peer];
       incomingQueues.delete(conn.peer);
 
-      updateMember(conn.peer, {
-        status: "offline",
-        lastSeen: Date.now(),
-      });
-
       // If we lost the anchor, try to reconnect
       if (!isInitiator && conn.peer === sessionId) {
         console.log("[usePeerConnection] Anchor connection lost, retrying...");
@@ -550,6 +545,19 @@ export function usePeerConnection(
           }
         }, 3000);
       }
+
+      // Check if member still exists (might have been replaced by a new ID/hello)
+      if (!roomData.value.members[conn.peer]) {
+        console.log(
+          `[usePeerConnection] Member ${conn.peer} not found in roomData (likely replaced), skipping offline update.`,
+        );
+        return;
+      }
+
+      updateMember(conn.peer, {
+        status: "offline",
+        lastSeen: Date.now(),
+      });
 
       if (Object.keys(connections).length === 0) {
         isConnectionEstablished.value = false;

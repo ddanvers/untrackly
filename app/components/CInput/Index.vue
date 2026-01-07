@@ -324,8 +324,19 @@ defineExpose({
       border: none;
       outline: none;
       overscroll-behavior: contain;
+
       &::placeholder {
         color: var(--color-neutral-on-muted);
+      }
+
+      &:-webkit-autofill,
+      &:-webkit-autofill:hover,
+      &:-webkit-autofill:focus,
+      &:-webkit-autofill:active {
+        transition: background-color 5000s ease-in-out 0s, color 5000s ease-in-out 0s, -webkit-text-fill-color 5000s ease-in-out 0s;
+        -webkit-text-fill-color: var(--color-primary-on-text) !important;
+        caret-color: var(--color-primary-on-text);
+        color: var(--color-primary-on-text) !important;
       }
     }
 

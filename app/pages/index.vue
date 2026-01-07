@@ -52,6 +52,8 @@
 definePageMeta({
   header: true,
 });
+const { user } = useAuth();
+const { showWarning } = useAlert();
 const chatRoomId = shallowRef("");
 const isChatRoomIdGenerated = shallowRef(false);
 const isChatRoomIdValid = computed(() => {
@@ -60,9 +62,28 @@ const isChatRoomIdValid = computed(() => {
   return uuidV4Regex.test(chatRoomId.value);
 });
 function launchChat() {
-  navigateTo(`/chat/${chatRoomId.value}/entry`);
+  if (!user.value) {
+    showWarning(
+      "Пожалуйста, войдите или зарегистрируйтесь, чтобы начать общение",
+    );
+    return;
+  }
+  const query: Record<string, string> = {};
+  if (!isChatRoomIdGenerated.value) {
+    query.invited = "true";
+  }
+  navigateTo({
+    path: `/chat/${chatRoomId.value}/entry`,
+    query,
+  });
 }
 function toggleChatRoomIdGeneration() {
+  if (!user.value) {
+    showWarning(
+      "Пожалуйста, войдите или зарегистрируйтесь, чтобы сгенерировать код",
+    );
+    return;
+  }
   if (isChatRoomIdGenerated.value) {
     chatRoomId.value = "";
     isChatRoomIdGenerated.value = false;

@@ -40,7 +40,8 @@
           </section>
         </div>
 
-        <CButton @click="router.back()" variant="secondary">Назад</CButton>
+        <CButton v-if="canGoBack" @click="router.back()" variant="secondary">Назад</CButton>
+        <CButton v-else @click="navigateTo('/')" variant="secondary">На главную</CButton>
       </div>
     </div>
   </main>
@@ -48,6 +49,13 @@
 
 <script setup lang="ts">
 const router = useRouter();
+const canGoBack = ref(false);
+
+onMounted(() => {
+  if (window.history.length > 1) {
+    canGoBack.value = true;
+  }
+});
 
 definePageMeta({
   header: false,
